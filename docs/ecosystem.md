@@ -35,3 +35,9 @@ Skill 的隐式选择不等于每轮加载。初始化现在同时配置宿主�
 | OpenCode | `AGENTS.md` | [Rules](https://opencode.ai/docs/rules/) |
 
 这些是指令加载机制，不是通用的强制事件协议。真实模型运行证据与版本在验证报告中单独列出，不能从配置测试推断所有宿主已验证。
+
+## DeepSeek Harness adapter — 0.5.1
+
+DSH is now a distinct native target (`deepseek`, alias `dsh`; canonical `deepseek-harness`), using its user Skill directory and project `AGENTS.md`. A configured `DSH_HOME` changes the program root, not memory scope. The same Python engine continues independent global/project storage and all user controls. Custom profiles can disable instruction/Skill providers or constrain shell access; installation does not override these choices.
+
+Primary sources inspected at upstream commit `d743267388641bc76f17c45ce8b4c231aed1d32c`: [Skill discovery](https://github.com/deepseek-ai/deepseek-harness/blob/d743267388641bc76f17c45ce8b4c231aed1d32c/docs/subsystems/skills.md) and [project instructions](https://github.com/deepseek-ai/deepseek-harness/blob/d743267388641bc76f17c45ce8b4c231aed1d32c/packages/context/agent-instructions/README.md). Published npm source for `@deepseek-ai/dsh-skill-filesystem@0.2.0-rc.2` and `@deepseek-ai/dsh-agent-instructions@0.2.0-rc.2` was separately inspected for discovery roots and instruction candidates. Source inspection is not a model invocation or enforced every-turn execution proof. The pinned external `skills@1.7.2` smoke test continues its original six known targets; DSH uses this repository's installer.

@@ -20,10 +20,27 @@ npx -y chrisstarr7/dev-memory codex
 | `gemini` | `GEMINI.md` | `~/.gemini/skills/dev-memory/` |
 | `copilot` | `.github/copilot-instructions.md` | `~/.copilot/skills/dev-memory/` |
 | `opencode` | `AGENTS.md` | `~/.config/opencode/skills/dev-memory/` |
+| `deepseek`（DSH） | `AGENTS.md` | `~/.dsh/skills/dev-memory/`；遵循 `DSH_HOME` |
 
 请在开发项目的根目录执行；不要在用户主目录或无关目录初始化。非 Git 项目同样可初始化。项目目录不可写时返回失败，不会将项目数据转存全局。初始化只配置这个项目，其他项目需各自初始化。
 
 新建该项目的 AI 会话后直接开发。宿主启动时加载引导，AI 读取安装的 Skill 并默认管理记忆；不需要聊天启用口令。已有会话可能缓存启动指令，需要新会话才能生效。宿主自己的信任和进程权限要求仍由宿主管理。
+
+## DeepSeek Harness（DSH）
+
+在业务项目根目录执行：
+
+```sh
+npx -y chrisstarr7/dev-memory deepseek
+```
+
+`deepseek`、`dsh`、`deepseek-harness` 指向同一个 DSH 安装目标。默认安装到 `~/.dsh/skills/dev-memory/`；设置 `DSH_HOME` 时使用 `$DSH_HOME/skills/dev-memory/`，显式 `--target` 优先。若 DSH 配置文件另行覆盖了 Skill 的 `dshHome`，用 `--target` 指定该目录下的 `skills/dev-memory/`。
+
+安装器合并项目 `AGENTS.md`，保留原指令，写入私有绑定并初始化空库。新建 DSH 项目会话后，按相同流程召回、纠错、去重、整理和保存断点。已有记忆和暂停状态在重复安装时保留。不会修改 DSH 模型配置、API 密钥、权限或 profiles。
+
+这是给**已安装的 DeepSeek Harness**配置 dev-memory；本命令不安装 DSH 本身。通过 OpenCode 等工具调用 DeepSeek 模型时，应使用实际宿主的安装参数，例如 `opencode`。DeepSeek 网页和手机 App 无法直接执行本机 CLI。
+
+本工具依赖 DSH 的文件系统 Skill provider、项目指令加载和命令执行权限。默认 base profile 有相应指令机制；自定义 profile 禁用这些功能或截断 `AGENTS.md` 时，不能声称自动加载成功。依据：[官方 Skill 文档](https://github.com/deepseek-ai/deepseek-harness/blob/d743267388641bc76f17c45ce8b4c231aed1d32c/docs/subsystems/skills.md)、[官方项目指令文档](https://github.com/deepseek-ai/deepseek-harness/blob/d743267388641bc76f17c45ce8b4c231aed1d32c/packages/context/agent-instructions/README.md)。程序安装验证与真实模型端到端验证分别列在 [验证报告](../reports/verification.md)。
 
 ## 给 AI 的安装流程
 
@@ -47,7 +64,7 @@ npx -y chrisstarr7/dev-memory codex
 python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py setup --project-root /项目路径
 ```
 
-其他宿主加 `--agent claude-code`、`cursor`、`gemini-cli`、`github-copilot` 或 `opencode`；自定义安装使用实际副本路径。无需重复聊天授权。
+其他宿主加 `--agent claude-code`、`cursor`、`gemini-cli`、`github-copilot` 、`opencode` 或 `deepseek-harness`；自定义安装使用实际副本路径。无需重复聊天授权。
 
 `setup` 保存私有项目绑定 `.dev-memory/activation.json`，主机程序路径留在本项目范围内。项目记忆和绑定通过 Git 本地 exclude 排除。宿主指令文件只有通用协议，已有受版本管理的指令会出现一个管理块 diff，可正常审查；不会插入业务内容或个人绝对路径。
 

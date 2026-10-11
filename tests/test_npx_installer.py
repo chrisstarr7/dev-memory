@@ -25,14 +25,14 @@ class NpxTests(unittest.TestCase):
         self.project = self.base/'project'; self.project.mkdir()
         self.env = {**os.environ, 'HOME':str(self.home), 'USERPROFILE':str(self.home),
                     'CODEX_HOME':str(self.home/'.codex'), 'DEV_MEMORY_HOME':str(self.home/'.dev-memory'),
-                    'PYTHONDONTWRITEBYTECODE':'1'}
+                    'DSH_HOME':str(self.home/'.dsh'), 'PYTHONDONTWRITEBYTECODE':'1'}
 
     def run_cli(self, *args, env=None):
         return subprocess.run([shutil.which('node'), str(ROOT/'bin/install.cjs'), *args],
                               cwd=self.project,env=env or self.env,capture_output=True,text=True,timeout=20)
 
     def test_all_hosts_initialize_current_project_and_repeat_preserves_controls(self):
-        for short in ('codex','claude','cursor','gemini','copilot','opencode'):
+        for short in ('codex','claude','cursor','gemini','copilot','opencode','deepseek'):
             with self.subTest(agent=short):
                 result=self.run_cli(short,'--json')
                 self.assertEqual(result.returncode,0,result.stderr+result.stdout)
@@ -47,8 +47,38 @@ class NpxTests(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stderr+result.stdout)
         self.assertEqual(config.read_bytes(),before)
         bindings=json.loads((self.project/'.dev-memory/activation.json').read_text())['bindings']
-        self.assertEqual(len(bindings),6)
+        self.assertEqual(set(bindings),set(dev_memory.AGENT_DIRS))
         self.assertNotIn('node_modules',json.dumps(bindings))
+
+    def test_deepseek_aliases_custom_home_and_repeat_preserve_project_controls(self):
+        custom = self.home/'DSH custom home'
+        env = {**self.env, 'DSH_HOME':str(custom)}
+        guide = self.project/'AGENTS.md'
+        guide.write_text('Keep the team instructions.\n')
+        before = None
+        for short in ('deepseek','dsh','deepseek-harness'):
+            result = self.run_cli(short,'--json',env=env)
+            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
+            payload = json.loads(result.stdout)
+            self.assertEqual(Path(payload['path']),custom/'skills/dev-memory')
+            self.assertEqual(payload['project_setup']['agent'],'deepseek-harness')
+            self.assertIn('Keep the team instructions.',guide.read_text())
+            binding = json.loads((self.project/'.dev-memory/activation.json').read_text())['bindings']['deepseek-harness']
+            self.assertEqual(Path(binding['skill_file']),custom/'skills/dev-memory/SKILL.md')
+            config = self.project/'.dev-memory/config.json'
+            if before is None:
+                value = json.loads(config.read_text()); value['capture_enabled'] = False
+                config.write_text(json.dumps(value)); before = config.read_bytes()
+            else:
+                self.assertEqual(config.read_bytes(),before)
+        self.assertFalse((self.home/'.dsh').exists())
+
+    def test_deepseek_explicit_target_overrides_home(self):
+        target = self.home/'explicit skill'
+        result = self.run_cli('deepseek','--target',str(target),'--json')
+        self.assertEqual(result.returncode,0,result.stderr+result.stdout)
+        self.assertEqual(Path(json.loads(result.stdout)['path']),target)
+        self.assertFalse((self.home/'.dsh').exists())
 
     def test_custom_target_and_explicit_project_take_precedence(self):
         other=self.base/'other'; other.mkdir()

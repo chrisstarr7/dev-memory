@@ -36,7 +36,7 @@ def build(target: Path) -> dict:
     os.close(fd)
     try:
         with zipfile.ZipFile(temp_name, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-            manifest = {"package": "dev-memory", "version": "0.5.0", "license_status": "MIT",
+            manifest = {"package": "dev-memory", "version": "0.5.1", "license_status": "MIT",
                         "files": [{"path": name, "sha256": digest} for name, _, digest in entries]}
             for name, data, _ in entries:
                 info = zipfile.ZipInfo(f"dev-memory/{name}", date_time=(1980, 1, 1, 0, 0, 0))

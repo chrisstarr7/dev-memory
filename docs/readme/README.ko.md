@@ -16,7 +16,7 @@
 
 <p align="center"><a href="#빠른-시작">빠른 시작</a> · <a href="#주요-기능">주요 기능</a> · <a href="#동작-방식">동작 방식</a></p>
 
-<p align="center"><kbd>Codex</kbd> · <kbd>Claude Code</kbd> · <kbd>Cursor</kbd> · <kbd>Gemini CLI</kbd> · <kbd>GitHub Copilot</kbd> · <kbd>OpenCode</kbd></p>
+<p align="center"><kbd>Codex</kbd> · <kbd>Claude Code</kbd> · <kbd>Cursor</kbd> · <kbd>Gemini CLI</kbd> · <kbd>GitHub Copilot</kbd> · <kbd>OpenCode</kbd> · <kbd>DeepSeek Harness</kbd></p>
 
 ---
 
@@ -28,7 +28,7 @@
 npx -y chrisstarr7/dev-memory codex
 ```
 
-다른 AI를 사용한다면 `codex`를 `claude`, `cursor`, `gemini`, `copilot`, `opencode`로 바꾸세요. macOS, Linux, Windows에서 같은 명령을 사용합니다.
+다른 AI를 사용한다면 `codex`를 `claude`, `cursor`, `gemini`, `copilot`, `opencode`, `deepseek`(DeepSeek Harness / DSH)로 바꾸세요. macOS, Linux, Windows에서 같은 명령을 사용합니다.
 
 **필수 환경:** npm/npx가 포함된 Node.js 22+, Git, sqlite3가 포함된 Python 3.10+. 설치 프로그램이 코드를 내려받고 환경을 확인한 뒤, 빈 프로젝트 저장소와 AI의 프로젝트 지침을 설정합니다.
 
@@ -130,7 +130,7 @@ flowchart TD
 | 읽기 전용 | 초기화나 쓰기 없이 기존 기록을 조회합니다. |
 | 사용 불가 | 권한 부족이나 저장소 접근 실패를 그대로 보고합니다. |
 
-Ubuntu/macOS 및 Python 3.10/3.14에서 프로그램 테스트와 패키징 CI가 통과했습니다. 여섯 설치 대상은 격리 환경에서 GitHub 최초·반복 설치를 확인했습니다. 설치 성공은 모든 호스트의 자동 동작 검증을 뜻하지 않습니다. 실제 Codex CLI 근거, 호스트 버전, 의미 평가, 미완료 S01–S48 시나리오는 [검증 보고서](../../reports/verification.md)에 있습니다.
+Ubuntu/macOS 및 Python 3.10/3.14에서 프로그램 테스트와 패키징 CI가 통과했습니다. 여섯 설치 대상은 격리 환경에서 GitHub 최초·반복 설치를 확인했습니다. 설치 성공은 모든 호스트의 자동 동작 검증을 뜻하지 않습니다. 실제 Codex CLI 근거, 호스트 버전, 의미 평가, 미완료 S01–S48 시나리오는 [검증 보고서](../../reports/verification.md)에 있습니다. DSH 프로그램 설치와 공식 배포 구성요소는 확인했지만, DeepSeek 모델의 전체 세션은 아직 검증하지 않았습니다. [DSH 결과](../../reports/deepseek.json)를 참고하세요.
 
 **성능에는 아직 확인해야 할 한계가 있습니다.** 최신 전체 작업 비교는 0.4.0의 부분 표본으로, 기억을 끄면 약 52–53초, 켜면 약 86–89초였습니다. 0.5.0은 시작 및 반복 읽기를 줄였지만 새 비교는 호스트 크레딧 부족으로 완료하지 못했습니다. 지연이 미미하다고 보장하지 않습니다. [전체 개발 흐름 검토](../../reports/lifecycle-review.md)를 참고하세요.
 

@@ -16,7 +16,7 @@
 
 <p align="center"><a href="#クイックスタート">クイックスタート</a> · <a href="#主な機能">主な機能</a> · <a href="#動作の流れ">動作の流れ</a></p>
 
-<p align="center"><kbd>Codex</kbd> · <kbd>Claude Code</kbd> · <kbd>Cursor</kbd> · <kbd>Gemini CLI</kbd> · <kbd>GitHub Copilot</kbd> · <kbd>OpenCode</kbd></p>
+<p align="center"><kbd>Codex</kbd> · <kbd>Claude Code</kbd> · <kbd>Cursor</kbd> · <kbd>Gemini CLI</kbd> · <kbd>GitHub Copilot</kbd> · <kbd>OpenCode</kbd> · <kbd>DeepSeek Harness</kbd></p>
 
 ---
 
@@ -28,7 +28,7 @@
 npx -y chrisstarr7/dev-memory codex
 ```
 
-ほかの AI では `codex` を `claude`、`cursor`、`gemini`、`copilot`、`opencode` に置き換えます。macOS、Linux、Windows で同じコマンドを使用できます。
+ほかの AI では `codex` を `claude`、`cursor`、`gemini`、`copilot`、`opencode`、`deepseek`（DeepSeek Harness／DSH）に置き換えます。macOS、Linux、Windows で同じコマンドを使用できます。
 
 **必要な環境：** npm/npx を含む Node.js 22+、Git、sqlite3 を含む Python 3.10+。インストーラーがプログラムを取得し、環境を確認して、空のプロジェクト用ストアと AI のプロジェクト指示を設定します。
 
@@ -130,7 +130,7 @@ flowchart TD
 | 読み取り専用 | 初期化・書き込みをせず、既存の記録を取得します。 |
 | 利用不可 | 権限不足やストアにアクセスできない状態を正しく報告します。 |
 
-Ubuntu/macOS、Python 3.10/3.14 でプログラムテストとパッケージ CI が成功しています。6 種類のインストール対象について、隔離環境で GitHub からの初回・再インストールを確認しました。インストール成功は全ホストの自動動作の証明ではありません。Codex CLI の実行証拠、ホストのバージョン、意味の評価、未完了の S01–S48 は [検証報告](../../reports/verification.md) に記載しています。
+Ubuntu/macOS、Python 3.10/3.14 でプログラムテストとパッケージ CI が成功しています。6 種類のインストール対象について、隔離環境で GitHub からの初回・再インストールを確認しました。インストール成功は全ホストの自動動作の証明ではありません。Codex CLI の実行証拠、ホストのバージョン、意味の評価、未完了の S01–S48 は [検証報告](../../reports/verification.md) に記載しています。 DSH はプログラムのインストールと公式公開コンポーネントを確認しましたが、DeepSeek モデルによる完全なセッションは未検証です。[DSH の結果](../../reports/deepseek.json) を参照してください。
 
 **処理時間には未解決の制約があります。** 最新の全タスク比較は 0.4.0 の部分サンプルで、記憶を無効にすると約 52–53 秒、有効にすると約 86–89 秒でした。0.5.0 では開始時と重複読み込みを減らしましたが、新しい比較はホストのクレジット不足で未完了です。遅延が小さいとは保証しません。[全工程のレビュー](../../reports/lifecycle-review.md) を参照してください。
 

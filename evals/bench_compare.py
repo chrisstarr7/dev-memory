@@ -348,7 +348,7 @@ def main() -> int:
         "benchmark": "dev-memory A/B synthetic refund-rule coding task", "scenario": args.scenario,
         "runtime_source_sha256": frozen,
         "history_stores_identically_seeded_on_and_off": args.scenario == "automatic-maintenance",
-        "runtime_version": "0.5.0", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
+        "runtime_version": "0.5.1", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
         "model": args.model, "reasoning": args.reasoning, "codex_cli": _version(codex),
         "repetitions_per_cell": args.repetitions, "condition_order_seed": args.seed,
         "same_task_text": True, "same_starting_code": True,

@@ -16,7 +16,7 @@
 
 <p align="center"><a href="#开始使用">开始使用</a> · <a href="#特性">特性</a> · <a href="#工作方式">工作方式</a></p>
 
-<p align="center"><kbd>Codex</kbd> · <kbd>Claude Code</kbd> · <kbd>Cursor</kbd> · <kbd>Gemini CLI</kbd> · <kbd>GitHub Copilot</kbd> · <kbd>OpenCode</kbd></p>
+<p align="center"><kbd>Codex</kbd> · <kbd>Claude Code</kbd> · <kbd>Cursor</kbd> · <kbd>Gemini CLI</kbd> · <kbd>GitHub Copilot</kbd> · <kbd>OpenCode</kbd> · <kbd>DeepSeek Harness</kbd></p>
 
 ---
 
@@ -28,7 +28,7 @@
 npx -y chrisstarr7/dev-memory codex
 ```
 
-使用其他 AI 时，将 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot` 或 `opencode`。macOS、Linux、Windows 使用同一命令。
+使用其他 AI 时，将 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot`、`opencode` 或 `deepseek`（DeepSeek Harness／DSH）。macOS、Linux、Windows 使用同一命令。
 
 **环境要求：** Node.js 22+（含 npm/npx）、Git、Python 3.10+（含 sqlite3）。安装器自动下载程序、检查环境、初始化项目空库，并配置 AI 的项目启动指令。
 
@@ -130,7 +130,7 @@ flowchart TD
 | 只读模式 | 读取已有记录，不初始化或写入。 |
 | 不可用 | 权限不足或存储无法访问时如实报告。 |
 
-Ubuntu/macOS、Python 3.10/3.14 的程序测试与打包 CI 已通过。六种安装目标通过了隔离的 GitHub 安装和重复安装检查；安装成功不代表所有宿主的自动行为已验证。真实 Codex CLI 证据、宿主版本、语义评估与 S01–S48 未完成场景见 [验证报告](../../reports/verification.md)。
+Ubuntu/macOS、Python 3.10/3.14 的程序测试与打包 CI 已通过。六种安装目标通过了隔离的 GitHub 安装和重复安装检查；安装成功不代表所有宿主的自动行为已验证。真实 Codex CLI 证据、宿主版本、语义评估与 S01–S48 未完成场景见 [验证报告](../../reports/verification.md)。 DSH 已有程序安装和官方发布组件检查；完整 DeepSeek 模型会话仍未验证，见 [DSH 结果](../../reports/deepseek.json)。
 
 **性能仍有明确限制。** 最新整轮对照是 0.4.0 的部分样本：关闭记忆约 52–53 秒，开启约 86–89 秒。0.5.0 已减少启动与重复读取，但新版对照因宿主积分不足未完成，不能承诺无明显延迟。详见 [全流程审查](../../reports/lifecycle-review.md)。
 

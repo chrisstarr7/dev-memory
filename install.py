@@ -8,12 +8,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-ALIASES = {"claude": "claude-code", "gemini": "gemini-cli", "copilot": "github-copilot"}
+ALIASES = {"claude": "claude-code", "gemini": "gemini-cli", "copilot": "github-copilot",
+           "deepseek": "deepseek-harness", "dsh": "deepseek-harness"}
 
 
 def argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("agent", nargs="?", help="codex, claude, cursor, gemini, copilot, opencode")
+    parser.add_argument("agent", nargs="?", help="codex, claude, cursor, gemini, copilot, opencode, deepseek (DSH)")
     parser.add_argument("--agent", dest="agent_option", help="Compatible explicit AI selector")
     parser.add_argument("--project", type=Path, help="Install and initialize this project for automatic memory")
     parser.add_argument("--target", type=Path, help="Custom Skill directory")
@@ -255,8 +256,8 @@ def online_main(argv: list[str] | None = None) -> int:
     if agent and option and agent != option:
         parser.error("两个 AI 参数不一致。")
     agent = agent or option
-    if agent not in {"codex", "claude-code", "cursor", "gemini-cli", "github-copilot", "opencode"}:
-        parser.error("请指定 AI：codex、claude、cursor、gemini、copilot 或 opencode。")
+    if agent not in {"codex", "claude-code", "cursor", "gemini-cli", "github-copilot", "opencode", "deepseek-harness"}:
+        parser.error("请指定 AI：codex、claude、cursor、gemini、copilot、opencode 或 deepseek。")
     args.project = (args.project or Path.cwd()).expanduser().resolve()
     result = {}
     try:

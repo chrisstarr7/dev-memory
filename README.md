@@ -16,7 +16,7 @@
 
 <p align="center"><a href="#quick-start">Quick start</a> · <a href="#features">Features</a> · <a href="#how-memory-works">How it works</a></p>
 
-<p align="center"><kbd>Codex</kbd> · <kbd>Claude Code</kbd> · <kbd>Cursor</kbd> · <kbd>Gemini CLI</kbd> · <kbd>GitHub Copilot</kbd> · <kbd>OpenCode</kbd></p>
+<p align="center"><kbd>Codex</kbd> · <kbd>Claude Code</kbd> · <kbd>Cursor</kbd> · <kbd>Gemini CLI</kbd> · <kbd>GitHub Copilot</kbd> · <kbd>OpenCode</kbd> · <kbd>DeepSeek Harness</kbd></p>
 
 ---
 
@@ -28,7 +28,7 @@ Run this in the **root of the project you want to develop**:
 npx -y chrisstarr7/dev-memory codex
 ```
 
-Use `claude`, `cursor`, `gemini`, `copilot`, or `opencode` instead of `codex` for another assistant. The same command works on macOS, Linux, and Windows.
+Use `claude`, `cursor`, `gemini`, `copilot`, `opencode`, or `deepseek` (DeepSeek Harness / DSH) instead of `codex` for another assistant. The same command works on macOS, Linux, and Windows.
 
 **Requirements:** Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The installer downloads the program, checks the environment, initializes an empty project store, and configures the assistant's project instructions.
 
@@ -130,7 +130,7 @@ Runtime files live in `skills/dev-memory/`; installation entry points are `bin/i
 | Read-only mode | Recall existing records without initialization or writes. |
 | Unavailable | Missing permissions or inaccessible storage are reported honestly. |
 
-Program tests and packaging CI passed on Ubuntu/macOS with Python 3.10/3.14. Six installation targets passed isolated GitHub installation and repeat-install checks; successful installation does not prove automatic behavior on every host. Real Codex CLI evidence, host versions, semantic checks, and outstanding S01–S48 scenarios are listed in the [verification report](reports/verification.md).
+Program tests and packaging CI passed on Ubuntu/macOS with Python 3.10/3.14. Six installation targets passed isolated GitHub installation and repeat-install checks; successful installation does not prove automatic behavior on every host. Real Codex CLI evidence, host versions, semantic checks, and outstanding S01–S48 scenarios are listed in the [verification report](reports/verification.md). DSH has program installation and published-provider checks; a full DeepSeek model session remains unverified. See [DSH results](reports/deepseek.json).
 
 **Performance remains a measured limitation.** The latest full workflow comparison is a partial 0.4.0 sample: about 52–53 seconds with memory off versus 86–89 seconds on. Version 0.5.0 reduces startup/repeated reads, but its new matched comparison was blocked by host credits. No claim of negligible delay is made. See the [lifecycle review](reports/lifecycle-review.md).
 

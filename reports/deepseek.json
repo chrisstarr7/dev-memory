@@ -1,0 +1,58 @@
+{
+  "runtime_version": "0.5.1",
+  "status": "program_and_native_provider_passed",
+  "program_tests": {
+    "status": "passed",
+    "count": 160,
+    "elapsed_seconds": 24.41
+  },
+  "native_provider": {
+    "status": "passed",
+    "package": "@deepseek-ai/dsh-skill-filesystem",
+    "version": "0.2.0-rc.2",
+    "native_discovery": "user-dsh",
+    "native_yaml_parser": true,
+    "model_invocable": true,
+    "full_body_loaded": true,
+    "watchers_disabled": true,
+    "model_calls": 0,
+    "runtime_version": "0.5.1",
+    "synthetic_only": true,
+    "real_user_stores_modified": false,
+    "actual_dsh_model_e2e": "not_run"
+  },
+  "upstream_source_commit": "d743267388641bc76f17c45ce8b4c231aed1d32c",
+  "published_components_inspected": [
+    "@deepseek-ai/dsh-skill-filesystem@0.2.0-rc.2",
+    "@deepseek-ai/dsh-agent-instructions@0.2.0-rc.2"
+  ],
+  "probe_boundary": "Published filesystem provider directly invoked with a minimal context and Node filesystem fallback; no complete DSH profile or model run. Watchers disabled. Initial probe harness omitted ctx.get, then was corrected and the provider probe passed.",
+  "public_installation": {
+    "status": "pending_public_source_check"
+  },
+  "actual_dsh_model_e2e": "not_run",
+  "model_api_credentials_modified": false,
+  "real_user_stores_modified": false,
+  "limitations": [
+    "Custom DSH profiles may disable skills, instruction loading or shell permissions.",
+    "DSH model adherence and workflow timing are not established by provider discovery.",
+    "DSH_HOME environment is supported; a separate row-level dshHome override needs explicit --target.",
+    "The pinned skills@1.7.2 external manager smoke retains its original six targets."
+  ],
+  "runtime_source_sha256": {
+    "SKILL.md": "7363a96f14fc1699051a761f4b1c7e27fc145f41b8b357209fb169965d492fc7",
+    "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+    ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+    "agents/openai.yaml": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e",
+    "assets/config.example.json": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe",
+    "references/protocol.md": "88cfa26d2135eb12657c5ee02038f20f69f339ba3da374c073e54d9a89a1d47c",
+    "references/codex-hooks.md": "fccbc5c0ad2f6eb45296c2b6719f72e9bb5f9c65b86d9e739e4bd66f34fd74ff",
+    "references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+    "references/setup.md": "702c598c51bcbaebb18da5c1dbd173bb981956ce7c28050fc4baceec1af098b8",
+    "scripts/dev_memory.py": "b4d95a02873c8362af2d97af525f1b460d216aea01a33ae24b56adf5ccd0bff3",
+    "scripts/dev_memory_store.py": "0a4531c489a0a638b984f996dd5d7ade67ae6f8331593483c85585d35b08e505",
+    "scripts/dev_memory_setup.py": "28f76a26a44d94e9770f8028997b59b53a86c8e65101b1eb4c61f3d36e43b7c3",
+    "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
+    "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+  }
+}

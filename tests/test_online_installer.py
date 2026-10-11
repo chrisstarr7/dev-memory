@@ -55,7 +55,7 @@ class OnlineTests(unittest.TestCase):
         self.env = {**os.environ, 'HOME': str(self.home), 'USERPROFILE': str(self.home),
                     'CODEX_HOME': str(self.home / '.codex'),
                     'DEV_MEMORY_HOME': str(self.home / '.dev-memory'),
-                    'PYTHONDONTWRITEBYTECODE': '1'}
+                    'DSH_HOME': str(self.home / '.dsh'), 'PYTHONDONTWRITEBYTECODE': '1'}
         self.original = Path.cwd()
         os.chdir(self.project)
         self.addCleanup(os.chdir, self.original)
@@ -71,7 +71,7 @@ class OnlineTests(unittest.TestCase):
 
     def test_all_hosts_initialize_original_project_not_staging(self):
         data = snapshot()
-        for agent in ('codex', 'claude', 'cursor', 'gemini', 'copilot', 'opencode'):
+        for agent in ('codex', 'claude', 'cursor', 'gemini', 'copilot', 'opencode', 'deepseek'):
             with self.subTest(agent=agent):
                 code, result = self.run_online(agent, data=data)
                 self.assertEqual(code, 0, result)
@@ -82,7 +82,7 @@ class OnlineTests(unittest.TestCase):
                 self.assertEqual(result['hooks']['status'], 'not_requested')
                 self.assertTrue(Path(result['path']).is_relative_to(self.home))
         binding = json.loads((self.project / '.dev-memory/activation.json').read_text())
-        self.assertEqual(len(binding['bindings']), 6)
+        self.assertEqual(set(binding['bindings']), set(dev_memory.AGENT_DIRS))
         self.assertNotIn('dev-memory-source-', json.dumps(binding))
         self.assertFalse((self.home / '.codex/hooks.json').exists())
         for database in (self.project / '.dev-memory/memory.sqlite3',

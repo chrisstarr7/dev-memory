@@ -237,3 +237,15 @@ Tested feature commit: `070bdda6821d48f103a9c05de5372aa91b594a9c`. Sanitized res
 - Downloaded public source ZIP passed all 57 manifest hashes using TLS-verified curl. The first Python download failed because its local certificate issuer was unavailable; no insecure TLS bypass was used.
 - [GitHub Actions 38139487751](https://github.com/chrisstarr7/dev-memory/actions/runs/38139487751) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs with Node.js 22: each ran 157 tests and built a 58-entry release archive.
 - These isolated checks changed no real user memories or installed AI configuration. Windows transport and new model timing remain unverified.
+
+## DeepSeek Harness target — 0.5.1
+
+`npx -y chrisstarr7/dev-memory deepseek` now installs and initializes a native DSH target. `dsh` and `deepseek-harness` are aliases. Program location follows `DSH_HOME` (default `~/.dsh/skills/dev-memory/`); explicit `--target` wins. Project `AGENTS.md` and the private `deepseek-harness` activation binding connect the existing engine to DSH. Model/API settings, permissions and profiles are not modified.
+
+The complete local suite passed **160 tests**. Added coverage checks DSH aliases, custom home, explicit target, repeat-install pause preservation and unsafe data-path rejection. Existing all-target install, setup, npx and synthetic online tests include DSH; the pinned external-manager smoke remains limited to its original six targets.
+
+The published **`@deepseek-ai/dsh-skill-filesystem@0.2.0-rc.2`** provider was directly exercised in an isolated temporary home: it discovered `dev-memory` from `user-dsh`, parsed the actual YAML, marked it model-invocable and loaded its full 0.5.1 body. Watchers were disabled; no model call occurred. This was a component probe with a minimal context and native Node filesystem fallback, not a full DSH profile or model session. The first probe's evaluation context omitted `ctx.get`; after correcting the evaluation harness, the probe passed. Source inspection separately covered the published instruction component and pinned upstream sources.
+
+Optional reproducible probe (downloads test-only npm dependencies in a temporary directory, no runtime dependency added): `python3 evals/check_deepseek.py --output /temporary-directory/deepseek-probe.json`. Results must be outside the source package. Machine-readable status: [deepseek.json](deepseek.json).
+
+Actual DSH model end-to-end behavior and workflow latency remain **not run**. Custom profiles can disable providers, omit/truncate project instructions or deny commands; installation cannot override these controls. Earlier model/benchmark evidence remains scoped to its named release and host.

@@ -29,7 +29,7 @@ class InstallerTests(unittest.TestCase):
         self.home = Path(scratch.name).resolve()
         self.env = {**os.environ, 'HOME': str(self.home), 'USERPROFILE': str(self.home),
                     'CODEX_HOME': str(self.home / '.codex'), 'DEV_MEMORY_HOME': str(self.home / '.dev-memory'),
-                    'PYTHONDONTWRITEBYTECODE': '1'}
+                    'DSH_HOME': str(self.home / '.dsh'), 'PYTHONDONTWRITEBYTECODE': '1'}
 
     def run_installer(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run([sys.executable, '-B', str(ROOT / 'install.py'), *args],
@@ -54,6 +54,13 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn('请指定 AI', result.stderr)
         self.assertFalse((self.home / '.agents').exists())
+
+    def test_deepseek_home_cannot_point_into_memory_data(self) -> None:
+        self.env['DSH_HOME'] = str(self.home / '.dev-memory')
+        result = self.run_installer('deepseek', '--project', str(self.home / 'project'), '--json')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)['error'], 'path_escape')
+        self.assertFalse((self.home / '.dev-memory').exists())
 
     def test_interactive_selection_installs_requested_host_and_prints_next_step(self) -> None:
         stdout = io.StringIO()

@@ -35,7 +35,8 @@ def run(output: Path) -> dict:
             if result.returncode:
                 raise RuntimeError(result.stderr[-2000:] + result.stdout[-2000:])
             return result
-        agents = list(dev_memory.AGENT_DIRS)
+        # This pinned external manager predates DSH; use our native installer for DSH.
+        agents = [agent for agent in dev_memory.AGENT_DIRS if agent != 'deepseek-harness']
         prefix = ['npx', '--yes', 'skills@1.7.2']
         add = [*prefix, 'add', str(ROOT), '--skill', 'dev-memory', '-g', '-a', *agents, '--copy', '-y']
         command(add, 'install')
@@ -43,6 +44,8 @@ def run(output: Path) -> dict:
         files_checked = 0
         destinations = {}
         for agent, relative in dev_memory.AGENT_DIRS.items():
+            if agent not in agents:
+                continue
             target = home / relative / 'dev-memory'
             if not target.is_dir() and agent in {'cursor', 'gemini-cli', 'github-copilot', 'opencode'}:
                 target = home / '.agents/skills/dev-memory'

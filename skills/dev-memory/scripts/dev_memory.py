@@ -34,10 +34,11 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
-    ".github/workflows/check.yml", "plugin.json",
+    ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
-              "gemini-cli": ".gemini/skills", "github-copilot": ".copilot/skills", "opencode": ".config/opencode/skills"}
+              "gemini-cli": ".gemini/skills", "github-copilot": ".copilot/skills", "opencode": ".config/opencode/skills",
+              "deepseek-harness": ".dsh/skills"}
 CODEX_EVENTS = ("SessionStart", "UserPromptSubmit", "Stop")
 
 def _json_out(value: Any) -> None:
@@ -327,7 +328,9 @@ def _copy_release(target: Path) -> None:
             pass
 
 def _install_path(target: Path | None, agent: str = "codex") -> Path:
-    path = (target or (Path.home() / AGENT_DIRS[agent] / "dev-memory")).expanduser().absolute()
+    default = (Path(os.environ.get("DSH_HOME") or str(Path.home() / ".dsh")) / "skills" / "dev-memory"
+               if agent == "deepseek-harness" else Path.home() / AGENT_DIRS[agent] / "dev-memory")
+    path = (target or default).expanduser().absolute()
     if path.is_symlink() or any(p.name == ".dev-memory" for p in (path, *path.parents)):
         raise store.MemoryError("path_escape", "Install target cannot be a symlink or a memory-data path.")
     path = path.resolve()
