@@ -6,7 +6,7 @@
 
 dev-memory 是一个独立的 Agent Skill，由通用 Skill、小型 Python CLI 和可选宿主适配器组成。程序与协议公开，每个安装者的记忆保存在自己的本地目录。首次启用从空知识库开始。
 
-[安装](#安装) · [快速开始](#快速开始) · [工作方式](#工作方式) · [架构](#架构) · [隐私与安全](#隐私与安全) · [贡献](#贡献与反馈)
+[开始使用](#三步开始使用) · [日常使用](#日常使用) · [工作方式](#工作方式) · [架构](#架构) · [隐私与安全](#隐私与安全) · [贡献](#贡献与反馈)
 
 ## 为什么使用 dev-memory？
 
@@ -17,70 +17,61 @@ dev-memory 是一个独立的 Agent Skill，由通用 Skill、小型 Python CLI 
 - **可检查、可控制**：支持查看、纠正、本轮不记、暂停、只读召回、归档和遗忘。
 - **依赖简单**：Python 标准库与 SQLite，无后台进程、向量服务或额外付费模型。
 
-## 安装
+## 三步开始使用
 
-### 系统要求
+### 1. 安装
 
-- Python 3.10 或更新版本，包含 `sqlite3`。
-- AI 宿主支持加载本地 Skill，并能运行本地命令。
-- Git 可选，用于识别项目及保护本地记忆的忽略规则。
+**推荐：把下面这句话复制给正在使用的 AI 开发助手。**
 
-### 一条命令安装
+> 请从 https://github.com/chrisstarr7/dev-memory 安装 dev-memory Skill，按安装指南选择当前 AI 的安装目录并验证结果。保留我的已有记忆和配置。
 
-使用 Skill 管理器安装，并选择自己的 AI：
+需要能读写本地文件、运行命令的 AI（例如 Codex、Claude Code、Cursor）。网页聊天或无本机权限的云端会话不能直接安装到你的电脑。AI 的具体安装步骤见 [安装指南](docs/installation.md#给-ai-的安装流程)。
 
-```sh
-DISABLE_TELEMETRY=1 npx skills@1.7.2 add chrisstarr7/dev-memory --skill dev-memory -g
-```
-
-该方式需要 Node.js 22.20+ 与 npm，Python 仍是运行依赖。环境变量关闭外部安装器的遥测。Codex 的无交互安装可加 `-a codex --copy -y`。
-
-### 仅使用 Python
-
-下载或克隆本仓库，在仓库根目录执行：
+**手动安装：**点击本仓库的 **Code → Download ZIP**，解压，在包含 `install.py` 的目录打开终端，执行：
 
 ```sh
-python3 install.py --agent codex
+python3 install.py
 ```
 
-Windows 使用 `py -3` 替代 `python3`。其他 AI 选择对应的安装参数：
+按提示选择你的 AI。Windows 执行 `py -3 install.py`。需要 Python 3.10+（含 sqlite3），不需要 Node.js/npm。成功后会显示实际安装目录、检查结果和下一步。
 
-| AI | `--agent` 参数 |
-| --- | --- |
-| Codex | `codex` |
-| Claude Code | `claude-code` |
-| Cursor | `cursor` |
-| Gemini CLI | `gemini-cli` |
-| GitHub Copilot | `github-copilot` |
-| OpenCode | `opencode` |
+已有 Skill 管理器的用户可使用 [命令行安装方式](docs/installation.md#使用-skills-管理器)。
 
-安装只复制运行 Skill，不创建记忆库或启用 hooks。宿主可能需要重启或新建会话才能发现 Skill。
+### 2. 重开会话并启用
 
-也可以让 AI 安装：
+重开 AI 或新建会话，**打开你要开发的项目**，发送：
 
-> 请从 https://github.com/chrisstarr7/dev-memory 安装 dev-memory。先阅读 README 和安装指南，选择当前 AI 的用户 Skill 目录，安装基础模式并运行 doctor。保留已有记忆与配置，报告实际安装路径和检查结果。
+> 使用 dev-memory，为当前项目启用研发记忆，先检查环境并召回相关要求。
 
-安装目录、Skill 管理器、升级和卸载见 [安装指南](docs/installation.md)。
+Codex 也可用 `$dev-memory` 调用。AI 会确认项目根目录并初始化空库；非 Git 项目需要你指定项目路径。安装只放置程序文件，这一步才授权该项目使用记忆。未明确跨项目适用的业务要求不会进入全局。
 
-## 快速开始
+### 3. 开始任务并确认结果
 
-在项目中向 AI 提出：
+正常提出你的开发任务。新增要求或纠错保存后，AI 应报告实际保存的范围和结果。**“已经记住”必须有成功回执；安装成功或复述你的要求不能证明已保存。**
 
-> 使用 dev-memory，为这个项目启用研发记忆。先召回适用的全局和项目要求，再开始开发。
+需要检查时，发送：
 
-Codex 中也可以用 `$dev-memory` 调用。AI 会检查环境，并在你启用记忆后初始化空库。
+> 用 dev-memory 只读列出这个项目已保存的记忆，告诉我来源和适用条件。
+
+下一会话继续时，发送：
+
+> 使用 dev-memory 继续上次任务，先读取断点和相关要求，再核对当前代码。
+
+找不到 Skill、缺少 Python、只读权限或已有安装冲突时，见 [常见问题](docs/installation.md#常见问题)。**基础模式依赖 AI 实际调用 Skill，不保证每轮自动执行。**
+
+## 日常使用
 
 | 想做什么 | 对 AI 说 |
 | --- | --- |
-| 纠正业务条件 | “这个项目的退款期限是签收后 14 天，修订之前的规则。” |
-| 继续任务 | “继续上次任务，先读取断点和相关约束。” |
+| 纠正业务条件 | “用 dev-memory 修订本项目规则：退款期限是签收后 14 天。” |
 | 保存全局规范 | “这是所有项目都适用的研发规范，请保存到全局。” |
 | 本轮不记 | “这一轮不要保存记忆。” |
 | 暂停写入 | “暂停这个项目的记忆写入，仍可召回。” |
-| 只读使用 | “只读召回，不初始化、不写入。” |
-| 遗忘内容 | “预览这条规则的遗忘范围，确认后删除。” |
+| 恢复写入 | “恢复这个项目的记忆写入。” |
+| 只读使用 | “用 dev-memory 只读召回，不初始化、不写入。” |
+| 遗忘内容 | “预览这条规则的遗忘范围，我确认后再删除。” |
 
-示例不会自动导入记忆。具体命令与数据格式见 [协议说明](skills/dev-memory/references/protocol.md)。
+表中的规则示例是虚构的，不会自动导入记忆。无需手工编写 JSON；AI 按 [协议](skills/dev-memory/references/protocol.md) 调用本地程序。升级与卸载见 [安装指南](docs/installation.md#升级与卸载)。
 
 ## 工作方式
 

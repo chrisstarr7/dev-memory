@@ -1,0 +1,158 @@
+"""Installer UX regressions; all writes use synthetic temporary homes."""
+from __future__ import annotations
+
+import builtins
+import contextlib
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / 'skills/dev-memory/scripts'))
+import install as installer
+import dev_memory
+import dev_memory_store as store
+
+
+class InstallerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        scratch = tempfile.TemporaryDirectory(prefix='dev-memory installer 中文 ')
+        self.addCleanup(scratch.cleanup)
+        self.home = Path(scratch.name).resolve()
+        self.env = {**os.environ, 'HOME': str(self.home), 'USERPROFILE': str(self.home),
+                    'CODEX_HOME': str(self.home / '.codex'), 'DEV_MEMORY_HOME': str(self.home / '.dev-memory'),
+                    'PYTHONDONTWRITEBYTECODE': '1'}
+
+    def run_installer(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, '-B', str(ROOT / 'install.py'), *args],
+                              cwd=self.home, env=self.env, text=True, capture_output=True, timeout=15)
+
+    def test_all_short_names_check_runtime_and_keep_empty_data(self) -> None:
+        for agent, relative in dev_memory.AGENT_DIRS.items():
+            short = next((key for key, value in installer.ALIASES.items() if value == agent), agent)
+            with self.subTest(agent=agent):
+                result = self.run_installer(short, '--json')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload['status'], 'installed')
+                self.assertEqual(payload['runtime_check']['status'], 'passed')
+                self.assertEqual(Path(payload['path']), self.home / relative / 'dev-memory')
+                self.assertEqual(payload['hooks']['status'], 'not_requested')
+        self.assertFalse((self.home / '.dev-memory').exists())
+        self.assertFalse((self.home / '.codex/hooks.json').exists())
+
+    def test_no_agent_in_pipe_fails_without_installing_codex(self) -> None:
+        result = self.run_installer()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('请指定 AI', result.stderr)
+        self.assertFalse((self.home / '.agents').exists())
+
+    def test_interactive_selection_installs_requested_host_and_prints_next_step(self) -> None:
+        stdout = io.StringIO()
+        with patch.dict(os.environ, self.env), patch.object(sys.stdin, 'isatty', return_value=True), \
+                patch('builtins.input', return_value='2'), contextlib.redirect_stdout(stdout):
+            status = installer.main([])
+        self.assertEqual(status, 0)
+        self.assertTrue((self.home / '.claude/skills/dev-memory/SKILL.md').is_file())
+        self.assertFalse((self.home / '.agents').exists())
+        self.assertIn('基础命令检查通过', stdout.getvalue())
+        self.assertIn('新建会话', stdout.getvalue())
+        self.assertIn('为当前项目启用研发记忆', stdout.getvalue())
+        self.assertFalse((self.home / '.dev-memory').exists())
+
+    def test_cancel_and_invalid_selection_do_not_install(self) -> None:
+        for response in (KeyboardInterrupt(), EOFError(), '0', '99', 'unknown'):
+            with self.subTest(response=str(response)), patch.dict(os.environ, self.env), \
+                    patch.object(sys.stdin, 'isatty', return_value=True), \
+                    patch('builtins.input', side_effect=response if isinstance(response, BaseException) else None,
+                          return_value=response), contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                if isinstance(response, BaseException):
+                    self.assertEqual(installer.main([]), 130)
+                else:
+                    with self.assertRaises(SystemExit) as exc:
+                        installer.main([])
+                    self.assertEqual(exc.exception.code, 2)
+        self.assertFalse((self.home / '.agents').exists())
+        self.assertFalse((self.home / '.claude').exists())
+
+    def test_legacy_selector_and_explicit_target_work(self) -> None:
+        target = self.home / '自定义 skill'
+        result = self.run_installer('--agent', 'claude-code', '--target', str(target), '--json')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(Path(json.loads(result.stdout)['path']), target)
+
+    def test_conflicting_selectors_fail_without_writes(self) -> None:
+        result = self.run_installer('codex', '--agent', 'claude-code')
+        self.assertEqual(result.returncode, 2)
+        self.assertFalse((self.home / '.agents').exists())
+
+    def test_existing_install_requires_upgrade_and_preserves_memory(self) -> None:
+        self.assertEqual(self.run_installer('codex').returncode, 0)
+        store.init_global(self.home / '.dev-memory')
+        database = store.global_paths(self.home / '.dev-memory')[1]
+        before = hashlib.sha256(database.read_bytes()).digest()
+        config = store.global_paths(self.home / '.dev-memory')[0] / 'config.json'
+        config_before = config.read_bytes()
+        hooks = self.home / '.codex/hooks.json'
+        hooks.parent.mkdir()
+        hooks.write_text('{"hooks":{"UnrelatedEvent":[]},"custom":true}')
+        hooks_before = hooks.read_bytes()
+        result = self.run_installer('codex')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('--upgrade', result.stderr)
+        result = self.run_installer('codex', '--upgrade', '--json')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(before, hashlib.sha256(database.read_bytes()).digest())
+        self.assertEqual(config.read_bytes(), config_before)
+        self.assertEqual(hooks.read_bytes(), hooks_before)
+
+    def test_unknown_extra_files_block_upgrade(self) -> None:
+        self.assertEqual(self.run_installer('codex').returncode, 0)
+        extra = self.home / '.agents/skills/dev-memory/user-notes.md'
+        extra.write_text('synthetic user file')
+        result = self.run_installer('codex', '--upgrade', '--json')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)['error'], 'unmanaged_files')
+        self.assertEqual(extra.read_text(), 'synthetic user file')
+
+    def test_failed_runtime_check_does_not_claim_success(self) -> None:
+        for index, value in enumerate(('{}', '[]', 'not-json', '{"status":"ok","base_mode":"available"}')):
+            with self.subTest(diagnostic=value):
+                stdout = io.StringIO()
+                bad_result = subprocess.CompletedProcess([], 0, stdout=value, stderr='')
+                with patch.dict(os.environ, self.env), patch.object(installer.subprocess, 'run', return_value=bad_result), \
+                        contextlib.redirect_stdout(stdout):
+                    status = installer.main(['codex', '--target', str(self.home / f'install-{index}'), '--json'])
+                payload = json.loads(stdout.getvalue())
+                self.assertEqual(status, 1)
+                self.assertEqual(payload['status'], 'failed')
+                self.assertIn('path', payload)
+                self.assertNotIn('runtime_check', payload)
+
+    def test_old_python_and_missing_sqlite_have_clear_errors(self) -> None:
+        stderr = io.StringIO()
+        with patch.object(sys, 'version_info', (3, 9, 0)), contextlib.redirect_stderr(stderr):
+            self.assertEqual(installer.main(['codex']), 2)
+        self.assertIn('Python 3.10+', stderr.getvalue())
+        real_import = builtins.__import__
+        def blocked_import(name, *args, **kwargs):
+            if name == 'sqlite3':
+                raise ImportError('synthetic missing sqlite')
+            return real_import(name, *args, **kwargs)
+        with patch('builtins.__import__', side_effect=blocked_import), contextlib.redirect_stderr(stderr):
+            self.assertEqual(installer.main(['codex']), 2)
+        self.assertIn('sqlite3', stderr.getvalue())
+        self.assertFalse((self.home / '.agents').exists())
+
+
+if __name__ == '__main__':
+    unittest.main()

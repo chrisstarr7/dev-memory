@@ -12,7 +12,7 @@ The portable Skill, deterministic local program, optional host integration and p
 | Codex adapter | `skills/dev-memory/scripts/codex_hook.py` | Optional event processing and bounded receipt repair; actual event delivery requires host verification |
 | References | `skills/dev-memory/references/` | Apply protocol, lifecycle, adapter contract and verification limits |
 | Configuration | `skills/dev-memory/assets/config.example.json` | Empty template; contains no memories |
-| Installer | `install.py` | Copy the runtime whitelist to the selected host's Skill directory |
+| Installer | `install.py` | Select an AI, copy the runtime whitelist, check the installed CLI and print next steps |
 | Release builder | `build_release.py` | Package the public whitelist with SHA-256 hashes, excluding runtime data |
 
 `agents/openai.yaml` supplies optional Codex UI metadata. `plugin.json` is an optional plugin descriptor; marketplace installation has not been verified. Neither is required by the CLI. Tests, evaluations, reports and repository docs remain outside the installed runtime Skill.

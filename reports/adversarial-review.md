@@ -29,6 +29,23 @@ Regressions: 26 tests in tests/test_adversarial.py, plus 38 original program tes
 
 Remaining: caller provenance/semantic scope cannot be independently proved; rephrased opt-outs under new IDs cannot be detected; credential patterns are incomplete; no secure disk erasure; metadata/Git signature is not a full code snapshot; bounded recall can require follow-up; corrupt/unwritable/symlinked cleanup artifacts need explicit attention. External copies, unknown host versions, same-user path races and third-party manager contracts remain outside deterministic guarantees.
 
-Codex event trust/delivery, other hosts' model invocation, plugin marketplace installation and remote GitHub URL installation are unverified. Historical model A/B results belong to the pre-review source, with no new model run in this review.
+At the original 0.2.0 review, Codex event trust/delivery, other hosts' model invocation, plugin marketplace installation and remote GitHub URL installation were unverified. Later public GitHub installation checks are recorded in verification.md; automatic host delivery remains unverified. Historical model A/B results belong to the pre-review source, with no new model run in this review.
 
 Complexity review after checks: removed two unused cache helpers and reused existing CLI/SQLite boundaries. No custom network bootstrap, npm runtime, host SDK, daemon or multi-agent framework was introduced. Installation is a six-entry host mapping with identical runtime files.
+
+## Installation and onboarding review — 0.2.1
+
+| Priority | Adversarial first-use scenario | Change / evidence |
+| --- | --- | --- |
+| High | A Claude user runs the short Python command and silently installs to Codex | Interactive AI selection; noninteractive calls without an explicit AI fail without creating a directory |
+| High | Installer reports success after copying, but Python/sqlite3 or the installed CLI cannot run | Preflight and installed CLI doctor; failure returns a nonzero exit and does not claim successful verification |
+| High | Doctor returns malformed/unsupported JSON, or missing stores are confused with failed program installation | Validate response shape and base CLI capability; docs distinguish empty, uninitialized memory from unusable runtime |
+| Medium | A user sees several installation methods but cannot choose or tell what to do next | One recommended AI prompt; one manual command with AI menu; installed path and next-session instruction |
+| Medium | Installing is mistaken for enabling automatic memory | Three explicit onboarding steps; only project enablement authorizes initialization; automatic event delivery remains unverified |
+| Medium | AI clones the repository, then mistakes that staging directory for the user's business project | AI guide retains the original workspace and returns there for enablement |
+| Medium | A repeated install overwrites existing notes or resets data/configuration | Explicit managed upgrade; extra files block replacement; database/config/hooks preservation checked |
+| Low | Expert command carries redundant Skill selector and is mixed with beginner steps | Optional skills-manager route in the guide; one Skill in the repo, omit --skill |
+
+74 program tests passed, including 10 installer regressions. A real terminal menu selected Codex in a temporary HOME, verified the CLI, displayed next steps, and left memory/hooks uninitialized. All tests are synthetic; no developer memory or installation was modified. A test-fixture assumption placed global config at the wrong parent path; the corrected fixture follows global_paths and the final suite passed. Program checks do not prove that a novice AI session follows the guide or that hosts discover the Skill. No new model onboarding evaluation, automatic host E2E or latency A/B was run.
+
+Complexity review: reuse the existing managed copy/upgrade implementation, add one small human-facing entry point, keep machine JSON behind --json. No network bootstrap, shell-pipe installer, package registry dependency or host-directory guessing was added.
