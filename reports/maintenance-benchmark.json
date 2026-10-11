@@ -1,0 +1,602 @@
+{
+  "benchmark": "dev-memory A/B synthetic refund-rule coding task",
+  "scenario": "automatic-maintenance",
+  "runtime_version": "0.4.0",
+  "current_constraints_given_equally": true,
+  "model": "gpt-6-astra",
+  "reasoning": "medium",
+  "codex_cli": "codex-cli 0.155.1",
+  "repetitions_per_cell": 3,
+  "condition_order_seed": 20261010,
+  "same_task_text": true,
+  "same_starting_code": true,
+  "metrics_note": "Tool event counts and token use are best-effort Codex CLI JSONL observations. Input+output tokens are summed once; cached input is a subset. The first observable tool-action event proxies first effective action. Code-string policy checks and test execution do not replace semantic review.",
+  "cells": {
+    "off/empty": {
+      "n": 3,
+      "completed_metrics": {
+        "n": 1,
+        "duration_seconds": {
+          "median": 52.415,
+          "min": 52.415,
+          "max": 52.415
+        },
+        "first_tool_action_seconds": {
+          "median": 19.915,
+          "min": 19.915,
+          "max": 19.915
+        },
+        "tool_events": {
+          "median": 5,
+          "min": 5,
+          "max": 5
+        },
+        "token_sum_median": 74932,
+        "tokens_available_n": 1
+      },
+      "host_failed_or_timed_out": 2,
+      "duration_median_seconds": 20.015,
+      "duration_min_seconds": 15.848,
+      "duration_max_seconds": 52.415,
+      "first_action_median_seconds": 18.9015,
+      "tool_events_median": 1,
+      "token_sum_median": 74932,
+      "correct_criteria": 1,
+      "criteria_evaluated": 1,
+      "criteria_unknown": 2,
+      "policy_constraint_matches": 1,
+      "generated_test_suites_passed": 1,
+      "semantic_review_required": true
+    },
+    "off/history": {
+      "n": 3,
+      "completed_metrics": {
+        "n": 3,
+        "duration_seconds": {
+          "median": 53.236,
+          "min": 48.722,
+          "max": 57.835
+        },
+        "first_tool_action_seconds": {
+          "median": 17.699,
+          "min": 15.678,
+          "max": 21.817
+        },
+        "tool_events": {
+          "median": 5,
+          "min": 5,
+          "max": 5
+        },
+        "token_sum_median": 74890,
+        "tokens_available_n": 3
+      },
+      "host_failed_or_timed_out": 0,
+      "duration_median_seconds": 53.236,
+      "duration_min_seconds": 48.722,
+      "duration_max_seconds": 57.835,
+      "first_action_median_seconds": 17.699,
+      "tool_events_median": 5,
+      "token_sum_median": 74890,
+      "correct_criteria": 3,
+      "criteria_evaluated": 3,
+      "criteria_unknown": 0,
+      "policy_constraint_matches": 3,
+      "generated_test_suites_passed": 3,
+      "semantic_review_required": true
+    },
+    "on/empty": {
+      "n": 3,
+      "completed_metrics": {
+        "n": 2,
+        "duration_seconds": {
+          "median": 85.9285,
+          "min": 83.262,
+          "max": 88.595
+        },
+        "first_tool_action_seconds": {
+          "median": 17.4005,
+          "min": 17.17,
+          "max": 17.631
+        },
+        "tool_events": {
+          "median": 13.0,
+          "min": 10,
+          "max": 16
+        },
+        "token_sum_median": 183414.0,
+        "tokens_available_n": 2
+      },
+      "host_failed_or_timed_out": 1,
+      "duration_median_seconds": 83.262,
+      "duration_min_seconds": 16.609,
+      "duration_max_seconds": 88.595,
+      "first_action_median_seconds": 17.4005,
+      "tool_events_median": 10,
+      "token_sum_median": 183414.0,
+      "correct_criteria": 2,
+      "criteria_evaluated": 2,
+      "criteria_unknown": 1,
+      "policy_constraint_matches": 2,
+      "generated_test_suites_passed": 2,
+      "semantic_review_required": true
+    },
+    "on/history": {
+      "n": 3,
+      "completed_metrics": {
+        "n": 2,
+        "duration_seconds": {
+          "median": 88.83000000000001,
+          "min": 87.48,
+          "max": 90.18
+        },
+        "first_tool_action_seconds": {
+          "median": 19.579,
+          "min": 19.543,
+          "max": 19.615
+        },
+        "tool_events": {
+          "median": 13.5,
+          "min": 10,
+          "max": 17
+        },
+        "token_sum_median": 178347.0,
+        "tokens_available_n": 2
+      },
+      "host_failed_or_timed_out": 1,
+      "duration_median_seconds": 87.48,
+      "duration_min_seconds": 18.408,
+      "duration_max_seconds": 90.18,
+      "first_action_median_seconds": 19.579,
+      "tool_events_median": 10,
+      "token_sum_median": 178347.0,
+      "correct_criteria": 2,
+      "criteria_evaluated": 2,
+      "criteria_unknown": 1,
+      "policy_constraint_matches": 2,
+      "generated_test_suites_passed": 2,
+      "semantic_review_required": true
+    }
+  },
+  "trials": [
+    {
+      "mode": "on",
+      "history": false,
+      "repetition": 1,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 83.262,
+      "first_effective_action_seconds": 17.631,
+      "tool_event_count": 10,
+      "token_usage": {
+        "input_tokens": 171127,
+        "cached_input_tokens": 144640,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1842,
+        "reasoning_output_tokens": 16
+      },
+      "jsonl_event_count": 26,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": true,
+      "policy_constraint_match": true,
+      "constraint_presence": {
+        "delivered": true,
+        "unopened": true,
+        "14_day_limit": true,
+        "gift_exclusion": true,
+        "final_sale_exclusion": true
+      },
+      "independent_behavior_six_cases": true,
+      "generated_test_count": 2,
+      "generated_tests_passed": true,
+      "changed_code": true,
+      "asked_for_policy": false,
+      "test_result": {
+        "exit_code": 0,
+        "test_count": 2,
+        "output_tail": "test_all_condition_and_exclusion_combinations (test_refunds.RefundEligibleTests.test_all_condition_and_exclusion_combinations) ... ok\ntest_eligible_delivery_day_and_inclusive_deadline (test_refunds.RefundEligibleTests.test_eligible_delivery_day_and_inclusive_deadline) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n"
+      },
+      "host_failure_reason": null
+    },
+    {
+      "mode": "on",
+      "history": false,
+      "repetition": 3,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 88.595,
+      "first_effective_action_seconds": 17.17,
+      "tool_event_count": 16,
+      "token_usage": {
+        "input_tokens": 191674,
+        "cached_input_tokens": 164864,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2185,
+        "reasoning_output_tokens": 44
+      },
+      "jsonl_event_count": 38,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": true,
+      "policy_constraint_match": true,
+      "constraint_presence": {
+        "delivered": true,
+        "unopened": true,
+        "14_day_limit": true,
+        "gift_exclusion": true,
+        "final_sale_exclusion": true
+      },
+      "independent_behavior_six_cases": true,
+      "generated_test_count": 4,
+      "generated_tests_passed": true,
+      "changed_code": true,
+      "asked_for_policy": false,
+      "test_result": {
+        "exit_code": 0,
+        "test_count": 4,
+        "output_tail": "test_all_boolean_combinations_at_window_boundary (test_refunds.RefundEligibleTests.test_all_boolean_combinations_at_window_boundary) ... ok\ntest_each_requirement_and_exclusion_independently (test_refunds.RefundEligibleTests.test_each_requirement_and_exclusion_independently) ... ok\ntest_eligible_within_window_including_day_fourteen (test_refunds.RefundEligibleTests.test_eligible_within_window_including_day_fourteen) ... ok\ntest_ineligible_after_day_fourteen (test_refunds.RefundEligibleTests.test_ineligible_after_day_fourteen) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.000s\n\nOK\n"
+      },
+      "host_failure_reason": null,
+      "memory_maintenance_gap": "Host reported a failed scope-mismatched review; saved checkpoint and business code succeeded. Pending review retained."
+    },
+    {
+      "mode": "off",
+      "history": true,
+      "repetition": 2,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 57.835,
+      "first_effective_action_seconds": 21.817,
+      "tool_event_count": 5,
+      "token_usage": {
+        "input_tokens": 74658,
+        "cached_input_tokens": 56064,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1098,
+        "reasoning_output_tokens": 47
+      },
+      "jsonl_event_count": 15,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": true,
+      "policy_constraint_match": true,
+      "constraint_presence": {
+        "delivered": true,
+        "unopened": true,
+        "14_day_limit": true,
+        "gift_exclusion": true,
+        "final_sale_exclusion": true
+      },
+      "independent_behavior_six_cases": true,
+      "generated_test_count": 4,
+      "generated_tests_passed": true,
+      "changed_code": true,
+      "asked_for_policy": false,
+      "test_result": {
+        "exit_code": 0,
+        "test_count": 4,
+        "output_tail": "test_all_flag_combinations_within_and_outside_window (test_refunds.RefundEligibleTests.test_all_flag_combinations_within_and_outside_window) ... ok\ntest_each_required_condition_and_exclusion (test_refunds.RefundEligibleTests.test_each_required_condition_and_exclusion) ... ok\ntest_eligible_through_day_14 (test_refunds.RefundEligibleTests.test_eligible_through_day_14) ... ok\ntest_ineligible_after_day_14 (test_refunds.RefundEligibleTests.test_ineligible_after_day_14) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.000s\n\nOK\n"
+      },
+      "host_failure_reason": null
+    },
+    {
+      "mode": "off",
+      "history": false,
+      "repetition": 3,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 52.415,
+      "first_effective_action_seconds": 19.915,
+      "tool_event_count": 5,
+      "token_usage": {
+        "input_tokens": 74147,
+        "cached_input_tokens": 57856,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 785,
+        "reasoning_output_tokens": 18
+      },
+      "jsonl_event_count": 15,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": true,
+      "policy_constraint_match": true,
+      "constraint_presence": {
+        "delivered": true,
+        "unopened": true,
+        "14_day_limit": true,
+        "gift_exclusion": true,
+        "final_sale_exclusion": true
+      },
+      "independent_behavior_six_cases": true,
+      "generated_test_count": 1,
+      "generated_tests_passed": true,
+      "changed_code": true,
+      "asked_for_policy": false,
+      "test_result": {
+        "exit_code": 0,
+        "test_count": 1,
+        "output_tail": "test_policy_combinations_and_delivery_window (test_refunds.RefundEligibleTests.test_policy_combinations_and_delivery_window) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+      },
+      "host_failure_reason": null
+    },
+    {
+      "mode": "on",
+      "history": true,
+      "repetition": 2,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 90.18,
+      "first_effective_action_seconds": 19.615,
+      "tool_event_count": 17,
+      "token_usage": {
+        "input_tokens": 194051,
+        "cached_input_tokens": 146816,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2203,
+        "reasoning_output_tokens": 31
+      },
+      "jsonl_event_count": 40,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": true,
+      "policy_constraint_match": true,
+      "constraint_presence": {
+        "delivered": true,
+        "unopened": true,
+        "14_day_limit": true,
+        "gift_exclusion": true,
+        "final_sale_exclusion": true
+      },
+      "independent_behavior_six_cases": true,
+      "generated_test_count": 9,
+      "generated_tests_passed": true,
+      "changed_code": true,
+      "asked_for_policy": false,
+      "test_result": {
+        "exit_code": 0,
+        "test_count": 9,
+        "output_tail": "test_day_14_is_eligible (test_refunds.RefundEligibleTests.test_day_14_is_eligible) ... ok\ntest_day_15_is_ineligible (test_refunds.RefundEligibleTests.test_day_15_is_ineligible) ... ok\ntest_delivery_day_is_eligible (test_refunds.RefundEligibleTests.test_delivery_day_is_eligible) ... ok\ntest_eligible_order (test_refunds.RefundEligibleTests.test_eligible_order) ... ok\ntest_final_sale_order_is_ineligible (test_refunds.RefundEligibleTests.test_final_sale_order_is_ineligible) ... ok\ntest_gift_and_final_sale_order_is_ineligible (test_refunds.RefundEligibleTests.test_gift_and_final_sale_order_is_ineligible) ... ok\ntest_gift_order_is_ineligible (test_refunds.RefundEligibleTests.test_gift_order_is_ineligible) ... ok\ntest_opened_order_is_ineligible (test_refunds.RefundEligibleTests.test_opened_order_is_ineligible) ... ok\ntest_undelivered_order_is_ineligible (test_refunds.RefundEligibleTests.test_undelivered_order_is_ineligible) ... ok\n\n----------------------------------------------------------------------\nRan 9 tests in 0.000s\n\nOK\n"
+      },
+      "host_failure_reason": null
+    },
+    {
+      "mode": "off",
+      "history": true,
+      "repetition": 1,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 53.236,
+      "first_effective_action_seconds": 15.678,
+      "tool_event_count": 5,
+      "token_usage": {
+        "input_tokens": 74095,
+        "cached_input_tokens": 57856,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 787,
+        "reasoning_output_tokens": 14
+      },
+      "jsonl_event_count": 15,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": true,
+      "policy_constraint_match": true,
+      "constraint_presence": {
+        "delivered": true,
+        "unopened": true,
+        "14_day_limit": true,
+        "gift_exclusion": true,
+        "final_sale_exclusion": true
+      },
+      "independent_behavior_six_cases": true,
+      "generated_test_count": 1,
+      "generated_tests_passed": true,
+      "changed_code": true,
+      "asked_for_policy": false,
+      "test_result": {
+        "exit_code": 0,
+        "test_count": 1,
+        "output_tail": "test_all_policy_combinations (test_refunds.RefundEligibleTests.test_all_policy_combinations) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+      },
+      "host_failure_reason": null
+    },
+    {
+      "mode": "off",
+      "history": true,
+      "repetition": 3,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 48.722,
+      "first_effective_action_seconds": 17.699,
+      "tool_event_count": 5,
+      "token_usage": {
+        "input_tokens": 74131,
+        "cached_input_tokens": 69376,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 759,
+        "reasoning_output_tokens": 12
+      },
+      "jsonl_event_count": 15,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": true,
+      "policy_constraint_match": true,
+      "constraint_presence": {
+        "delivered": true,
+        "unopened": true,
+        "14_day_limit": true,
+        "gift_exclusion": true,
+        "final_sale_exclusion": true
+      },
+      "independent_behavior_six_cases": true,
+      "generated_test_count": 1,
+      "generated_tests_passed": true,
+      "changed_code": true,
+      "asked_for_policy": false,
+      "test_result": {
+        "exit_code": 0,
+        "test_count": 1,
+        "output_tail": "test_all_condition_combinations_and_delivery_boundaries (test_refunds.RefundEligibleTests.test_all_condition_combinations_and_delivery_boundaries) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+      },
+      "host_failure_reason": null
+    },
+    {
+      "mode": "on",
+      "history": true,
+      "repetition": 3,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 87.48,
+      "first_effective_action_seconds": 19.543,
+      "tool_event_count": 10,
+      "token_usage": {
+        "input_tokens": 158115,
+        "cached_input_tokens": 126592,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2325,
+        "reasoning_output_tokens": 40
+      },
+      "jsonl_event_count": 27,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": true,
+      "policy_constraint_match": true,
+      "constraint_presence": {
+        "delivered": true,
+        "unopened": true,
+        "14_day_limit": true,
+        "gift_exclusion": true,
+        "final_sale_exclusion": true
+      },
+      "independent_behavior_six_cases": true,
+      "generated_test_count": 7,
+      "generated_tests_passed": true,
+      "changed_code": true,
+      "asked_for_policy": false,
+      "test_result": {
+        "exit_code": 0,
+        "test_count": 7,
+        "output_tail": "test_after_day_14_is_ineligible (test_refunds.RefundEligibilityTests.test_after_day_14_is_ineligible) ... ok\ntest_all_condition_combinations (test_refunds.RefundEligibilityTests.test_all_condition_combinations) ... ok\ntest_eligible_within_window_including_day_14 (test_refunds.RefundEligibilityTests.test_eligible_within_window_including_day_14) ... ok\ntest_final_sale_order_is_ineligible (test_refunds.RefundEligibilityTests.test_final_sale_order_is_ineligible) ... ok\ntest_gift_order_is_ineligible (test_refunds.RefundEligibilityTests.test_gift_order_is_ineligible) ... ok\ntest_opened_order_is_ineligible (test_refunds.RefundEligibilityTests.test_opened_order_is_ineligible) ... ok\ntest_undelivered_order_is_ineligible (test_refunds.RefundEligibilityTests.test_undelivered_order_is_ineligible) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.000s\n\nOK\n"
+      },
+      "host_failure_reason": null
+    },
+    {
+      "mode": "off",
+      "history": false,
+      "repetition": 2,
+      "exit_code": 1,
+      "timed_out": false,
+      "duration_seconds": 20.015,
+      "first_effective_action_seconds": 17.888,
+      "tool_event_count": 1,
+      "token_usage": null,
+      "jsonl_event_count": 7,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": null,
+      "policy_constraint_match": false,
+      "constraint_presence": {
+        "delivered": false,
+        "unopened": false,
+        "14_day_limit": false,
+        "gift_exclusion": false,
+        "final_sale_exclusion": false
+      },
+      "independent_behavior_six_cases": false,
+      "generated_test_count": null,
+      "generated_tests_passed": null,
+      "changed_code": false,
+      "asked_for_policy": false,
+      "test_result": null,
+      "host_failure_reason": "exit_nonzero_reason_not_captured"
+    },
+    {
+      "mode": "off",
+      "history": false,
+      "repetition": 1,
+      "exit_code": 1,
+      "timed_out": false,
+      "duration_seconds": 15.848,
+      "first_effective_action_seconds": null,
+      "tool_event_count": 0,
+      "token_usage": null,
+      "jsonl_event_count": 4,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": null,
+      "policy_constraint_match": false,
+      "constraint_presence": {
+        "delivered": false,
+        "unopened": false,
+        "14_day_limit": false,
+        "gift_exclusion": false,
+        "final_sale_exclusion": false
+      },
+      "independent_behavior_six_cases": false,
+      "generated_test_count": null,
+      "generated_tests_passed": null,
+      "changed_code": false,
+      "asked_for_policy": false,
+      "test_result": null,
+      "host_failure_reason": "explicit_usage_limit"
+    },
+    {
+      "mode": "on",
+      "history": true,
+      "repetition": 1,
+      "exit_code": 1,
+      "timed_out": false,
+      "duration_seconds": 18.408,
+      "first_effective_action_seconds": null,
+      "tool_event_count": 0,
+      "token_usage": null,
+      "jsonl_event_count": 4,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": null,
+      "policy_constraint_match": false,
+      "constraint_presence": {
+        "delivered": false,
+        "unopened": false,
+        "14_day_limit": false,
+        "gift_exclusion": false,
+        "final_sale_exclusion": false
+      },
+      "independent_behavior_six_cases": false,
+      "generated_test_count": null,
+      "generated_tests_passed": null,
+      "changed_code": false,
+      "asked_for_policy": false,
+      "test_result": null,
+      "host_failure_reason": "explicit_usage_limit"
+    },
+    {
+      "mode": "on",
+      "history": false,
+      "repetition": 2,
+      "exit_code": 1,
+      "timed_out": false,
+      "duration_seconds": 16.609,
+      "first_effective_action_seconds": null,
+      "tool_event_count": 0,
+      "token_usage": null,
+      "jsonl_event_count": 4,
+      "expected_behavior": "implement_rule",
+      "automated_criterion_match": null,
+      "policy_constraint_match": false,
+      "constraint_presence": {
+        "delivered": false,
+        "unopened": false,
+        "14_day_limit": false,
+        "gift_exclusion": false,
+        "final_sale_exclusion": false
+      },
+      "independent_behavior_six_cases": false,
+      "generated_test_count": null,
+      "generated_tests_passed": null,
+      "changed_code": false,
+      "asked_for_policy": false,
+      "test_result": null,
+      "host_failure_reason": "explicit_usage_limit"
+    }
+  ],
+  "tested_source": "Prepublication 0.4.0. Business starter/task/model/reasoning fixed. Final negative guards and record_scope guidance were added during/after the run; not a frozen final-source benchmark.",
+  "limitations": [
+    "12 attempted trials; 8 completed, 4 nonzero host exits. Two explicitly reported usage limits; two causes were not captured. No failed trial is dropped or counted as correct.",
+    "Only one off/empty trial completed; this run does not meet three completed trials per cell. Further model runs were stopped at the account usage limit.",
+    "First effective action is the first observed tool-action event proxy, not measured time to first business code edit.",
+    "Off/history has no installed Skill or accessible seeded store; it is the same no-access baseline as off/empty. Only on/history seeds three synthetic related rules.",
+    "Positive code behavior passed all six independent cases in every completed trial; generated tests also passed. Does not establish exhaustive semantics or every-turn memory compliance.",
+    "One on/empty host reported a failed maintenance review due to scope mismatch. Final guidance now exposes record_scope/task_id and has program coverage; no fresh model rerun of that fix.",
+    "Token counts are host-reported best effort, cached input is part of input. Failed invocations have unavailable token counts.",
+    "No latency-free claim: completed memory-on tasks are substantially slower in this small sample. Historical microbenchmarks do not replace whole-workflow timing."
+  ]
+}

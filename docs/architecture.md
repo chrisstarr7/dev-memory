@@ -51,9 +51,10 @@ Each database contains its own records, evidence, revisions, retrieval terms, de
 1. **Check**: `doctor` reports capabilities without initializing stores. Plain installation copies programs only; online installation (current project), source `install.py --project` or installed `setup` explicitly authorizes project memory and merges automatically loaded host instructions. Startup instructions load the Skill without a chat invocation.
 2. **Recall**: a focused query, project/task identity and context state select applicable memory. The AI compares it with current instructions and authoritative project evidence.
 3. **Judge**: within the current turn, the AI identifies new requirements, corrections, decisions or actual progress. Desired behavior, observed facts, preferences and hypotheses remain distinct.
-4. **Apply**: the AI submits structured operations and sources. The CLI validates, checks revision conflicts and deduplicates. Global and project batches use separate transactions and results; one call can succeed in one store and fail in the other.
+4. **Apply**: the AI submits structured operations and sources. The CLI validates, checks revision conflicts and deduplicates. A read-only `match` returns bounded related candidates when existing context is insufficient; identical text reuses a rule automatically, paraphrases require the current AI's semantic review. Global and project batches use separate transactions and results; one call can succeed in one store and fail in the other.
 5. **Acknowledge**: saved content has a successful receipt. Checked turns with no increment have a short NOOP receipt. Missing checks and failed writes retain their actual status.
-6. **Continue**: checkpoints describe completed work, unfinished work, blockers, next steps and workspace/code boundaries. New sessions recall the checkpoint.
+6. **Maintain**: changed IDs queue within their owning store. Five pending IDs or a 1200-character body yield one bounded related pack in the successful apply response. The AI reviews at most one batch in the current turn; `MERGE_DUPLICATES`, `COMPACT` and `MAINTENANCE_REVIEW` use current revision guards. Task boundaries can prepare smaller pending topics. No background model, full-library sweep or recursive maintenance.
+7. **Continue**: checkpoints describe completed work, unfinished work, blockers, next steps and workspace/code boundaries. New sessions recall the checkpoint.
 
 An AI restatement or retrieval hit is not new user evidence. A passed test requires an actual tool result. The program validates source structure but cannot prove that an AI's semantic interpretation is true.
 
@@ -61,7 +62,7 @@ An AI restatement or retrieval hit is not new user evidence. A passed test requi
 
 Corrections revise an existing rule with its expected revision, preserving conditions, exceptions, negative requirements and verification steps. Repeated violations require checking recall, execution and expiry rather than appending duplicates.
 
-Summaries refer to source IDs and expected revisions within one scope. Source revision or deletion invalidates related summaries. Cross-project reuse requires a de-identified proposal and explicit user confirmation before creating global memory.
+Summaries refer to source IDs and expected revisions within one scope. Source revision or deletion invalidates related summaries. Duplicate aliases retain original sources; later alias revisions invalidate the canonical rule and its summaries. Compaction retains the old body and all structured constraints/evidence. Merged originals become superseded and leave default recall. Logical cleanup reduces active context, not audit disk size; there is no automatic history retention cap. Confirmed forget includes connected alias sources and derived history, and restore retains suppression. Cross-project reuse requires a de-identified proposal and explicit user confirmation before creating global memory.
 
 ## Lightweight operation
 
@@ -71,7 +72,7 @@ Summaries refer to source IDs and expected revisions within one scope. Source re
 - NOOP writes only the necessary receipt. Consolidation handles changed related sources. Markdown views are exported on demand.
 - Optional receipt repair is bounded to one attempt with timeouts. There is no background worker.
 
-Database speed alone does not establish AI workflow latency. Historical model A/B measurements and their version boundary are in [verification](../reports/verification.md); this version has no newly completed model A/B run.
+Database speed alone does not establish AI workflow latency. Historical model A/B measurements and their version boundary are in [verification](../reports/verification.md); the 0.4.0 A/B attempted 12 tasks, with 8 completed and 4 host exits. Memory-on completed tasks took materially longer. It is a small prepublication sample, not a frozen final-source or latency-free claim.
 
 ## Trust and lifecycle
 

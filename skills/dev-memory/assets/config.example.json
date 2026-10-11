@@ -3,6 +3,11 @@
   "storage_kind": "project",
   "capture_enabled": true,
   "recall_enabled": true,
-  "limits": {"max_candidates": 20, "max_details": 5, "max_context_chars": 4000},
-  "excluded": false
+  "limits": {
+    "max_candidates": 20,
+    "max_details": 5,
+    "max_context_chars": 4000
+  },
+  "excluded": false,
+  "maintenance_enabled": true
 }

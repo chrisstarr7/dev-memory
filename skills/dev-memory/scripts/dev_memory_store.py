@@ -9,6 +9,7 @@ import re
 import sqlite3
 import subprocess
 import tempfile
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -318,6 +319,11 @@ CREATE TABLE IF NOT EXISTS session_context(
  session_id TEXT NOT NULL, context_key TEXT NOT NULL, updated_at TEXT NOT NULL,
  PRIMARY KEY(session_id,context_key)
 );
+CREATE TABLE IF NOT EXISTS merged_aliases(
+ source_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+ canonical_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS merged_alias_canonical ON merged_aliases(canonical_id);
 CREATE TABLE IF NOT EXISTS forgotten(
  memory_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, forgotten_at TEXT NOT NULL
 );
@@ -380,12 +386,13 @@ def _init_database(db_path: Path, namespace_id: str, storage_kind: str) -> None:
         conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version',?)", (str(SCHEMA_VERSION),))
         conn.execute("INSERT OR IGNORE INTO meta(key,value) VALUES('data_revision','0')")
         hash_format = conn.execute("SELECT value FROM meta WHERE key='semantic_hash_format'").fetchone()
-        if not hash_format or hash_format[0] != '2':
+        if not hash_format or hash_format[0] != '3':
             for (memory_id,) in conn.execute("SELECT id FROM memories").fetchall():
                 record = _select_record(conn, memory_id)
                 conn.execute("UPDATE memories SET semantic_hash=? WHERE id=?", (_semantic_hash(record), memory_id))
-            conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('semantic_hash_format','2')")
+            conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('semantic_hash_format','3')")
             conn.execute("DELETE FROM session_context")
+        _ensure_maintenance(conn)
         conn.commit()
     finally:
         conn.close()
@@ -481,15 +488,24 @@ def _field_text(record: dict[str, Any], key: str) -> str:
         value = json.dumps(value, ensure_ascii=False, sort_keys=True)
     return str(value or "")
 
+def _duplicate_partition(record: dict[str, Any]) -> dict[str, Any]:
+    # Similar words are not equivalent conditions. Keep truth, scope and version boundaries exact.
+    keys = ("kind", "scope", "task_id", "claim_type", "status", "strength", "conditions", "exceptions",
+            "do", "dont", "rationale", "verification_steps", "verification", "source_refs", "code_refs",
+            "derived_from", "promoted_global_ids", "cross_project_confirmed")
+    value = {key: record.get(key) for key in keys}
+    if record.get("scope") != "task":
+        value["task_id"] = None  # Project rule task IDs are provenance, not narrower applicability.
+    if record.get("claim_type") == "observed" or record.get("scope") == "task":
+        value.update({key: record.get(key) for key in ("workspace_id", "branch", "commit_id", "source_fingerprint")})
+    return value
+
+
 def _semantic_hash(record: dict[str, Any]) -> str:
-    parts = [record.get("kind", ""), record.get("title", ""), record.get("content", ""),
-             record.get("conditions", ""), record.get("exceptions", ""), record.get("do", ""), record.get("dont", ""),
-             record.get("claim_type", ""), record.get("strength", ""), record.get("scope", ""),
-             record.get("task_id", ""), record.get("rationale", ""), record.get("verification_steps", "")]
-    if record.get("kind") == "summary":
-        parts.append(json.dumps(sorted(record.get("derived_from", [])), ensure_ascii=False))
-    normalized = "\n".join(re.sub(r"\s+", " ", str(x)).strip().casefold() for x in parts)
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    # A content fingerprint, not model semantic similarity. Titles never establish a new rule.
+    value = _duplicate_partition(record)
+    value["content"] = re.sub(r"\s+", " ", record.get("content", "")).strip()
+    return hashlib.sha256(json_bytes(value)).hexdigest()
 
 def _token_terms(text: str) -> set[str]:
     terms: set[str] = set()
@@ -645,6 +661,11 @@ def _add_evidence(conn: sqlite3.Connection, memory_id: str, source: dict[str, An
     origin = "provided" if provided_ingestion and not source.get("_dev_memory_generated_ingestion") else "generated_by_dev_memory"
     basis = message_id if message_id else ingestion_id
     digest = hashlib.sha256(f"{memory_id}\0{source_type}\0{basis}\0{excerpt}".encode("utf-8")).hexdigest()
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE name='merged_aliases'").fetchone():
+        duplicate = conn.execute("""WITH RECURSIVE sources(id) AS (SELECT ? UNION SELECT a.source_id FROM merged_aliases a JOIN sources s ON a.canonical_id=s.id)
+            SELECT 1 FROM evidence e JOIN sources s ON e.memory_id=s.id WHERE e.source_type=? AND COALESCE(e.message_id,e.ingestion_id)=? LIMIT 1""", (memory_id, source_type, basis)).fetchone()
+        if duplicate:
+            return False
     before = conn.total_changes
     conn.execute(
         "INSERT OR IGNORE INTO evidence(id,memory_id,source_type,message_id,ingestion_id,ingestion_origin,excerpt,created_at,evidence_hash) VALUES(?,?,?,?,?,?,?,?,?)",
@@ -657,18 +678,28 @@ def _snapshot(record: dict[str, Any]) -> str:
     return json.dumps(scrubbed, ensure_ascii=False, sort_keys=True)
 
 def _invalidate_derived(conn: sqlite3.Connection, source_id: str) -> None:
+    aliases_exist = conn.execute("SELECT 1 FROM sqlite_master WHERE name='merged_aliases'").fetchone()
+    queue_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE name='maintenance_pending'").fetchone()
     pending, visited = [source_id], set()
     while pending:
         source = pending.pop()
         if source in visited:
             continue
         visited.add(source)
+        if aliases_exist:
+            for (canonical_id,) in conn.execute('SELECT canonical_id FROM merged_aliases WHERE source_id=?', (source,)).fetchall():
+                conn.execute("UPDATE memories SET status='conflicted',revision=revision+1,updated_at=? WHERE id=? AND status='active'", (utc_now(), canonical_id))
+                if queue_exists:
+                    conn.execute('DELETE FROM maintenance_pending WHERE memory_id=?', (canonical_id,))
+                pending.append(canonical_id)
         rows = conn.execute("SELECT summary_id FROM derived_edges WHERE source_id=?", (source,)).fetchall()
         for (summary_id,) in rows:
             conn.execute(
                 "UPDATE memories SET status='stale',revision=revision+1,updated_at=? WHERE id=? AND kind='summary' AND status IN ('active','candidate','conflicted')",
                 (utc_now(), summary_id),
             )
+            if queue_exists:
+                conn.execute('DELETE FROM maintenance_pending WHERE memory_id=?', (summary_id,))
             pending.append(summary_id)
 
 def _update_derived_edges(conn: sqlite3.Connection, record: dict[str, Any]) -> None:
@@ -694,7 +725,7 @@ def _validate_derived_sources(conn: sqlite3.Connection, record: dict[str, Any], 
         source = _select_record(conn, source_id)
         if type(expected[source_id]) is not int or expected[source_id] != source["revision"]:
             raise MemoryError("revision_conflict", "Summary source changed; reload before summarizing.")
-        if source["scope"] != record["scope"] or source.get("task_id") != record.get("task_id"):
+        if source["scope"] != record["scope"] or record["scope"] == "task" and source.get("task_id") != record.get("task_id"):
             raise MemoryError("scope_error", "Derived summaries must retain their sources' scope and task.")
         ancestors = conn.execute("WITH RECURSIVE deps(id) AS (SELECT ? UNION SELECT e.source_id FROM derived_edges e JOIN deps d ON e.summary_id=d.id) SELECT id FROM deps", (source_id,)).fetchall()
         if record["id"] in {row[0] for row in ancestors}:
@@ -753,8 +784,200 @@ def _store_record(conn: sqlite3.Connection, record: dict[str, Any], evidence: bo
     _update_search_terms(conn, record["id"], record)
     return record["id"], True
 
+def _ensure_maintenance(conn: sqlite3.Connection) -> None:
+    conn.execute("CREATE TABLE IF NOT EXISTS merged_aliases(source_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,canonical_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE)")
+    conn.execute("CREATE INDEX IF NOT EXISTS merged_alias_canonical ON merged_aliases(canonical_id)")
+    conn.execute("CREATE TABLE IF NOT EXISTS maintenance_pending(memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,revision INTEGER NOT NULL,updated_at TEXT NOT NULL,long_content INTEGER NOT NULL)")
+    conn.execute("CREATE INDEX IF NOT EXISTS maintenance_pending_time ON maintenance_pending(updated_at,memory_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS maintenance_pending_long ON maintenance_pending(long_content,updated_at,memory_id)")
+    if not conn.execute("SELECT 1 FROM meta WHERE key='maintenance_seeded'").fetchone():
+        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE status='active'")
+        conn.execute("INSERT INTO meta(key,value) VALUES('maintenance_seeded','1')")
+
+
+def _queue_maintenance(conn: sqlite3.Connection, memory_id: str) -> None:
+    conn.execute("INSERT INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE id=? AND status='active' ON CONFLICT(memory_id) DO UPDATE SET revision=excluded.revision,updated_at=excluded.updated_at,long_content=excluded.long_content", (memory_id,))
+    conn.execute("DELETE FROM maintenance_pending WHERE memory_id=? AND NOT EXISTS(SELECT 1 FROM memories WHERE id=? AND status='active')", (memory_id, memory_id))
+
+
+def _related_records(conn: sqlite3.Connection, record: dict[str, Any], limit: int = 8) -> list[dict[str, Any]]:
+    terms = sorted(_token_terms(_record_search_text(record)))[:64]
+    ids = []
+    if terms:
+        marks = ','.join('?' for _ in terms)
+        ids = [row[0] for row in conn.execute(
+            f"SELECT m.id,COUNT(*) hits FROM search_terms t JOIN memories m ON m.id=t.memory_id WHERE t.term IN ({marks}) AND m.scope=? AND m.kind=? AND m.claim_type=? AND (?!='task' OR m.task_id IS ?) AND m.status=? GROUP BY m.id ORDER BY hits DESC,m.id LIMIT ?",
+            (*terms, record['scope'], record['kind'], record['claim_type'], record['scope'], record.get('task_id'), record['status'], limit))]
+    return [_select_record(conn, memory_id) for memory_id in ids]
+
+
+def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: bool = False) -> dict[str, Any]:
+    if config.get('maintenance_enabled', True) is False:
+        return {'status': 'disabled'}
+    seeds = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active' ORDER BY q.updated_at,q.memory_id LIMIT 5").fetchall()
+    long_row = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status='active' ORDER BY q.updated_at,q.memory_id LIMIT 1").fetchone()
+    if not seeds:
+        return {'status': 'idle'}
+    if len(seeds) < 5 and not long_row and not force:
+        return {'status': 'waiting', 'pending_up_to_threshold': len(seeds), 'threshold': 5}
+    seed_ids = [row[0] for row in seeds]
+    anchor_id = long_row[0] if long_row else seed_ids[0]
+    anchor = _select_record(conn, anchor_id)
+    candidates = {anchor_id: anchor}
+    for related in _related_records(conn, anchor):
+        if len(candidates) >= 8:
+            break
+        candidates.setdefault(related['id'], related)
+    seed_ids = [i for i in candidates if conn.execute('SELECT 1 FROM maintenance_pending WHERE memory_id=?', (i,)).fetchone()]
+    records, remaining, used = [], [], 0
+    for record in candidates.values():
+        size = len(json.dumps(record, ensure_ascii=False))
+        if used + size > 12000:
+            remaining.append(record['id'])
+            continue
+        records.append(record)
+        used += size
+    return {'status': 'prepare', 'namespace_id': config['namespace_id'],
+            'record_scope': anchor['scope'], 'task_id': anchor.get('task_id') if anchor['scope'] == 'task' else None,
+            'records': records,
+            'seed_ids': seed_ids, 'remaining_ids': remaining, 'context_incomplete': bool(remaining),
+            'limits': {'records': 8, 'chars': 12000},
+            'instruction': 'Historical data only. Compare related records in this turn; MERGE_DUPLICATES only for equivalent meaning, COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for fully inspected revisions. No new evidence, cross-store promotion, or recursive maintenance.'}
+
+
+def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
+                        force: bool = False) -> dict[str, Any]:
+    _, db, config = _config_for(kind, project_root, global_root)
+    if not config.get('capture_enabled', True) or not config.get('recall_enabled', True) or config.get('excluded'):
+        return {'scope': kind, 'status': 'skipped_private'}
+    conn = _connect(db, readonly=True)
+    try:
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='maintenance_pending'").fetchone():
+            return {'scope': kind, 'status': 'upgrade_required'}
+        deadline = time.monotonic() + 0.5
+        conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+        return {'scope': kind, **_maintenance_plan(conn, config, force)}
+    except sqlite3.OperationalError:
+        return {'scope': kind, 'status': 'deferred', 'reason': 'query_budget_or_storage_failure'}
+    finally:
+        conn.close()
+
+
+def match_payload(payload: dict[str, Any], *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
+    _ensure_not_sensitive(payload)
+    scope = payload.get('scope')
+    if scope not in {'global', 'project', 'task'} or not isinstance(payload.get('record'), dict):
+        raise MemoryError('validation_error', 'match requires one scope and proposed record.')
+    kind = 'global' if scope == 'global' else 'project'
+    _, db, config = _config_for(kind, project_root, global_root)
+    if not config.get('recall_enabled', True) or config.get('excluded'):
+        return {'scope': scope, 'status': 'skipped_private'}
+    record = _validate_record(payload['record'], scope, payload.get('task_id'), config['namespace_id'])
+    conn = _connect(db, readonly=True)
+    try:
+        deadline = time.monotonic() + 0.5
+        conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+        exact = conn.execute("SELECT id FROM memories WHERE semantic_hash=? AND status=? LIMIT 1", (record['semantic_hash'], record['status'])).fetchone()
+        candidates = _related_records(conn, record)
+        if exact and not any(r['id'] == exact[0] for r in candidates):
+            candidates = [_select_record(conn, exact[0]), *candidates[:7]]
+        records, remaining, used = [], [], 0
+        for candidate in candidates:
+            size = len(json.dumps(candidate, ensure_ascii=False))
+            if used + size > 12000:
+                remaining.append(candidate['id'])
+            else:
+                records.append(candidate); used += size
+        return {'scope': scope, 'status': 'matched' if exact else 'compare', 'exact_id': exact[0] if exact else None,
+                'records': records, 'remaining_ids': remaining, 'context_incomplete': bool(remaining),
+                'instruction': 'Similarity is not equivalence. Reuse an equivalent record with ADD duplicate_of/expected_revision/equivalent=true; preserve protected fields. Different conditions or versions require separate records or a correction.'}
+    except sqlite3.OperationalError:
+        return {'scope': scope, 'status': 'deferred', 'context_incomplete': True, 'reason': 'query_budget_or_storage_failure'}
+    finally:
+        conn.close()
+
+
+def _maintenance_apply(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    action = op['op']
+    if scope == 'global' and _project_marker(json.dumps(op, ensure_ascii=False)):
+        raise MemoryError('scope_error', 'Global maintenance cannot carry project-specific markers.')
+    reason = op.get('reason')
+    if not config.get('recall_enabled', True):
+        raise MemoryError('capture_disabled', 'Maintenance requires enabled recall.')
+    if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
+        raise MemoryError('validation_error', 'Maintenance requires a short semantic review reason.')
+    expected = op.get('expected_revisions')
+    if not isinstance(expected, dict) or not 1 <= len(expected) <= 8:
+        raise MemoryError('validation_error', 'Maintenance requires 1..8 expected_revisions.')
+    records = {}
+    for memory_id, revision in expected.items():
+        record = _select_record(conn, memory_id) if _valid_local_id(memory_id) else None
+        if not record or record['scope'] != scope:
+            raise MemoryError('scope_error', 'Maintenance cannot escape a record scope.')
+        if type(revision) is not int or revision != record['revision']:
+            raise MemoryError('revision_conflict', 'Maintenance source changed; reload before retrying.')
+        if action != 'MAINTENANCE_REVIEW' and record['status'] != 'active':
+            raise MemoryError('validation_error', 'Only active records may be maintained.')
+        records[memory_id] = record
+    if action == 'MAINTENANCE_REVIEW':
+        for memory_id, revision in expected.items():
+            conn.execute('DELETE FROM maintenance_pending WHERE memory_id=? AND revision<=?', (memory_id, revision))
+        return {'status': 'checked_noop', 'reviewed_ids': list(records)}, False
+    if op.get('meaning_preserved') is not True:
+        raise MemoryError('validation_error', 'AI must review meaning preservation before maintenance.')
+    target = records.get(op.get('id'))
+    if not target:
+        raise MemoryError('validation_error', 'Maintenance id must be one of the expected revisions.')
+    if action == 'COMPACT':
+        content = op.get('content')
+        if len(records) != 1 or not isinstance(content, str) or not content.strip() or len(content.strip()) >= len(target['content']):
+            raise MemoryError('validation_error', 'COMPACT needs one record and a shorter nonempty content.')
+        if target['kind'] == 'summary':
+            raise MemoryError('validation_error', 'Rebuild summaries from their atomic sources instead.')
+        conn.execute('INSERT INTO revisions VALUES(?,?,?,?)', (target['id'], target['revision'], _snapshot(target), utc_now()))
+        revised = {**target, 'content': content.strip(), 'revision': target['revision'] + 1, 'source': {}}
+        revised['semantic_hash'] = _semantic_hash(revised)
+        other = conn.execute("SELECT id FROM memories WHERE semantic_hash=? AND id!=? AND status='active'", (revised['semantic_hash'], target['id'])).fetchone()
+        if other:
+            raise MemoryError('duplicate_conflict', 'Compact result duplicates another rule; merge first.')
+        _store_record(conn, revised, evidence=False, dedupe=False)
+        _invalidate_derived(conn, target['id'])
+        conn.execute('DELETE FROM maintenance_pending WHERE memory_id=?', (target['id'],))
+        return {'status': 'saved', 'id': target['id'], 'revision': revised['revision'], 'compacted': True,
+                'semantic_review': 'ai_claim_not_program_verified', 'evidence_added': False}, True
+    if len(records) < 2 or target['kind'] in {'summary', 'checkpoint'}:
+        raise MemoryError('validation_error', 'Merge requires 2..8 atomic rules; not summaries/checkpoints.')
+    marks = ','.join('?' for _ in records)
+    if conn.execute(f'SELECT 1 FROM merged_aliases WHERE source_id IN ({marks}) LIMIT 1', tuple(records)).fetchone():
+        raise MemoryError('duplicate_conflict', 'A previously merged source was reactivated; resolve its merge conflict before merging again.')
+    if any(_duplicate_partition(r) != _duplicate_partition(target) for r in records.values()):
+        raise MemoryError('duplicate_conflict', 'Merge cannot change conditions, exceptions, truth, scope or version fields.')
+    conn.execute('INSERT INTO revisions VALUES(?,?,?,?)', (target['id'], target['revision'], _snapshot(target), utc_now()))
+    tags = set(target['tags'])
+    for memory_id, record in records.items():
+        if memory_id == target['id']:
+            continue
+        # Keep source identities and bodies as superseded audit history, never as fresh evidence.
+        conn.execute('INSERT INTO revisions VALUES(?,?,?,?)', (memory_id, record['revision'], _snapshot(record), utc_now()))
+        conn.execute("UPDATE memories SET status='superseded',revision=revision+1,updated_at=? WHERE id=?", (utc_now(), memory_id))
+        _invalidate_derived(conn, memory_id)
+        conn.execute('INSERT OR IGNORE INTO merged_aliases(source_id,canonical_id) VALUES(?,?)', (memory_id, target['id']))
+        tags.update(record['tags'])
+    revised = {**target, 'revision': target['revision'] + 1, 'tags': sorted(tags), 'source': {}}
+    _store_record(conn, revised, evidence=False, dedupe=False)
+    _invalidate_derived(conn, target['id'])
+    for memory_id in records:
+        conn.execute('DELETE FROM maintenance_pending WHERE memory_id=?', (memory_id,))
+    return {'status': 'saved', 'id': target['id'], 'revision': revised['revision'], 'merged_ids': [i for i in records if i != target['id']],
+            'semantic_review': 'ai_claim_not_program_verified', 'evidence_added': False}, True
+
+
 def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op: dict[str, Any], top: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     action = op.get("op")
+    if action in {"COMPACT", "MERGE_DUPLICATES", "MAINTENANCE_REVIEW"}:
+        if config.get('maintenance_enabled', True) is False:
+            raise MemoryError('capture_disabled', 'Automatic maintenance is disabled for this store.')
+        return _maintenance_apply(conn, config, scope, op)
     if action == "NOOP":
         if not isinstance(op.get("reason"), str) or not op["reason"].strip():
             raise MemoryError("validation_error", "A checked NOOP requires a short reason.")
@@ -778,6 +1001,24 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
         if conn.execute("SELECT 1 FROM forgotten WHERE memory_id=?", (data["id"],)).fetchone():
             raise MemoryError("forgotten_record", "A forgotten record ID cannot be ingested again.")
         _validate_derived_sources(conn, data, config["namespace_id"])
+        duplicate_of = op.get('duplicate_of')
+        if duplicate_of is not None:
+            canonical = _select_record(conn, duplicate_of) if _valid_local_id(duplicate_of) else None
+            if not canonical or canonical['scope'] != scope or canonical['status'] != data['status']:
+                raise MemoryError('scope_error', 'Duplicate target must be active in this same scope.')
+            if type(op.get('expected_revision')) is not int or op['expected_revision'] != canonical['revision']:
+                raise MemoryError('revision_conflict', 'Duplicate target changed; reload it.')
+            if op.get('equivalent') is not True or _duplicate_partition(canonical) != _duplicate_partition(data):
+                raise MemoryError('duplicate_conflict', 'Duplicate reuse requires equivalent meaning and unchanged protected fields.')
+            if data['kind'] in {'summary', 'checkpoint'}:
+                raise MemoryError('validation_error', 'Semantic duplicate reuse supports atomic rules only.')
+            changed = _add_evidence(conn, duplicate_of, data['source'])
+            if changed:
+                conn.execute('UPDATE memories SET revision=revision+1,updated_at=? WHERE id=?', (utc_now(), duplicate_of))
+                _invalidate_derived(conn, duplicate_of)
+            return {'status': 'saved' if changed else 'duplicate_evidence', 'id': duplicate_of,
+                    'revision': canonical['revision'] + int(changed), 'duplicate_merged': True,
+                    'body_written': False, 'semantic_review': 'ai_claim_not_program_verified'}, bool(changed)
         memory_id, changed = _store_record(conn, data)
         current = _select_record(conn, memory_id)
         return {"status": "saved" if changed else "duplicate_evidence", "id": memory_id,
@@ -901,6 +1142,7 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
     try:
         conn = _connect(db_path)
         conn.execute("BEGIN IMMEDIATE")
+        _ensure_maintenance(conn)
         private = conn.execute("SELECT 1 FROM receipts WHERE session_id=? AND turn_id=? AND status='skipped_private'",
                                (top.get("session_id"), top.get("turn_id"))).fetchone()
         if private:
@@ -928,8 +1170,10 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
             results.append(result)
             content_changed |= changed
             has_noop |= result["status"] == "checked_noop"
-            if result.get("id"):
+            if changed and result.get("id"):
                 changed_ids.add(result["id"])
+                if op.get('op') not in {'COMPACT', 'MERGE_DUPLICATES'}:
+                    _queue_maintenance(conn, result['id'])
         if kind == "project" and top.get("session_id") and top.get("task_id"):
             conn.execute(
                 "INSERT INTO session_bindings(session_id,task_id,workspace_id,branch,commit_id,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET task_id=excluded.task_id,workspace_id=excluded.workspace_id,branch=excluded.branch,commit_id=excluded.commit_id,updated_at=excluded.updated_at",
@@ -945,7 +1189,13 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         )
         conn.commit()
         conn.close()
-        output = {"scope": target_scope, "status": status, "operations": results, "data_revision": data_revision(db_path)}
+        maintenance = {'status': 'not_due'}
+        if content_changed and not any(op['op'] in {'COMPACT', 'MERGE_DUPLICATES', 'MAINTENANCE_REVIEW'} for op in operations):
+            try:
+                maintenance = maintenance_prepare(kind, project_root=root, global_root=global_root)
+            except (MemoryError, sqlite3.Error, OSError):
+                maintenance = {'status': 'deferred', 'reason': 'storage_unavailable'}
+        output = {"scope": target_scope, "status": status, "operations": results, "data_revision": data_revision(db_path), "maintenance": maintenance}
         if changed_ids:
             output["view_status"] = "stale_until_export"
         return output
@@ -1320,6 +1570,9 @@ def show_record(kind: str, memory_id: str, *, project_root: Path | None = None, 
         revisions = [dict(row) for row in conn.execute(
             "SELECT revision,snapshot,changed_at FROM revisions WHERE memory_id=? ORDER BY revision", (memory_id,)
         )]
+    merged_sources = []
+    if record and conn.execute("SELECT 1 FROM sqlite_master WHERE name='merged_aliases'").fetchone():
+        merged_sources = [row[0] for row in conn.execute("WITH RECURSIVE sources(id) AS (SELECT source_id FROM merged_aliases WHERE canonical_id=? UNION SELECT a.source_id FROM merged_aliases a JOIN sources s ON a.canonical_id=s.id) SELECT id FROM sources", (memory_id,))]
     conn.close()
     if not record:
         raise MemoryError("not_found", "Memory record was not found.")
@@ -1329,7 +1582,7 @@ def show_record(kind: str, memory_id: str, *, project_root: Path | None = None, 
         record["verification_status"] = _verification_status(
             record, project_root, head.stdout.strip() if head and head.returncode == 0 else None, signature
         )
-    return {"record": record, "evidence": evidence, "revisions": revisions}
+    return {"record": record, "evidence": evidence, "revisions": revisions, "merged_source_ids": merged_sources}
 
 def list_records(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
                  status: str = "active", limit: int = 50) -> dict[str, Any]:
@@ -1501,11 +1754,15 @@ def _forget_targets(conn: sqlite3.Connection, memory_id: str) -> list[tuple[str,
     exists = conn.execute("SELECT 1 FROM memories WHERE id=?", (memory_id,)).fetchone()
     if not exists:
         raise MemoryError("not_found", "Memory record was not found.")
+    alias_sql = ""
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE name='merged_aliases'").fetchone():
+        alias_sql = "UNION SELECT e.canonical_id FROM merged_aliases e JOIN affected a ON e.source_id=a.id UNION SELECT e.source_id FROM merged_aliases e JOIN affected a ON e.canonical_id=a.id"
     rows = conn.execute(
-        """WITH RECURSIVE affected(id) AS (
+        f"""WITH RECURSIVE affected(id) AS (
              SELECT ?
              UNION
              SELECT e.summary_id FROM derived_edges e JOIN affected a ON e.source_id=a.id
+             {alias_sql}
            )
            SELECT m.id,m.revision,m.title FROM memories m JOIN affected a ON a.id=m.id""",
         (memory_id,),
@@ -1614,11 +1871,13 @@ def restore_store(kind: str, backup_path: Path, *, project_root: Path | None = N
         private_receipts = conn.execute("SELECT idempotency_key,session_id,turn_id,status,checked_at,result_json,payload_hash FROM receipts WHERE status='skipped_private'").fetchall()
         previous_revision = data_revision(db_path)
         conn.execute("BEGIN IMMEDIATE")
-        for table in ("session_context", "session_bindings", "receipts", "revisions", "evidence", "search_terms", "derived_edges", "memories", "meta", "forgotten"):
+        for table in ("maintenance_pending", "merged_aliases", "session_context", "session_bindings", "receipts", "revisions", "evidence", "search_terms", "derived_edges", "memories", "meta", "forgotten"):
             conn.execute(f"DELETE FROM main.{table}")
-        for table in ("meta", "memories", "evidence", "revisions", "search_terms", "derived_edges", "receipts", "session_bindings", "session_context", "forgotten"):
+        for table in ("meta", "memories", "evidence", "revisions", "search_terms", "derived_edges", "receipts", "session_bindings", "session_context", "forgotten", "merged_aliases", "maintenance_pending"):
             current_cols = [row[1] for row in conn.execute(f"PRAGMA main.table_info({table})")]
             source_cols = {row[1] for row in conn.execute(f"PRAGMA restore_source.table_info({table})")}
+            if not source_cols:
+                continue
             columns = ",".join(f'"{col}"' for col in current_cols if col in source_cols)
             conn.execute(f"INSERT INTO main.{table} ({columns}) SELECT {columns} FROM restore_source.{table}")
         conn.executemany("INSERT OR REPLACE INTO receipts(idempotency_key,session_id,turn_id,status,checked_at,result_json,payload_hash) VALUES(?,?,?,?,?,?,?)", private_receipts)
@@ -1626,11 +1885,12 @@ def restore_store(kind: str, backup_path: Path, *, project_root: Path | None = N
         for (memory_id,) in conn.execute("SELECT id FROM memories").fetchall():
             record = _select_record(conn, memory_id)
             conn.execute("UPDATE memories SET semantic_hash=? WHERE id=?", (_semantic_hash(record), memory_id))
-        conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('semantic_hash_format','2')")
+        conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('semantic_hash_format','3')")
         for memory_id, revision, forgotten_at in forgotten:
             _delete_ids(conn, [memory_id])
             conn.execute("INSERT OR REPLACE INTO forgotten(memory_id,revision,forgotten_at) VALUES(?,?,?)",
                          (memory_id, revision, forgotten_at))
+        _ensure_maintenance(conn)
         conn.execute("UPDATE meta SET value=MAX(CAST(value AS INTEGER),?)+1 WHERE key='data_revision'", (previous_revision,))
         conn.commit()
     except MemoryError:

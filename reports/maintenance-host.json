@@ -1,0 +1,73 @@
+{
+  "status": "passed",
+  "runtime_version": "0.4.0",
+  "host": "codex-cli 0.155.1",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "medium",
+  "synthetic_only": true,
+  "user_prompts_mention_skill_or_maintenance": false,
+  "hooks_configured": false,
+  "runs": [
+    {
+      "label": "ordinary-task",
+      "exit_code": 0,
+      "seconds": 92.459,
+      "tool_calls": 16,
+      "usage": {
+        "input_tokens": 231558,
+        "cached_input_tokens": 171648,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2157,
+        "reasoning_output_tokens": 10
+      },
+      "first_effective_action_seconds": null,
+      "first_action_note": "Not sampled by this E2E runner; use matched A/B benchmark for timing.",
+      "maintenance_operations_observed": {
+        "COMPACT": true,
+        "MERGE_DUPLICATES": true,
+        "MAINTENANCE_REVIEW": true
+      }
+    },
+    {
+      "label": "paraphrase",
+      "exit_code": 0,
+      "seconds": 62.23,
+      "tool_calls": 9,
+      "usage": {
+        "input_tokens": 128019,
+        "cached_input_tokens": 102016,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1751,
+        "reasoning_output_tokens": 37
+      },
+      "first_effective_action_seconds": null,
+      "first_action_note": "Not sampled by this E2E runner; use matched A/B benchmark for timing.",
+      "maintenance_operations_observed": {
+        "COMPACT": false,
+        "MERGE_DUPLICATES": false,
+        "MAINTENANCE_REVIEW": true
+      }
+    }
+  ],
+  "reviewed_compacted_bodies": {
+    "normal_policy": "Refund eligibility requires every listed condition; the exclusions always apply.",
+    "damaged_policy": "Separate damaged-item policy: only damaged arrivals within 7 days. ReturnPolicyV2 only. manual_review blocks automatic approval unless supervisor_override=true."
+  },
+  "checks": {
+    "automatic_historical_duplicate_merge": true,
+    "long_body_compaction": true,
+    "incompatible_condition_preserved": true,
+    "all_protected_fields_preserved": true,
+    "no_maintenance_evidence_inflation": true,
+    "prose_only_version_condition_exception_preserved": true,
+    "fresh_session_paraphrase_no_new_rule": true,
+    "no_business_code_edits": true,
+    "scope_isolation": true
+  },
+  "limitations": [
+    "Two ordinary-prompt Codex CLI sessions; not proof of every-turn enforcement or all-host reliability.",
+    "Model semantic judgment is sampled, not exhaustive. Matched A/B results are reported separately in maintenance-benchmark.json.",
+    "Audit history remains stored; no automatic disk-size cap."
+  ],
+  "tested_source": "Prepublication 0.4.0 source, before final record_scope guidance and observer/report changes; not a run of a tagged commit."
+}

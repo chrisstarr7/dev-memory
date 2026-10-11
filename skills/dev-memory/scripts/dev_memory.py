@@ -30,8 +30,8 @@ SKILL_FILES = [
 RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "README.md", "LICENSE", ".gitignore", "install.py", "package.json", "bin/install.cjs", "CONTRIBUTING.md", "SECURITY.md",
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
-    "tests/test_dev_memory.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py",
-    "reports/verification.md", "reports/adversarial-review.md", "build_release.py",
+    "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py",
+    "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json",
 ]
@@ -430,6 +430,13 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--project-root", type=Path)
     p.add_argument("--module")
     p.add_argument("--input", type=Path, help="Read structured JSON from file; stdin by default.")
+    p = sub.add_parser("match", help="Read-only duplicate candidates before adding a record")
+    p.add_argument("--project-root", type=Path)
+    p.add_argument("--input", type=Path)
+    p = sub.add_parser("maintain", help="Bounded changed-record maintenance preparation")
+    p.add_argument("--scope", choices=("global", "project", "both"), default="both")
+    p.add_argument("--project-root", type=Path)
+    p.add_argument("--force", action="store_true", help="Review pending records below the threshold at a task boundary")
     p = sub.add_parser("skip")
     p.add_argument("--scope", choices=("global", "project", "both"), default="project")
     p.add_argument("--project-root", type=Path)
@@ -528,6 +535,23 @@ def main(argv: list[str] | None = None) -> int:
             result = store.apply_payload(payload, project_root=root, global_root=global_root)
             _json_out(result)
             return 2 if result["status"] == "failed" else (3 if result["status"] == "partial_success" else 0)
+        elif command == "match":
+            payload = json.loads(args.input.read_text(encoding="utf-8")) if args.input else _read_payload()
+            root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
+            _json_out(store.match_payload(payload, project_root=root, global_root=global_root))
+        elif command == "maintain":
+            root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
+            kinds = ["global", "project"] if args.scope == "both" else [args.scope]
+            results = []
+            for kind in kinds:
+                try:
+                    results.append(store.maintenance_prepare(kind, project_root=root if kind == "project" else None,
+                                                            global_root=global_root, force=args.force))
+                except (store.MemoryError, sqlite3.Error, OSError) as exc:
+                    results.append({"scope": kind, "status": "failed", "error": getattr(exc, "code", "storage_unavailable")})
+            failures = sum(r["status"] == "failed" for r in results)
+            _json_out({"status": "failed" if failures == len(results) else ("partial_success" if failures else "ok"), "stores": results})
+            return 2 if failures == len(results) else (3 if failures else 0)
         elif command == "skip":
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             if root is None:

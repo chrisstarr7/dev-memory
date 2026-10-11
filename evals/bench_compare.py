@@ -29,10 +29,17 @@ TASK = (
     "Implement refund_eligible(order) and add tests only when an applicable stored policy is available. "
     "If no applicable policy is available, do not invent eligibility rules or change code; ask what exact policy to use."
 )
+AUTOMATIC_TASK = (
+    "Implement refund_eligible(order) in refunds.py and add unit tests. The current user-confirmed policy is: "
+    "the order must be delivered and unopened, with days_since_delivery <= 14; gift and final_sale orders are excluded. "
+    "Require every positive condition and both exclusions. Do not change any unrelated business code. "
+    "Run the tests and report the actual result."
+)
 CRITERIA = ("delivered", "unopened", "14", "gift", "final")
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--scenario", choices=("recovery", "automatic-maintenance"), default="recovery")
     p.add_argument("--model", required=True, help="One exact Codex model ID used for all cells.")
     p.add_argument("--reasoning", choices=("low", "medium", "high", "xhigh"), required=True)
     p.add_argument("--repetitions", type=int, default=3, help="Minimum recommended: 3 independent runs per cell.")
@@ -95,7 +102,7 @@ def _token_usage(event: dict[str, Any]) -> dict[str, int] | None:
     return found[-1] if found else None
 
 def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: str, history: bool,
-               repetition: int, scratch: Path) -> dict[str, Any]:
+               repetition: int, scratch: Path, scenario: str = "recovery") -> dict[str, Any]:
     project = scratch / "project"
     global_root = scratch / "global-data"
     _starter(project)
@@ -104,15 +111,40 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
     env = {**os.environ, "CODEX_DISABLE_PROJECT_DOCS": "1", "DEV_MEMORY_HOME": str(global_root)}
     if mode == "on":
         _seed_history(skill, project, global_root) if history else _seed_empty(skill, project, global_root)
+    task_text = TASK
+    if scenario == "automatic-maintenance":
+        auth = Path(os.environ.get("CODEX_HOME", Path.home()/".codex"))/"auth.json"
+        home = scratch / "home"; home.mkdir()
+        codex_home = home / ".codex"; codex_home.mkdir()
+        if auth.is_file():
+            shutil.copyfile(auth, codex_home / "auth.json")
+            os.chmod(codex_home / "auth.json", 0o600)
+        env.update(HOME=str(home), USERPROFILE=str(home), CODEX_HOME=str(codex_home), PYTHONDONTWRITEBYTECODE="1")
+        env.pop("CODEX_DISABLE_PROJECT_DOCS", None)
+        task_text = AUTOMATIC_TASK
+        if mode == "on":
+            import dev_memory_setup
+            dev_memory_setup.setup(project, "codex", skill, sys.executable, global_root)
+            if history:
+                import dev_memory_store
+                original = dev_memory_store.list_records("project",project_root=project)["records"][0]
+                record = dev_memory_store.show_record("project",original["id"],project_root=project)["record"]
+                for n, body in enumerate(("Every stated condition must hold, including both exclusions.",
+                                           "Require all stated refund conditions and both exclusions. " * 30)):
+                    replacement = {k:v for k,v in record.items() if k not in {"id","revision","semantic_hash","created_at","updated_at"}}
+                    replacement.update(content=body, source={"type":"user_confirmation","excerpt":"Synthetic repeated confirmation of the same refund rule."})
+                    dev_memory_store.apply_payload({"schema_version":1,"scope":"project","session_id":"benchmark-seed",
+                        "turn_id":f"paraphrase-{n}","idempotency_key":f"paraphrase-{n}","operations":[{"op":"ADD","record":replacement}]},project_root=project)
     last_message = scratch / "last-message.txt"
     argv = [codex, "exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check",
             "--sandbox", "workspace-write", "--model", model, "--config", f"model_reasoning_effort={reasoning}",
-            "--add-dir", str(global_root), "--output-last-message", str(last_message), TASK]
+            "--add-dir", str(global_root), "--output-last-message", str(last_message), task_text]
     start = time.monotonic()
     first_action = None
     tool_events = 0
     token_usage = None
     event_lines = 0
+    host_errors = []
     timed_out = False
     error_file = scratch / "stderr.log"
     error_stream = error_file.open("w", encoding="utf-8")
@@ -141,6 +173,8 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
                 event = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if isinstance(event, dict) and event.get('type') in {'error', 'turn.failed'}:
+                host_errors.append(event)
             token_usage = _token_usage(event) or token_usage
             item = event.get("item") if isinstance(event, dict) else None
             event_type = event.get("type") if isinstance(event, dict) else None
@@ -166,7 +200,7 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
     asks = "?" in final_text and any(token in lowered_message for token in ("policy", "eligibility", "conditions", "rules")) and any(
         token in lowered_message for token in ("what", "which", "provide", "specify", "tell me")
     )
-    expected = "implement_rule" if mode == "on" and history else "ask_for_policy"
+    expected = "implement_rule" if scenario == "automatic-maintenance" or mode == "on" and history else "ask_for_policy"
     test_result = None
     tests_path = project / "tests"
     root_tests = list(project.glob("test*.py"))
@@ -181,19 +215,33 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
         except subprocess.TimeoutExpired:
             test_result = {"exit_code": None, "timeout": True}
     test_count = test_result.get("test_count", 0) if test_result else None
-    policy_match = all(constraints.values()) if expected == "implement_rule" else None
+    independent_behavior = None
+    if scenario == "automatic-maintenance":
+        probe = """import refunds
+cases=[(dict(delivered=True,unopened=True,days_since_delivery=14,gift=False,final_sale=False),True),
+(dict(delivered=False,unopened=True,days_since_delivery=1,gift=False,final_sale=False),False),
+(dict(delivered=True,unopened=False,days_since_delivery=1,gift=False,final_sale=False),False),
+(dict(delivered=True,unopened=True,days_since_delivery=15,gift=False,final_sale=False),False),
+(dict(delivered=True,unopened=True,days_since_delivery=1,gift=True,final_sale=False),False),
+(dict(delivered=True,unopened=True,days_since_delivery=1,gift=False,final_sale=True),False)]
+assert all(refunds.refund_eligible(order)==expected for order,expected in cases)
+"""
+        checked = subprocess.run([sys.executable,"-c",probe],cwd=project,env=env,capture_output=True,text=True,timeout=10)
+        independent_behavior = checked.returncode == 0
+    policy_match = (independent_behavior if scenario == "automatic-maintenance" else all(constraints.values())) if expected == "implement_rule" else None
     tests_passed = (test_result.get("exit_code") == 0 and test_count > 0) if test_result else None
     criterion = (bool(policy_match) and tests_passed) if expected == "implement_rule" and test_result else (
         None if expected == "implement_rule" else (not changed and asks)
     )
     return {
         "mode": mode, "history": history, "repetition": repetition, "exit_code": process.returncode,
-        "timed_out": timed_out, "duration_seconds": round(duration, 3),
+        "timed_out": timed_out, "host_errors": host_errors, "duration_seconds": round(duration, 3),
         "first_effective_action_seconds": round(first_action, 3) if first_action is not None else None,
         "tool_event_count": tool_events, "token_usage": token_usage, "jsonl_event_count": event_lines,
         "expected_behavior": expected, "automated_criterion_match": criterion,
         "policy_constraint_match": policy_match,
         "constraint_presence": constraints if expected == "implement_rule" else None,
+        "independent_behavior_six_cases": independent_behavior,
         "generated_test_count": test_count if expected == "implement_rule" else None,
         "generated_tests_passed": tests_passed if expected == "implement_rule" else None,
         "changed_code": changed, "asked_for_policy": asks, "test_result": test_result,
@@ -206,6 +254,19 @@ def _seed_empty(skill: Path, project: Path, global_root: Path) -> None:
     subprocess.run([sys.executable, str(cli), "init", "--global"], check=True, env=env, capture_output=True, text=True)
     subprocess.run([sys.executable, str(cli), "init", "--project-root", str(project)], check=True, env=env, capture_output=True, text=True)
 
+def _completed_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    def stats(field):
+        values = [r[field] for r in rows if isinstance(r.get(field), (int, float))]
+        return {'median': statistics.median(values), 'min': min(values), 'max': max(values)} if values else None
+    tokens = [u.get('total_tokens', u.get('input_tokens', 0) + u.get('output_tokens', 0))
+              for r in rows if isinstance((u := r.get('token_usage')), dict)]
+    return {'n': len(rows), 'duration_seconds': stats('duration_seconds'),
+            'first_tool_action_seconds': stats('first_effective_action_seconds'),
+            'tool_events': stats('tool_event_count'),
+            'token_sum_median': statistics.median(tokens) if tokens else None,
+            'tokens_available_n': len(tokens)}
+
+
 def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     values = [r["duration_seconds"] for r in rows if isinstance(r.get("duration_seconds"), (int, float))]
     first = [r["first_effective_action_seconds"] for r in rows if r["first_effective_action_seconds"] is not None]
@@ -215,7 +276,9 @@ def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     ]
     tool_counts = [r["tool_event_count"] for r in rows if isinstance(r.get("tool_event_count"), (int, float))]
     return {
-        "n": len(rows), "duration_median_seconds": statistics.median(values) if values else None,
+        "n": len(rows), "completed_metrics": _completed_metrics([r for r in rows if r.get('exit_code') == 0 and not r.get('timed_out')]),
+        "host_failed_or_timed_out": sum(r.get('exit_code') != 0 or bool(r.get('timed_out')) for r in rows),
+        "duration_median_seconds": statistics.median(values) if values else None,
         "duration_min_seconds": min(values) if values else None, "duration_max_seconds": max(values) if values else None,
         "first_action_median_seconds": statistics.median(first) if first else None,
         "tool_events_median": statistics.median(tool_counts) if tool_counts else None,
@@ -242,7 +305,7 @@ def main() -> int:
             print(f"[{index}/{len(order)}] mode={mode} history={history} repetition={rep}", file=sys.stderr, flush=True)
             try:
                 rows.append(_run_trial(codex, args.model, args.reasoning, args.timeout_seconds, mode=mode,
-                                       history=history, repetition=rep, scratch=Path(temp)))
+                                       history=history, repetition=rep, scratch=Path(temp), scenario=args.scenario))
             except Exception as exc:
                 rows.append({"mode": mode, "history": history, "repetition": rep, "exit_code": None,
                              "timed_out": False, "duration_seconds": None, "first_effective_action_seconds": None,
@@ -254,7 +317,8 @@ def main() -> int:
             key = f"{mode}/{'history' if history else 'empty'}"
             groups[key] = _summary([r for r in rows if r["mode"] == mode and r["history"] == history])
     report = {
-        "benchmark": "dev-memory A/B synthetic refund-rule coding task",
+        "benchmark": "dev-memory A/B synthetic refund-rule coding task", "scenario": args.scenario,
+        "runtime_version": "0.4.0", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
         "model": args.model, "reasoning": args.reasoning, "codex_cli": _version(codex),
         "repetitions_per_cell": args.repetitions, "condition_order_seed": args.seed,
         "same_task_text": True, "same_starting_code": True,
