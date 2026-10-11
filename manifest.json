@@ -142,11 +142,11 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "a8b40ee6c42d2025a0f662442c94f159f6900fd749173ec13e68f6ea1a15fe3a"
+      "sha256": "32b167a706ef19c17b0da1a4b0e20ec6f72a4e15075f8efbe31848b1748c0082"
     },
     {
       "path": "reports/adversarial-review.md",
-      "sha256": "5583810ede630185c9f6cd980f4a209e5b001fcf3d301f61f789f33666649070"
+      "sha256": "98efe33456d43475acb1a66327c32af7b141509eb04fd6b1d8838e11f6f5973d"
     },
     {
       "path": "build_release.py",
@@ -162,7 +162,7 @@
     },
     {
       "path": "reports/npx-upgrade.json",
-      "sha256": "f1b1215a7e25f4468ab98500fbde4474e3c230bb8d5e6a7527cbc5c0265c69b9"
+      "sha256": "0e77c88959afbcea9cd61aee4b397d4b44d1efac03a9ee8a779f18b6d6bad174"
     },
     {
       "path": "reports/automatic-onboarding.json",

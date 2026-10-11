@@ -1,5 +1,11 @@
 {
-  "status": "not_run",
-  "stage": "waiting_for_new_source_publication",
-  "method": "Same npm cache and same short command before and after a source update"
+  "status": "passed",
+  "command": "npx -y chrisstarr7/dev-memory codex",
+  "same_npm_cache": true,
+  "old_runtime_sha256": "a178d6a732ac282e95c5f50fc81affaaa9b6c8c560d9afdd38858ede4d6a64d2",
+  "new_runtime_sha256": "9edf6d8472c7363f5d15861bd2cfc84aa2e1be086efdce1513ca55e10727630d",
+  "matches_new_public_source": true,
+  "same_package_version": "0.3.2",
+  "controls_and_namespace_preserved": true,
+  "tested_commit": "2ee09212327094942491ec33a37bdefc8c275a3b"
 }
