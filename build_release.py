@@ -41,7 +41,7 @@ def build(target: Path) -> dict:
             for name, data, _ in entries:
                 info = zipfile.ZipInfo(f"dev-memory/{name}", date_time=(1980, 1, 1, 0, 0, 0))
                 info.compress_type = zipfile.ZIP_DEFLATED
-                mode = 0o100700 if name.endswith("/dev-memory") else 0o100600
+                mode = 0o100700 if (name.endswith("/dev-memory") or name == "bin/install.cjs") else 0o100600
                 info.external_attr = mode << 16
                 archive.writestr(info, data)
             info = zipfile.ZipInfo("dev-memory/manifest.json", date_time=(1980, 1, 1, 0, 0, 0))

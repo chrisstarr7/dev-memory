@@ -1,0 +1,5 @@
+{
+  "status": "not_run",
+  "stage": "waiting_for_new_source_publication",
+  "method": "Same npm cache and same short command before and after a source update"
+}

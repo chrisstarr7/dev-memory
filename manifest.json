@@ -38,7 +38,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "a178d6a732ac282e95c5f50fc81affaaa9b6c8c560d9afdd38858ede4d6a64d2"
+      "sha256": "9edf6d8472c7363f5d15861bd2cfc84aa2e1be086efdce1513ca55e10727630d"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
@@ -66,7 +66,7 @@
     },
     {
       "path": ".gitignore",
-      "sha256": "aacad55b5fc5e9af998abffc12cd3c386ab18f301a5edddd48401892093a7a7f"
+      "sha256": "be4941af03242680d740ac5ee5354e97cee163fcb10aba66d1270b25dfe32b8d"
     },
     {
       "path": "install.py",
@@ -86,7 +86,7 @@
     },
     {
       "path": "SECURITY.md",
-      "sha256": "d454b663035be721d2510cf50009929da03b0fe59e7dce6523692e1ecf58883f"
+      "sha256": "e8eda5f57702eed29a5b7f398772e99d7617bf034af7f2b378c32cff3c38fc7c"
     },
     {
       "path": "docs/installation.md",
@@ -142,7 +142,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "756a6ad72a5aed9d70b1c289b3a7924e38e83107eb9db550eb7b0a544e9b8970"
+      "sha256": "a8b40ee6c42d2025a0f662442c94f159f6900fd749173ec13e68f6ea1a15fe3a"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -150,11 +150,19 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "6d84b6315f864e05b73dbd2b74ab0313685d867bf2804d512039e259941a56a7"
+      "sha256": "d9d1d7a7b6582ff453f023cb0fa8a1a9b044ca2716149628bb0bd7364685b95f"
     },
     {
       "path": "reports/online-installation.json",
       "sha256": "9fa0f936a3507b9ba8986386abb29843a0fc0d3300b18a75ab67188d6895e183"
+    },
+    {
+      "path": "reports/npx-installation.json",
+      "sha256": "afbd72ab8ba6775f2e20bd0723b340ee89f20ccc73a31c6aa6c02ce893083072"
+    },
+    {
+      "path": "reports/npx-upgrade.json",
+      "sha256": "f1b1215a7e25f4468ab98500fbde4474e3c230bb8d5e6a7527cbc5c0265c69b9"
     },
     {
       "path": "reports/automatic-onboarding.json",

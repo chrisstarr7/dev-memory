@@ -1,0 +1,93 @@
+{
+  "version": "0.3.2",
+  "command": "npx -y chrisstarr7/dev-memory codex",
+  "tested_commit": "f59509bd78e31c5c2a4a990a50de55597443c919",
+  "platform": "darwin",
+  "node": "v24.13.0",
+  "npm": "11.6.2",
+  "hosts": [
+    {
+      "agent": "codex",
+      "status": "passed",
+      "first_install_seconds": 23.757,
+      "repeat_seconds": 7.01,
+      "runtime_file_matches": 14,
+      "current_project_initialized": true,
+      "initial_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "no_npm_files_in_business_project": true,
+      "stable_installed_bindings": true,
+      "default_hooks": false
+    },
+    {
+      "agent": "claude",
+      "status": "passed",
+      "first_install_seconds": 5.703,
+      "repeat_seconds": 8.124,
+      "runtime_file_matches": 14,
+      "current_project_initialized": true,
+      "initial_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "no_npm_files_in_business_project": true,
+      "stable_installed_bindings": true,
+      "default_hooks": false
+    },
+    {
+      "agent": "cursor",
+      "status": "passed",
+      "first_install_seconds": 6.598,
+      "repeat_seconds": 8.095,
+      "runtime_file_matches": 14,
+      "current_project_initialized": true,
+      "initial_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "no_npm_files_in_business_project": true,
+      "stable_installed_bindings": true,
+      "default_hooks": false
+    },
+    {
+      "agent": "gemini",
+      "status": "passed",
+      "first_install_seconds": 5.951,
+      "repeat_seconds": 7.306,
+      "runtime_file_matches": 14,
+      "current_project_initialized": true,
+      "initial_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "no_npm_files_in_business_project": true,
+      "stable_installed_bindings": true,
+      "default_hooks": false
+    },
+    {
+      "agent": "copilot",
+      "status": "passed",
+      "first_install_seconds": 7.694,
+      "repeat_seconds": 6.515,
+      "runtime_file_matches": 14,
+      "current_project_initialized": true,
+      "initial_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "no_npm_files_in_business_project": true,
+      "stable_installed_bindings": true,
+      "default_hooks": false
+    },
+    {
+      "agent": "opencode",
+      "status": "passed",
+      "first_install_seconds": 15.233,
+      "repeat_seconds": 8.83,
+      "runtime_file_matches": 14,
+      "current_project_initialized": true,
+      "initial_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "no_npm_files_in_business_project": true,
+      "stable_installed_bindings": true,
+      "default_hooks": false
+    }
+  ],
+  "environment": "Temporary HOME/npm cache/projects; global and system Git config disabled; no login prompt",
+  "windows": "not_run",
+  "new_model_sessions": "not_run",
+  "new_workflow_latency_ab": "not_run",
+  "status": "passed"
+}

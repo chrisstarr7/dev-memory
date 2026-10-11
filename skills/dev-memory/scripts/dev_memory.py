@@ -32,7 +32,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
     "tests/test_dev_memory.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py",
     "reports/verification.md", "reports/adversarial-review.md", "build_release.py",
-    "reports/online-installation.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
+    "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
