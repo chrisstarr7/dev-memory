@@ -19,23 +19,36 @@ dev-memory 是一个独立的 Agent Skill，由通用 Skill、小型 Python CLI 
 
 ## 开始使用
 
-### 安装并初始化一次
+### 一条命令在线安装
 
-下载本仓库（**Code → Download ZIP**），解压后在包含 `install.py` 的目录执行：
+在**要开发的项目根目录**打开终端，复制执行：
 
 ```sh
-python3 install.py codex --project /你的项目路径
+python3 -c 'import urllib.request as u; exec(u.urlopen("https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py", timeout=30).read())' codex
 ```
 
-把项目路径换成实际开发的项目。Claude Code 将 `codex` 换成 `claude`，其他选择为 `cursor`、`gemini`、`copilot`、`opencode`。Windows 使用 `py -3`。需要 Python 3.10+（含 sqlite3），不需要 npm 或其他服务。
+默认安装到 Codex。使用其他 AI 时，只需把末尾 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot` 或 `opencode`。
 
-**这一条命令完成安装、运行检查、空库初始化和项目自动引导。** 已有记忆、原项目指令和暂停状态会保留。成功输出会列出项目、安装路径和引导文件；失败会分别报告实际结果。
+<details>
+<summary>Windows 命令</summary>
 
-也可以让正在使用的本地 AI 完成：
+在项目根目录打开 PowerShell，执行：
 
-> 请从 https://github.com/chrisstarr7/dev-memory 安装并初始化当前项目的 dev-memory，选择当前 AI 宿主，验证安装与项目引导，保留已有记忆和配置。
+```powershell
+py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py', timeout=30).read())" codex
+```
 
-AI 安装流程、其他安装器及卸载方式见 [安装指南](docs/installation.md)。网页聊天或没有本机文件/命令权限的会话无法直接安装到你的电脑。
+</details>
+
+需要 Python 3.10+（含 sqlite3）。**命令会在线安装、检查运行时、初始化当前项目的空库，并配置 AI 自动加载。** 无需手动下载、解压或填写项目路径，也无需 Git、npm 或后台服务。
+
+看到“安装成功”和“项目已初始化”后，在该项目新建 AI 会话，直接开发即可。重复执行同一命令可升级；已有记忆、原项目指令及暂停状态会保留。另一个项目也在它的根目录运行同一命令。
+
+也可以让本地 AI 安装：
+
+> 请从 https://github.com/chrisstarr7/dev-memory 在线安装并初始化当前项目的 dev-memory，选择当前 AI 宿主，检查成功回执，保留已有记忆和配置。
+
+失败排查、离线安装及卸载见 [安装指南](docs/installation.md)。网页聊天或没有本机文件与命令权限的会话无法直接安装到你的电脑。
 
 ### 然后正常开发
 
@@ -116,7 +129,7 @@ dev-memory/
 ├── evals/                  # 验收场景与性能评估工具
 ├── reports/                # 验证证据和已知限制
 ├── .github/workflows/      # CI
-├── install.py              # 本地安装入口
+├── install.py              # 在线安装与本地安装入口
 ├── build_release.py        # 发布包与完整性清单
 └── plugin.json             # 可选插件描述
 ```

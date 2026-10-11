@@ -1,6 +1,8 @@
 # Project initialization
 
-Preferred entrypoint from the downloaded repository: `python3 install.py codex --project /absolute/project/path` (select the actual host). It installs/checks the runtime, initializes independent empty global and project stores, and merges a managed block into the host's automatically loaded project instructions. This explicit command authorizes default project memory. No chat enable phrase or repeated Skill invocation is needed. Starting a new host session loads the new instructions; existing sessions may have cached their startup instructions.
+Preferred online entrypoint: run `python3 -c 'import urllib.request as u; exec(u.urlopen("https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py", timeout=30).read())' codex` in the user's business project root, selecting the actual host. Add `--json` to inspect the receipt, or `--project /absolute/project/path` when invoking from another directory. No manual repository download is required. The bootstrap checks the public snapshot manifest before running the shared source installer, removes temporary source files, and preserves existing memory and user controls on repeated installation.
+
+This explicit command authorizes default project memory and merges host-native startup instructions. No chat enable phrase or repeated Skill invocation is needed. Start a new host session to load new instructions; existing sessions may cache startup instructions. Offline source entrypoint remains `python3 install.py codex --project /absolute/project/path`.
 
 From an installed Skill, use `python3 <skill>/scripts/dev_memory.py setup --agent codex --project-root /absolute/project/path`. The project argument defaults to the current working directory for this explicit command, including non-Git projects. Never run it in a downloaded package or unrelated project accidentally.
 

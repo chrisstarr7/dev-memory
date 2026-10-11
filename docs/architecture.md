@@ -13,10 +13,12 @@ The portable Skill, deterministic local program, optional host integration and p
 | Codex adapter | `skills/dev-memory/scripts/codex_hook.py` | Optional event processing and bounded receipt repair; actual event delivery requires host verification |
 | References | `skills/dev-memory/references/` | Apply protocol, lifecycle, adapter contract and verification limits |
 | Configuration | `skills/dev-memory/assets/config.example.json` | Empty template; contains no memories |
-| Installer | `install.py` | Select an AI, copy the runtime whitelist, check the installed CLI and print next steps |
+| Installer | `install.py` | Fetch and validate a bounded online snapshot when executed remotely; reuse the local runtime installer and project initializer |
 | Release builder | `build_release.py` | Package the public whitelist with SHA-256 hashes, excluding runtime data |
 
 `agents/openai.yaml` supplies optional Codex UI metadata. `plugin.json` is an optional plugin descriptor; marketplace installation has not been verified. Neither is required by the CLI. Tests, evaluations, reports and repository docs remain outside the installed runtime Skill.
+
+Online installation uses HTTPS and a single GitHub source snapshot. Before executing its source installer, it checks every manifest file's SHA-256, ZIP paths and types, duplicate entries, size limits and required files. The manifest establishes snapshot consistency, not an independent signature. Only public source is staged in a temporary directory and cleaned up; private stores and bindings use their normal scope-specific paths. Network reads and installer execution are bounded; failures have nonzero exits and never certify completion. The current business directory is captured before staging and passed explicitly to setup.
 
 ## Storage boundaries
 
@@ -45,7 +47,7 @@ Each database contains its own records, evidence, revisions, retrieval terms, de
 
 ## Data flow
 
-1. **Check**: `doctor` reports capabilities without initializing stores. Plain installation copies programs only; `install.py --project` or `setup` explicitly authorizes project memory and merges automatically loaded host instructions. Startup instructions load the Skill without a chat invocation.
+1. **Check**: `doctor` reports capabilities without initializing stores. Plain installation copies programs only; online installation (current project), source `install.py --project` or installed `setup` explicitly authorizes project memory and merges automatically loaded host instructions. Startup instructions load the Skill without a chat invocation.
 2. **Recall**: a focused query, project/task identity and context state select applicable memory. The AI compares it with current instructions and authoritative project evidence.
 3. **Judge**: within the current turn, the AI identifies new requirements, corrections, decisions or actual progress. Desired behavior, observed facts, preferences and hypotheses remain distinct.
 4. **Apply**: the AI submits structured operations and sources. The CLI validates, checks revision conflicts and deduplicates. Global and project batches use separate transactions and results; one call can succeed in one store and fail in the other.

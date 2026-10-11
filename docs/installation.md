@@ -1,14 +1,22 @@
 # 安装与项目初始化
 
-## 推荐入口
+## 在线安装并初始化
 
-下载并解压本仓库，在包含 `install.py` 的目录运行：
+在**业务项目根目录**执行一条命令：
 
 ```sh
-python3 install.py codex --project /实际项目路径
+python3 -c 'import urllib.request as u; exec(u.urlopen("https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py", timeout=30).read())' codex
 ```
 
-Windows 使用 `py -3`。需要 Python 3.10+ 和标准库 sqlite3。一条命令安装 Skill、检查运行时、初始化全局和项目空库、合并宿主项目引导。首次创建没有演示记录；已有数据及暂停状态不会被重置。
+Windows PowerShell：
+
+```powershell
+py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py', timeout=30).read())" codex
+```
+
+只替换命令最后的 AI 名称，见下表。需要 Python 3.10+ 和标准库 sqlite3，无需手动下载或克隆。安装器从 GitHub 获取同一份源码快照，核对完整性清单后安装；临时源码自动清理。安装只读取公开程序，不上传项目或记忆。
+
+成功时显示安装路径、项目和引导文件。一条命令完成安装、运行检查、独立空库初始化和项目引导，已有记忆及暂停状态不会重置。默认使用运行命令的当前目录；若在其他目录执行，命令末尾可加 `--project /项目绝对路径`。
 
 | AI 参数 | 自动加载的项目引导 | Python 安装目录 |
 | --- | --- | --- |
@@ -19,7 +27,7 @@ Windows 使用 `py -3`。需要 Python 3.10+ 和标准库 sqlite3。一条命令
 | `copilot` | `.github/copilot-instructions.md` | `~/.copilot/skills/dev-memory/` |
 | `opencode` | `AGENTS.md` | `~/.config/opencode/skills/dev-memory/` |
 
-项目路径必须明确指向你的开发项目，不能误指下载目录。非 Git 项目同样可初始化。项目目录不可写时返回失败，不会将项目数据转存全局。初始化只配置这个项目，其他项目需各自初始化。
+请在开发项目的根目录执行；不要在用户主目录或无关目录初始化。非 Git 项目同样可初始化。项目目录不可写时返回失败，不会将项目数据转存全局。初始化只配置这个项目，其他项目需各自初始化。
 
 新建该项目的 AI 会话后直接开发。宿主启动时加载引导，AI 读取安装的 Skill 并默认管理记忆；不需要聊天启用口令。已有会话可能缓存启动指令，需要新会话才能生效。宿主自己的信任和进程权限要求仍由宿主管理。
 
@@ -27,29 +35,35 @@ Windows 使用 `py -3`。需要 Python 3.10+ 和标准库 sqlite3。一条命令
 
 用户要求安装并初始化时：
 
-1. 确认当前宿主、本地命令权限，以及用户原项目的根目录。保留原项目路径，再下载或克隆仓库到独立临时目录；不要把下载目录当成业务项目。无法确认宿主或项目时，仅询问缺失的信息。
-2. 检查 Python 3.10+、sqlite3，阅读安装程序。从仓库运行 `python3 install.py <AI参数> --project <用户项目绝对路径> --json`。可用 `--target` 指定真实宿主支持的自定义 Skill 目录。
-3. 检查退出码为 0，`status: installed`、`runtime_check.status: passed`，以及 `project_setup.status: initialized`、`activation: configured`。检查两个 `stores` 的真实结果。仅复制了文件不算初始化成功。
-4. 报告项目、程序路径和引导文件。告诉用户在该项目新建会话后正常开发即可；不要要求发送启用、保存、召回或继续的 Skill 口令。
-5. 已有受管理的安装在带 `--project` 的调用中可重复更新；额外文件、非受管理目录、符号链接和损坏的标记会拒绝覆盖。保留用户无关配置。外部管理器安装应继续使用其更新流程，并从实际安装副本调用 `setup`。
+1. 确认当前宿主、本地命令权限及原业务项目根目录。无法确认时，只询问缺失的信息。
+2. 检查 Python 3.10+ 和 sqlite3。在原项目根目录运行本页在线命令，选择实际宿主，并在末尾加 `--json`。其他目录使用显式 `--project <原项目绝对路径>`；自定义宿主目录用 `--target`。
+3. 检查退出码为 0、`status: installed`、`runtime_check.status: passed`、`project_setup.status: initialized`、`activation: configured`，以及两个 `stores` 的实际结果。只复制文件不算初始化成功。
+4. 报告项目、程序路径和引导文件。用户新建该项目会话后正常开发即可，不需要启用、保存、召回或继续的 Skill 口令。
+5. 重复执行在线命令更新受管理安装和项目绑定。未知文件、非受管理目录、符号链接或损坏的标记会拒绝覆盖；保留无关配置。外部管理器安装应继续使用原管理器更新，从实际副本运行 `setup`。
 
 不修改个人全局指令，不开启后台进程，不配置默认 hooks，也不授予宿主信任。初始化是用户授权的项目配置变化，合并的管理块外内容保持原样。失败最多一次针对明确原因的重试，如实说明已安装/已初始化的部分。
 
-## 已安装 Skill：初始化另一个项目
+## 初始化另一个项目
 
-从实际安装副本执行（Codex 默认路径示例）：
+在另一个项目根目录重复执行在线命令即可。每个项目有独立记忆，明确确认的全局研发偏好可以共用。
+
+已有安装且不方便联网时，可直接使用本地副本（Codex 默认路径）：
 
 ```sh
-python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py setup --project-root /另一个项目路径
+python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py setup --project-root /项目路径
 ```
 
-这个显式命令的项目参数省略时使用当前目录；默认宿主为 Codex。其他宿主加 `--agent claude-code`、`cursor`、`gemini-cli`、`github-copilot` 或 `opencode`。自定义安装使用实际副本路径。无需重复聊天授权。
+其他宿主加 `--agent claude-code`、`cursor`、`gemini-cli`、`github-copilot` 或 `opencode`；自定义安装使用实际副本路径。无需重复聊天授权。
 
 `setup` 保存私有项目绑定 `.dev-memory/activation.json`，主机程序路径留在本项目范围内。项目记忆和绑定通过 Git 本地 exclude 排除。宿主指令文件只有通用协议，已有受版本管理的指令会出现一个管理块 diff，可正常审查；不会插入业务内容或个人绝对路径。
 
-## 仅安装程序 / 使用 skills 管理器
+## 离线源码 / 仅安装程序
+
+已有完整源码时，在仓库目录执行 `python3 install.py codex --project /业务项目绝对路径`。这与在线安装调用同一套运行检查和初始化逻辑；Windows 使用 `py -3`。
 
 高级用法：`python3 install.py codex` 只安装程序，不初始化项目；`python3 install.py` 可交互选择宿主。非交互环境必须指定宿主。原 `--agent` 参数仍支持。
+
+## 外部 skills 管理器
 
 已有 Node.js/npm 的用户也可安装标准 Skill：
 
@@ -63,6 +77,7 @@ DISABLE_TELEMETRY=1 npx skills@1.7.2 add chrisstarr7/dev-memory -g -a codex --co
 
 AI 可从安装副本运行 `doctor --project-root <路径>`，检查 `project_activation` 和各存储状态。检查不会初始化或写入。`configured` 证明引导与运行文件存在，不证明每一轮都执行了。每次实际保存须检查回执；未检查、失败和 NOOP 必须区分。
 
+- **网络失败**：先确认能访问 GitHub，再重试同一在线命令；没有“安装成功”和项目初始化回执时，不算完成。下载、校验失败不会安装，安装阶段超时可能留下部分结果，应检查后重试。
 - **原会话未生效**：新建该项目会话，使宿主重新加载启动指令。
 - **只读或暂停**：初始化不会取消该设置；只有用户要求恢复时才执行 `capture on`。
 - **找不到程序**：安装可能被移动或卸载。重新执行安装并初始化命令更新绑定。
@@ -75,7 +90,9 @@ AI 可从安装副本运行 `doctor --project-root <路径>`，检查 `project_a
 
 ## 升级与卸载
 
-从新下载的版本重新执行安装并初始化命令即可更新这个项目的绑定；已有数据和暂停状态保留。仅更新程序：
+**升级：在项目根目录重新执行同一在线命令。** 会更新程序与该项目的绑定，已有记忆和暂停状态保留。其他项目的绑定不被扫描或修改。
+
+使用离线源码且仅更新程序时：
 
 ```sh
 python3 install.py codex --upgrade

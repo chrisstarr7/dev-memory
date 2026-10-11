@@ -134,3 +134,15 @@ Times and token fields are whole real model invocations, not database microbench
 - Commit `08813ed633f3f8463414a0ee0ef8c440299aaef7` was pushed to the public `chrisstarr7/dev-memory` repository. Its actual GitHub source ZIP passed all 40 manifest hashes; `install.py claude --project <synthetic-project> --json` completed runtime checking, independent store initialization and project guide configuration in a temporary HOME, leaving hooks unchanged.
 - Actual `skills@1.7.2` installation from this GitHub repository passed for six hosts: 84 runtime file checks, installed doctor calls, reinstall and removal. Databases remained unchanged and hooks were not configured.
 - [GitHub Actions 38107607438](https://github.com/chrisstarr7/dev-memory/actions/runs/38107607438) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs, including 91 tests and release building. Exact public-install evidence is in `reports/install-smoke.json` under `onboarding_0_3_0`. Subsequent report-only changes do not imply additional model runs.
+
+
+## Online installation — 0.3.1
+
+The default README entry now installs directly from GitHub and initializes the current business project in one command. Manual source download and an extra enable prompt are not required. Local source installation and the installed `setup` command remain available for offline use.
+
+- Local program suite: **105 tests passed**, including **14 online bootstrap regressions**, with synthetic snapshots, temporary homes and projects.
+- Covered: six host selectors, current-project binding, explicit project/custom target, repeat installation preserving a saved business rule and paused/disabled controls, stable memory identity, unrelated instructions, source cleanup, unavailable Python/sqlite3, offline/timeout failures, invalid arguments, ZIP/manifest/hash attacks, malformed child results, complete and partial receipts, and download/expanded size bounds.
+- Skill schema validation passed using author-only PyYAML; no dependency was added to the runtime.
+- Public GitHub online execution and CI evidence will be recorded after publication below.
+
+These are installation/program checks. No new model session or full latency A/B was run for 0.3.1; the observed 0.3.0 Codex CLI session results are historical evidence. Windows and actual automatic behavior on other hosts remain unverified.

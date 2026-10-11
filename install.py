@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install dev-memory with an explicit AI selection and a runtime check."""
+"""Install dev-memory locally or online, with an explicit AI and runtime check."""
 from __future__ import annotations
 
 import argparse
@@ -9,6 +9,18 @@ import sys
 from pathlib import Path
 
 ALIASES = {"claude": "claude-code", "gemini": "gemini-cli", "copilot": "github-copilot"}
+
+
+def argument_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("agent", nargs="?", help="codex, claude, cursor, gemini, copilot, opencode")
+    parser.add_argument("--agent", dest="agent_option", help="Compatible explicit AI selector")
+    parser.add_argument("--project", type=Path, help="Install and initialize this project for automatic memory")
+    parser.add_argument("--target", type=Path, help="Custom Skill directory")
+    parser.add_argument("--upgrade", action="store_true", help="Replace a managed installation; preserve memory")
+    parser.add_argument("--with-codex-hooks", action="store_true", help="Explicitly configure optional Codex hooks")
+    parser.add_argument("--json", action="store_true", help="Structured result for automation")
+    return parser
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,14 +41,7 @@ def main(argv: list[str] | None = None) -> int:
         print("sqlite3 不可用，请修复 Python 运行环境后重试。", file=sys.stderr)
         return 2
 
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("agent", nargs="?", help="codex, claude, cursor, gemini, copilot, opencode")
-    parser.add_argument("--agent", dest="agent_option", help="Compatible explicit AI selector")
-    parser.add_argument("--project", type=Path, help="Install and initialize this project for automatic memory")
-    parser.add_argument("--target", type=Path, help="Custom Skill directory")
-    parser.add_argument("--upgrade", action="store_true", help="Replace a managed installation; preserve memory")
-    parser.add_argument("--with-codex-hooks", action="store_true", help="Explicitly configure optional Codex hooks")
-    parser.add_argument("--json", action="store_true", help="Structured result for automation")
+    parser = argument_parser()
     args = parser.parse_args(argv)
     agent = ALIASES.get(args.agent or "", args.agent)
     option = ALIASES.get(args.agent_option or "", args.agent_option)
@@ -97,12 +102,26 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError, subprocess.SubprocessError):
         result.update(status="failed", error="installation_check_failed",
                       message="安装或检查失败。若已返回 path，文件可能已安装；请从该目录运行 doctor 检查。")
+    report(result, args, agent)
+    return 0 if result["status"] == "installed" else 1
+
+
+def report(result: dict, args: argparse.Namespace, agent: str) -> None:
     if args.json:
         print(json.dumps(result, ensure_ascii=False))
     elif result["status"] == "failed":
-        print("安装未完成：" + result["message"], file=sys.stderr)
+        print("安装未完成：" + str(result.get("message", result.get("error", "安装检查失败。"))), file=sys.stderr)
         if result.get("path"):
             print("程序目录：" + result["path"], file=sys.stderr)
+        setup = result.get("project_setup")
+        if isinstance(setup, dict):
+            items = setup.get("stores", [])
+            for item in items if isinstance(items, list) else []:
+                if not isinstance(item, dict):
+                    continue
+                print(f"{item.get('scope', 'store')}：{item.get('status', 'unknown')}"
+                      + (f" ({item['error']})" if item.get('error') else ""), file=sys.stderr)
+            print("项目引导：" + str(setup.get("activation", "unknown")), file=sys.stderr)
         if result.get("error") == "already_installed":
             print(f"升级已有安装：python3 install.py {agent} --upgrade", file=sys.stderr)
     else:
@@ -116,8 +135,175 @@ def main(argv: list[str] | None = None) -> int:
             print("仅安装了程序。为业务项目初始化：python3 install.py " + agent + " --project /项目路径")
         if args.with_codex_hooks:
             print("可选 hooks 已配置；仍需宿主信任和真实事件验证。")
-    return 0 if result["status"] == "installed" else 1
+
+
+# The online entry is fetched by Python and executed without __file__. Local
+# source invocation retains its original program-only/explicit-project behavior.
+ONLINE_URL = "https://codeload.github.com/chrisstarr7/dev-memory/zip/refs/heads/main"
+MAX_DOWNLOAD = 8 * 1024 * 1024
+MAX_EXPANDED = 16 * 1024 * 1024
+
+
+def download_snapshot() -> bytes:
+    import time
+    import urllib.request
+
+    started = time.monotonic()
+    chunks = []
+    size = 0
+    with urllib.request.urlopen(ONLINE_URL, timeout=15) as response:
+        while True:
+            chunk = response.read(min(65536, MAX_DOWNLOAD + 1 - size))
+            size += len(chunk)
+            if size > MAX_DOWNLOAD:
+                raise ValueError("在线安装包超过大小上限。")
+            if time.monotonic() - started > 45:
+                raise TimeoutError("在线安装包读取超时。")
+            if not chunk:
+                break
+            chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def unpack_snapshot(data: bytes, destination: Path) -> dict:
+    """Validate a bounded ZIP and its entire public manifest before any execution."""
+    import hashlib
+    import io
+    import re
+    import stat
+    import zipfile
+    from pathlib import PurePosixPath
+
+    def safe_path(name: str) -> tuple[str, ...]:
+        parts = PurePosixPath(name).parts
+        if (not name or "\\" in name or name.startswith("/") or ":" in name
+                or any(part in {"", ".", ".."} for part in name.rstrip("/").split("/"))):
+            raise ValueError("在线安装包包含不安全路径。")
+        return parts
+
+    if len(data) > MAX_DOWNLOAD:
+        raise ValueError("在线安装包超过大小上限。")
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        infos = archive.infolist()
+        if len(infos) > 1024 or sum(info.file_size for info in infos) > MAX_EXPANDED:
+            raise ValueError("在线安装包展开超过上限。")
+        entries = {}
+        roots = set()
+        for info in infos:
+            parts = safe_path(info.filename)
+            roots.add(parts[0])
+            if info.filename in entries or info.file_size > 1024 * 1024:
+                raise ValueError("在线安装包包含重复条目或过大的文件。")
+            kind = stat.S_IFMT(info.external_attr >> 16)
+            if kind not in (0, stat.S_IFREG, stat.S_IFDIR) or info.flag_bits & 1:
+                raise ValueError("在线安装包包含链接、特殊文件或加密条目。")
+            entries[info.filename] = info
+        if len(roots) != 1:
+            raise ValueError("在线安装包根目录不唯一。")
+        prefix = roots.pop() + "/"
+        manifest = json.loads(archive.read(prefix + "manifest.json"))
+        if (not isinstance(manifest, dict) or manifest.get("package") != "dev-memory"
+                or not isinstance(manifest.get("version"), str) or not manifest["version"]
+                or not isinstance(manifest.get("files"), list)
+                or not 1 <= len(manifest["files"]) <= 256):
+            raise ValueError("在线安装清单无效。")
+        verified = {}
+        for entry in manifest["files"]:
+            if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+                raise ValueError("在线安装清单文件条目无效。")
+            name = entry["path"]
+            safe_path(name)
+            if (name.endswith("/") or name == "manifest.json" or name in verified
+                    or not isinstance(entry.get("sha256"), str)
+                    or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"])):
+                raise ValueError("在线安装清单包含重复或无效条目。")
+            info = entries.get(prefix + name)
+            if info is None or info.is_dir():
+                raise ValueError("在线安装清单中的文件缺失。")
+            content = archive.read(info)
+            if hashlib.sha256(content).hexdigest() != entry["sha256"]:
+                raise ValueError("在线安装包校验失败，请稍后重试。")
+            verified[name] = content
+        required = {"install.py", "skills/dev-memory/SKILL.md", "skills/dev-memory/scripts/dev_memory.py"}
+        if not required.issubset(verified):
+            raise ValueError("在线安装包缺少必要程序。")
+        # Only checked public source files are staged. No memory data lives here.
+        for name, content in verified.items():
+            target = destination / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+    return {"version": manifest["version"], "verified_files": len(verified)}
+
+
+def online_main(argv: list[str] | None = None) -> int:
+    import tempfile
+    import zipfile
+
+    parser = argument_parser()
+    args = parser.parse_args(argv)
+    agent = ALIASES.get(args.agent or "", args.agent)
+    option = ALIASES.get(args.agent_option or "", args.agent_option)
+    if agent and option and agent != option:
+        parser.error("两个 AI 参数不一致。")
+    agent = agent or option
+    if agent not in {"codex", "claude-code", "cursor", "gemini-cli", "github-copilot", "opencode"}:
+        parser.error("请指定 AI：codex、claude、cursor、gemini、copilot 或 opencode。")
+    args.project = (args.project or Path.cwd()).expanduser().resolve()
+    result = {}
+    try:
+        if sys.version_info < (3, 10):
+            raise ValueError("需要 Python 3.10+。")
+        import sqlite3
+        try:
+            sqlite3.connect(":memory:").close()
+        except sqlite3.Error as exc:
+            raise ValueError("sqlite3 不可用。") from exc
+        with tempfile.TemporaryDirectory(prefix="dev-memory-source-") as staging:
+            source = Path(staging)
+            snapshot = unpack_snapshot(download_snapshot(), source)
+            command = [sys.executable, "-B", str(source / "install.py"), agent,
+                       "--project", str(args.project), "--json"]
+            if args.target:
+                command += ["--target", str(args.target.expanduser().resolve())]
+            if args.upgrade:
+                command.append("--upgrade")
+            if args.with_codex_hooks:
+                command.append("--with-codex-hooks")
+            child = subprocess.run(command, capture_output=True, text=True, timeout=60)
+            result = json.loads(child.stdout)
+            if not isinstance(result, dict):
+                raise ValueError("安装程序返回了无效回执。")
+            if child.returncode == 0:
+                runtime = result.get("runtime_check")
+                setup = result.get("project_setup")
+                stores = setup.get("stores") if isinstance(setup, dict) else None
+                if (result.get("status") != "installed"
+                        or not isinstance(result.get("path"), str) or not result["path"]
+                        or not isinstance(runtime, dict) or runtime.get("status") != "passed"
+                        or not isinstance(setup, dict) or setup.get("status") != "initialized"
+                        or setup.get("activation") != "configured"
+                        or setup.get("project_root") != str(args.project)
+                        or not isinstance(setup.get("guide"), str)
+                        or not isinstance(stores, list) or len(stores) != 2
+                        or not all(isinstance(item, dict) and item.get("status") == "initialized"
+                                   for item in stores)
+                        or {item.get("scope") for item in stores} != {"global", "project"}):
+                    raise ValueError("安装程序没有返回完整成功回执。")
+            elif result.get("status") != "failed":
+                raise ValueError("安装程序退出失败，但回执未报告失败。")
+            result["online"] = {"source": ONLINE_URL, **snapshot}
+    except subprocess.TimeoutExpired:
+        result = {"status": "failed", "error": "online_install_timeout",
+                  "message": "安装检查超时；部分程序或空库可能已创建，请检查后重试同一命令。"}
+    except (OSError, ImportError, ValueError, KeyError, TypeError, AttributeError,
+            zipfile.BadZipFile, RuntimeError, subprocess.SubprocessError) as exc:
+        if not isinstance(result, dict):
+            result = {}
+        result.update(status="failed", error="online_install_failed",
+                      message="在线安装未完成：" + str(exc) + "。若安装程序已运行，请检查实际安装状态。")
+    report(result, args, agent)
+    return 0 if result.get("status") == "installed" else 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(online_main() if globals().get("__file__", "<stdin>") == "<stdin>" else main())

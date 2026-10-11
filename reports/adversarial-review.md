@@ -68,3 +68,17 @@ Synthetic tests cover all six host guide paths, idempotent one-command setup, pr
 ### Limits retained
 
 Project instructions guide the current model; they are not an enforced per-turn event system. Host trust, instruction settings, nested overrides and context limits can affect loading. Only named real-host sessions in the verification report establish observed AI behavior. Cross-host and desktop behavior are not inferred from six-host configuration tests. A same-user adversarial file replacement race remains outside the filesystem threat boundary. Setup's bounded lock can remain after an interrupted process and requires inspection before removal. Uninstall does not enumerate other projects or erase private memories.
+
+
+## Online installation review — 0.3.1
+
+- Manual ZIP download, unpacking and specifying a business path made the default workflow needlessly long. The recommended command now fetches the online bootstrap using Python and initializes the original current project. AI selection is still explicit. Source invocation keeps its documented offline/program-only behavior.
+- A shell pipe can report success when an upstream download fails and feeds an empty script to Python. The recommended Python fetch-and-execute command propagates fetch failures with a nonzero exit. There is no shell pipe or extra package-manager dependency.
+- ZIP traversal, absolute/Windows paths, duplicate entries, symlinks, special/encrypted files, missing manifest files and checksum mismatches are rejected before executing downloaded code. Compressed/expanded bytes, entry count, per-file bytes and manifest size are bounded. Only manifest-checked public files are staged.
+- Staging could be mistaken for the business directory. The bootstrap captures the original project and explicitly passes it to the shared source installer; private activation paths refer to the installed runtime and stable interpreter. Temporary source is cleaned on success and failure.
+- Copy success or a malformed child receipt could be mistaken for complete activation. The wrapper checks the child exit, runtime result, project identity, activation and both independent store receipts. Actual partial failures are retained; human output includes per-store status.
+- Network download and child installation are bounded, with no automatic retry loop. A child timeout may leave installed programs or initialized empty stores; it reports this possibility. Repeating the same command safely updates a managed installation while preserving existing records, identities, controls and unrelated instructions.
+
+Complexity review: reuse the existing installer/setup/storage functions and argument parser; the standalone online bootstrap uses only Python standard-library HTTP, temporary files and ZIP support. No npm package, service, daemon or per-turn network operation was introduced. Integrity checks establish consistency of trusted GitHub source, not independent code authenticity.
+
+Windows command syntax is provided, but no real Windows installation or Windows host session was run. The online transport change does not establish new cross-host model behavior, hook enforcement or whole-workflow latency; existing limitations remain.
