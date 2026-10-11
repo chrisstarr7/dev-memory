@@ -23,7 +23,7 @@
   "install_reinstall_remove": true,
   "memory_preserved": true,
   "hooks_unchanged": true,
-  "remote_github_install": "not run: repository not yet published",
+  "remote_github_install": "passed; see github_publication_check",
   "host_invocation": "not established by copying files or doctor",
   "commands": [
     {
@@ -71,5 +71,105 @@
       "exit_code": 0,
       "elapsed_seconds": 1.459
     }
-  ]
+  ],
+  "github_publication_check": {
+    "source": "chrisstarr7/dev-memory",
+    "source_commit": "c6e7b4df883c093f81cee8bbba096ca6cecae22d",
+    "installer": "skills@1.7.2",
+    "node": "v24.13.0",
+    "host_invocation": "not established by installer or doctor",
+    "commands": [
+      {
+        "action": "github_install",
+        "exit_code": 0,
+        "elapsed_seconds": 16.503
+      },
+      {
+        "action": "doctor:codex",
+        "exit_code": 0,
+        "elapsed_seconds": 0.18
+      },
+      {
+        "action": "doctor:claude-code",
+        "exit_code": 0,
+        "elapsed_seconds": 0.121
+      },
+      {
+        "action": "doctor:cursor",
+        "exit_code": 0,
+        "elapsed_seconds": 0.108
+      },
+      {
+        "action": "doctor:gemini-cli",
+        "exit_code": 0,
+        "elapsed_seconds": 0.109
+      },
+      {
+        "action": "doctor:github-copilot",
+        "exit_code": 0,
+        "elapsed_seconds": 0.109
+      },
+      {
+        "action": "doctor:opencode",
+        "exit_code": 0,
+        "elapsed_seconds": 0.107
+      },
+      {
+        "action": "github_reinstall",
+        "exit_code": 0,
+        "elapsed_seconds": 4.914
+      },
+      {
+        "action": "remove",
+        "exit_code": 0,
+        "elapsed_seconds": 1.464
+      }
+    ],
+    "status": "passed",
+    "agents": [
+      "codex",
+      "claude-code",
+      "cursor",
+      "gemini-cli",
+      "github-copilot",
+      "opencode"
+    ],
+    "destinations": {
+      "codex": ".agents/skills/dev-memory",
+      "claude-code": ".claude/skills/dev-memory",
+      "cursor": ".agents/skills/dev-memory",
+      "gemini-cli": ".agents/skills/dev-memory",
+      "github-copilot": ".agents/skills/dev-memory",
+      "opencode": ".agents/skills/dev-memory"
+    },
+    "files_hash_checked": 78,
+    "memory_preserved": true,
+    "hooks_unchanged": true,
+    "install_reinstall_remove": true,
+    "github_ci": {
+      "source_commit": "c6e7b4df883c093f81cee8bbba096ca6cecae22d",
+      "url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38105343903",
+      "status": "passed",
+      "matrix": [
+        {
+          "name": "test (macos-latest, 3.10)",
+          "conclusion": "success"
+        },
+        {
+          "name": "test (ubuntu-latest, 3.14)",
+          "conclusion": "success"
+        },
+        {
+          "name": "test (ubuntu-latest, 3.10)",
+          "conclusion": "success"
+        },
+        {
+          "name": "test (macos-latest, 3.14)",
+          "conclusion": "success"
+        }
+      ],
+      "test_count_per_job": 64,
+      "package_build_per_job": "passed"
+    }
+  }
 }

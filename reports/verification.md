@@ -73,3 +73,12 @@ Checks performed for this documentation/package update:
 - Release whitelist regression passed in 0.061 seconds. The first invocation used the wrong test module path and did not execute the regression; the corrected repository-root invocation passed.
 - Installer preservation regression passed using temporary stores and directories.
 - No new full program suite, model benchmark, semantic suite or automatic host E2E run is claimed for this presentation update. Earlier results retain their stated scope and version boundaries.
+
+## GitHub publication verification — 2026-10-11
+
+Published public repository: https://github.com/chrisstarr7/dev-memory. The initial published commit tested below is `c6e7b4df883c093f81cee8bbba096ca6cecae22d`.
+
+- Real GitHub source installation with skills@1.7.2 and Node v24.13.0 passed for Codex, Claude Code, Cursor, Gemini CLI, GitHub Copilot and OpenCode in an isolated temporary HOME/cache. Installation, six read-only doctor calls, reinstallation and removal all succeeded. 78 per-Agent runtime file hashes matched. No memories were initialized by installation; synthetic databases survived reinstallation/removal, and hooks were unchanged. Evidence is `reports/install-smoke.json` under `github_publication_check`.
+- [GitHub Actions run 38105343903](https://github.com/chrisstarr7/dev-memory/actions/runs/38105343903) completed successfully. All four Ubuntu/macOS × Python 3.10/3.14 jobs ran 64 tests successfully and built the whitelist archive. Exact commit and matrix are retained in the installation report.
+- README and installation guide now use the real repository source. Program files are unchanged by this publication evidence update. Historical review and benchmark statements above retain their original boundaries.
+- These checks establish public download/install and program CI. They do not establish automatic host event delivery, additional model A/B measurements or a complete semantic suite. Windows E2E remains unverified.

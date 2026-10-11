@@ -54,7 +54,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "d6e33656a529a3ee7f544a4cc815e572cce91b905fc8f4713d9165d1679a30e1"
+      "sha256": "ae525bbc12b8cc0bd8af0aae17ee0ac61d8a0dc0019c8a5a9ce1f44e6236d639"
     },
     {
       "path": "LICENSE",
@@ -110,7 +110,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "6e25c9490d5670632aa0590e7c66acfad2ef9bde5807a193e5a5b22452ced3c2"
+      "sha256": "7a2ec345326b722c4a6f1859506026a8417d1d5cbb6ea67fa12b3a018f3d65cb"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -122,7 +122,7 @@
     },
     {
       "path": "reports/install-smoke.json",
-      "sha256": "0ba0c10bd42d6e3d7bb7f9dabb2695049bf3e0496798ed2cfee8ed79ad961c6c"
+      "sha256": "a0ec85384d9468ab6bf437fd626dbeab8d6e4fe9f253d6fc68109cb506a42c11"
     },
     {
       "path": "reports/benchmark-2026-10-11.json",
