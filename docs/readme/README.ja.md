@@ -28,7 +28,7 @@
 npx -y chrisstarr7/dev-memory codex
 ```
 
-ほかの AI では `codex` を `claude`、`cursor`、`gemini`、`copilot`、`opencode` に置き換えます。macOS、Linux、Windows で同じコマンドを使用できます。Windows へのインストールは独立した検証を行っていません。
+ほかの AI では `codex` を `claude`、`cursor`、`gemini`、`copilot`、`opencode` に置き換えます。macOS、Linux、Windows で同じコマンドを使用できます。
 
 **必要な環境：** npm/npx を含む Node.js 22+、Git、sqlite3 を含む Python 3.10+。インストーラーがプログラムを取得し、環境を確認して、空のプロジェクト用ストアと AI のプロジェクト指示を設定します。
 

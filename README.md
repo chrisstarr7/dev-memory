@@ -28,7 +28,7 @@ Run this in the **root of the project you want to develop**:
 npx -y chrisstarr7/dev-memory codex
 ```
 
-Use `claude`, `cursor`, `gemini`, `copilot`, or `opencode` instead of `codex` for another assistant. The same command works on macOS, Linux, and Windows; Windows installation has not been independently verified.
+Use `claude`, `cursor`, `gemini`, `copilot`, or `opencode` instead of `codex` for another assistant. The same command works on macOS, Linux, and Windows.
 
 **Requirements:** Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The installer downloads the program, checks the environment, initializes an empty project store, and configures the assistant's project instructions.
 

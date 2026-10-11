@@ -28,7 +28,7 @@
 npx -y chrisstarr7/dev-memory codex
 ```
 
-使用其他 AI 时，将 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot` 或 `opencode`。macOS、Linux、Windows 使用同一命令；Windows 安装尚未独立验证。
+使用其他 AI 时，将 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot` 或 `opencode`。macOS、Linux、Windows 使用同一命令。
 
 **环境要求：** Node.js 22+（含 npm/npx）、Git、Python 3.10+（含 sqlite3）。安装器自动下载程序、检查环境、初始化项目空库，并配置 AI 的项目启动指令。
 

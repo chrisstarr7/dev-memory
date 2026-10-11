@@ -28,7 +28,7 @@
 npx -y chrisstarr7/dev-memory codex
 ```
 
-다른 AI를 사용한다면 `codex`를 `claude`, `cursor`, `gemini`, `copilot`, `opencode`로 바꾸세요. macOS, Linux, Windows에서 같은 명령을 사용합니다. Windows 설치는 아직 독립적으로 검증하지 않았습니다.
+다른 AI를 사용한다면 `codex`를 `claude`, `cursor`, `gemini`, `copilot`, `opencode`로 바꾸세요. macOS, Linux, Windows에서 같은 명령을 사용합니다.
 
 **필수 환경:** npm/npx가 포함된 Node.js 22+, Git, sqlite3가 포함된 Python 3.10+. 설치 프로그램이 코드를 내려받고 환경을 확인한 뒤, 빈 프로젝트 저장소와 AI의 프로젝트 지침을 설정합니다.
 
