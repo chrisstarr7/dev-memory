@@ -171,5 +171,122 @@
       "test_count_per_job": 64,
       "package_build_per_job": "passed"
     }
+  },
+  "onboarding_0_2_1": {
+    "source": "chrisstarr7/dev-memory",
+    "source_commit": "60344057ae916fc5128b5080b8af285c1fe6735d",
+    "installer": "skills@1.7.2",
+    "node": "v24.13.0",
+    "host_invocation": "not established by installer or doctor",
+    "commands": [
+      {
+        "action": "github_install",
+        "exit_code": 0,
+        "elapsed_seconds": 11.95
+      },
+      {
+        "action": "doctor:codex",
+        "exit_code": 0,
+        "elapsed_seconds": 0.189
+      },
+      {
+        "action": "doctor:claude-code",
+        "exit_code": 0,
+        "elapsed_seconds": 0.123
+      },
+      {
+        "action": "doctor:cursor",
+        "exit_code": 0,
+        "elapsed_seconds": 0.113
+      },
+      {
+        "action": "doctor:gemini-cli",
+        "exit_code": 0,
+        "elapsed_seconds": 0.11
+      },
+      {
+        "action": "doctor:github-copilot",
+        "exit_code": 0,
+        "elapsed_seconds": 0.109
+      },
+      {
+        "action": "doctor:opencode",
+        "exit_code": 0,
+        "elapsed_seconds": 0.11
+      },
+      {
+        "action": "github_reinstall",
+        "exit_code": 0,
+        "elapsed_seconds": 8.509
+      },
+      {
+        "action": "remove",
+        "exit_code": 0,
+        "elapsed_seconds": 1.668
+      }
+    ],
+    "status": "passed",
+    "agents": [
+      "codex",
+      "claude-code",
+      "cursor",
+      "gemini-cli",
+      "github-copilot",
+      "opencode"
+    ],
+    "destinations": {
+      "codex": ".agents/skills/dev-memory",
+      "claude-code": ".claude/skills/dev-memory",
+      "cursor": ".agents/skills/dev-memory",
+      "gemini-cli": ".agents/skills/dev-memory",
+      "github-copilot": ".agents/skills/dev-memory",
+      "opencode": ".agents/skills/dev-memory"
+    },
+    "files_hash_checked": 78,
+    "memory_preserved": true,
+    "hooks_unchanged": true,
+    "install_reinstall_remove": true,
+    "skill_selector_omitted": true,
+    "python_zip_install": {
+      "status": "passed",
+      "source_commit": "60344057ae916fc5128b5080b8af285c1fe6735d",
+      "source": "actual GitHub source ZIP",
+      "version": "0.2.1",
+      "source_hashes_checked": 36,
+      "command": "python3 install.py claude --json",
+      "destination": ".claude/skills/dev-memory",
+      "runtime_check": {
+        "status": "passed",
+        "python": "3.14.2",
+        "sqlite": "3.50.4"
+      },
+      "memory_initialized": false,
+      "hooks_changed": false
+    },
+    "github_ci": {
+      "source_commit": "60344057ae916fc5128b5080b8af285c1fe6735d",
+      "url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38106077305",
+      "status": "passed",
+      "matrix": [
+        {
+          "name": "test (macos-latest, 3.10)",
+          "conclusion": "success"
+        },
+        {
+          "name": "test (ubuntu-latest, 3.10)",
+          "conclusion": "success"
+        },
+        {
+          "name": "test (ubuntu-latest, 3.14)",
+          "conclusion": "success"
+        },
+        {
+          "name": "test (macos-latest, 3.14)",
+          "conclusion": "success"
+        }
+      ],
+      "test_count_per_job": 74,
+      "package_build_per_job": "passed"
+    }
   }
 }

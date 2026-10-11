@@ -87,6 +87,15 @@ Published public repository: https://github.com/chrisstarr7/dev-memory. The init
 
 - README now documents install → new session/project enablement → inspect actual saved records. The primary entry is a copyable AI request; the manual entry is `python3 install.py` with explicit interactive host selection. Optional skills-manager installation is documented separately.
 - The installer validates Python/sqlite3 before copying and runs the installed CLI doctor with a 10-second timeout. Human output gives the actual path and next step; --json supports AI/automation. Original --agent options remain supported, with shorter positional aliases added. Noninteractive calls no longer silently select Codex.
-- Final local command: `python3 -m unittest discover -s tests -q`, 74 tests passed in 7.322 seconds; the final presentation-only adjustment was checked again before publication. Python compilation and 23 local links/anchors passed. One intermediate test run failed because the fixture used the wrong global config parent; fixed to use the store path function before the final green run.
+- Final local command: `python3 -m unittest discover -s tests -q`, 74 tests passed in the final local run in 7.381 seconds. Python compilation and 23 local links/anchors passed. One intermediate test run failed because the fixture used the wrong global config parent; fixed to use the store path function before the final green run.
 - A real PTY menu install was executed on macOS/Python 3.14.2, selecting Codex. The temporary installation passed its actual doctor check, printed the enablement instruction, created no memory or hooks, and was cleaned up. Six direct Python host destinations were also exercised by synthetic subprocess tests. No real user's installation/configuration was changed.
 - No new full semantic, real AI onboarding, automatic host-event or model performance run was performed. This version's local installation tests are distinct from the earlier 0.2.0 public GitHub installation and CI evidence. New GitHub CI/download evidence must be tied to its actual commit rather than inferred from the earlier run.
+
+### Public installation and CI for 0.2.1
+
+Tested commit: `60344057ae916fc5128b5080b8af285c1fe6735d`. Evidence: `reports/install-smoke.json` → `onboarding_0_2_1`.
+
+- Simplified skills-manager installation omitted --skill and selected the six agents explicitly in an isolated temporary HOME/cache. Actual GitHub install, six doctor calls, reinstall and remove passed; 78 runtime hashes matched, synthetic memory was preserved, hooks were unchanged. Installer: skills@1.7.2, Node v24.13.0.
+- Actual GitHub source ZIP was downloaded and its 36 manifest hashes verified. `python3 install.py claude --json` succeeded from the extracted archive, checking the installed CLI with Python 3.14.2 / SQLite 3.50.4. It initialized no memory and changed no hooks.
+- [CI run 38106077305](https://github.com/chrisstarr7/dev-memory/actions/runs/38106077305) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs, each with 74 tests and a successful release build. The download checks and CI apply to the named commit. Later evidence/documentation-only updates do not change runtime or installer code.
+- Real AI onboarding/model behavior, automatic hook delivery and Windows E2E remain unverified. No new latency or semantic accuracy claims are made.

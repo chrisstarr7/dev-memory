@@ -114,7 +114,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "6583466e98b943e9c83d2def7aff0bf1bc3a3f832764366c000cba79d480be52"
+      "sha256": "29962cbe506d9ce6f62a0512ce674e6dfac15945e560b5f3275e9411ef435e15"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -126,7 +126,7 @@
     },
     {
       "path": "reports/install-smoke.json",
-      "sha256": "a0ec85384d9468ab6bf437fd626dbeab8d6e4fe9f253d6fc68109cb506a42c11"
+      "sha256": "8abb0f62c1106e5164ad0a6e1ae1db32bc31e365045f2adb6bed58f5ea13dc3a"
     },
     {
       "path": "reports/benchmark-2026-10-11.json",
