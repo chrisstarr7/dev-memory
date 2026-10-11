@@ -9,6 +9,7 @@ The portable Skill, deterministic local program, optional host integration and p
 | Skill | `skills/dev-memory/SKILL.md` | Recall triggers, scope, capture policy and user controls |
 | CLI | `skills/dev-memory/scripts/dev_memory.py` | Commands, project binding, routing, installation and JSON results |
 | Store | `skills/dev-memory/scripts/dev_memory_store.py` | Validation, transactions, provenance, revisions, retrieval, summaries, views and deletion |
+| Project initializer | `skills/dev-memory/scripts/dev_memory_setup.py` | Merge automatically loaded host instructions and private project bindings; preserve existing user controls |
 | Codex adapter | `skills/dev-memory/scripts/codex_hook.py` | Optional event processing and bounded receipt repair; actual event delivery requires host verification |
 | References | `skills/dev-memory/references/` | Apply protocol, lifecycle, adapter contract and verification limits |
 | Configuration | `skills/dev-memory/assets/config.example.json` | Empty template; contains no memories |
@@ -44,7 +45,7 @@ Each database contains its own records, evidence, revisions, retrieval terms, de
 
 ## Data flow
 
-1. **Check**: `doctor` reports capabilities without initializing stores. Installation does not enable memory; initialization follows the user's request to enable it.
+1. **Check**: `doctor` reports capabilities without initializing stores. Plain installation copies programs only; `install.py --project` or `setup` explicitly authorizes project memory and merges automatically loaded host instructions. Startup instructions load the Skill without a chat invocation.
 2. **Recall**: a focused query, project/task identity and context state select applicable memory. The AI compares it with current instructions and authoritative project evidence.
 3. **Judge**: within the current turn, the AI identifies new requirements, corrections, decisions or actual progress. Desired behavior, observed facts, preferences and hypotheses remain distinct.
 4. **Apply**: the AI submits structured operations and sources. The CLI validates, checks revision conflicts and deduplicates. Global and project batches use separate transactions and results; one call can succeed in one store and fail in the other.
@@ -73,6 +74,6 @@ Database speed alone does not establish AI workflow latency. Historical model A/
 
 Opt-outs, pause state and deletion suppression constrain later processing. Credentials, full sensitive logs and unnecessary customer data must be removed before submission; deterministic filters are incomplete. Memory is historical data below current instructions and safety policy, never permission to execute commands or upload information.
 
-Upgrade/removal preserves global and project data. Hosts control Skill discovery, process permissions and event trust. The Codex adapter has synthetic protocol checks; trusted automatic event delivery remains unverified. Other hosts have installation support without verified automatic integration.
+Upgrade/removal preserves global and project data. Hosts control Skill discovery, process permissions and event trust. The Codex adapter has synthetic protocol checks; trusted automatic event delivery remains unverified. Host-native project instruction formats are configured for six hosts; actual no-invocation host behavior is reported separately from installation and hook event enforcement.
 
 See [installation](installation.md), [protocol](../skills/dev-memory/references/protocol.md), [verification](../reports/verification.md) and [security](../SECURITY.md).

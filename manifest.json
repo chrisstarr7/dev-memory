@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "74ec1c0ff067ded43f3cadbd4f674f20521dcc9405941041d3dba9c0bc95df32"
+      "sha256": "5a08640d2bca54ad04edfa47eeee6f9e5741009f7007a1de0dab0de0df010b8c"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -22,7 +22,7 @@
     },
     {
       "path": "skills/dev-memory/references/protocol.md",
-      "sha256": "216a6c18f5831931b2f182262eba6cce0b410c300be1bf3a46cb1dc7d934b332"
+      "sha256": "a30bebeeb2715ba818e5c4569058b4901a72666284f87597d1f072a795684554"
     },
     {
       "path": "skills/dev-memory/references/codex-hooks.md",
@@ -30,19 +30,23 @@
     },
     {
       "path": "skills/dev-memory/references/verification.md",
-      "sha256": "d5423e2ddda52442e4a170801285132f8061066aac4a7612e8f341d1325aeee7"
+      "sha256": "48eb8aacee1002f99e1f867914b987448af5fab1bc674299d20aa53263581945"
     },
     {
       "path": "skills/dev-memory/references/setup.md",
-      "sha256": "3b5bd7f331c1b626bfdf52db811dc546245adb1fd568ed6db088cea3f307f02e"
+      "sha256": "62d511eb88e85a81dbfe38050f16256903d79c3eed917422d3adc9e5471dbdd4"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "dbaae10c370ae2fcf4c280abb18bf49bdcd96669fbc08a0393e9c01d94cd63c1"
+      "sha256": "70edee33bf333b06cedaf871ce17bbad791acc6eeb541eaa9c0ae0eb0bbf5b69"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "a0413375ba0039f7e1c4065fd28eabc3e5da3689a0aaf357d4bf2005aae2c49a"
+      "sha256": "c28562e21d0923a2b8b4eb8701a77073da46ebed20e44a637ec6152a58e5f449"
+    },
+    {
+      "path": "skills/dev-memory/scripts/dev_memory_setup.py",
+      "sha256": "6ebccc81cefa0c914779fa64ce3dd41994933e69d218317a9933bb940b1fcffb"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -54,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "35304b583fed7e404030a60ded6ea802e2f5336e55a1aa64bce75ca9b216f63b"
+      "sha256": "163c0b811789321c0cc896d6d2118c0fb08455394f9dfab2397e5402277453f2"
     },
     {
       "path": "LICENSE",
@@ -66,11 +70,11 @@
     },
     {
       "path": "install.py",
-      "sha256": "0d9803a74c48ef32b9753f91e3879084a255bfa463ad6e093eea0476ee93ca71"
+      "sha256": "2f7db9b4a0d3a1d221259501e5fa0db26128b28d5a745bcdc2d7466e2d387c47"
     },
     {
       "path": "CONTRIBUTING.md",
-      "sha256": "44c6f9181fcff5726fcdcb3a4e6b400251c7b72d2128ae57cf27340a98f4d52b"
+      "sha256": "e17a454e22f1a4cc1d8807f93b22f6469c38569b238466a7b7268cd3ca44d4e9"
     },
     {
       "path": "SECURITY.md",
@@ -78,19 +82,19 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "3a757b05c2350f6c4733597957266dac062ab97ef6eee2a36ada3df65657817d"
+      "sha256": "6ffd28a594ebd422226c5bf56a0936ad03c923a754f1ac0e956b638850c869cd"
     },
     {
       "path": "docs/ecosystem.md",
-      "sha256": "cbd447cdd13d2d58a77aaec9913b07c0f1e27186921dafde6d7bcf49b78396ea"
+      "sha256": "566d112ff7a6a1c13f2131d84a10ad746df7a65b4c19b09b2f0ac113b786fa25"
     },
     {
       "path": "docs/architecture.md",
-      "sha256": "c6559c683f6585acb6779df1377a408de6cdc093df4af3850c9f3667f58fb734"
+      "sha256": "af23cc14ab9d5b110eb4f2698fd7eb1b7235bf0e6bb3284150f9320368a22972"
     },
     {
       "path": "tests/test_dev_memory.py",
-      "sha256": "e0242288f40cfe5387a840b56dc3cebb3a44c657ade9550cd6d4c2c61ee26d19"
+      "sha256": "b9e54d439d7b78e260c4efbccb51f887561690b005d22baeba31ddb3236b0ccb"
     },
     {
       "path": "tests/test_adversarial.py",
@@ -98,7 +102,11 @@
     },
     {
       "path": "tests/test_installer.py",
-      "sha256": "d11c285cca46aa2c9f130485ee3c7c1b7943380728cbbcd6bf5caa6ec96c40cd"
+      "sha256": "d1fde8df311a920ed96ff393e24a82e9be1afbbc567385e1960483fd6f2dd47f"
+    },
+    {
+      "path": "tests/test_setup.py",
+      "sha256": "8e5f4432e8095e7e368d90a83d0179eeae89403eacc1ff2e92640724c19fdc5f"
     },
     {
       "path": "tests/install_smoke.py",
@@ -113,16 +121,24 @@
       "sha256": "d9544278f86427a6899edfb7c222e82d480c5c6da5e2226da120ae18d15cdeff"
     },
     {
+      "path": "evals/check_automatic.py",
+      "sha256": "5d08f2d07cee7191b51bc3cb40b190768191edd927def91322c71ffd3194d36e"
+    },
+    {
       "path": "reports/verification.md",
-      "sha256": "29962cbe506d9ce6f62a0512ce674e6dfac15945e560b5f3275e9411ef435e15"
+      "sha256": "151b49cc72315826e0e80f30c47f50f1f14d128265e3c10d52fbffbcba144ad8"
     },
     {
       "path": "reports/adversarial-review.md",
-      "sha256": "34a063629a3a09d0f0e5c96e866d45200af8344f3d848f5ef70f3b58f0431c22"
+      "sha256": "f75c24a5283488087e57f4973c5191fce234e53e5dd804639b10707a441e50a4"
     },
     {
       "path": "build_release.py",
-      "sha256": "3e7e0b666f157e3349a15bccd3293b88064b881a9c7a066632f55a449d55d476"
+      "sha256": "2a4aad363c83b97b461e68179f404e463917f085e38e51bba059b8e6e7a6e542"
+    },
+    {
+      "path": "reports/automatic-onboarding.json",
+      "sha256": "739adc8485f56787a61913e666e23573b361fefff9ff9d924636893ad147d203"
     },
     {
       "path": "reports/install-smoke.json",
@@ -142,10 +158,10 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "6c5f3b54eebea5b841cf358ef8f32e7b862683740cdc74850b48d9d963ec5694"
+      "sha256": "d3fad339b9e7255b9a14824f2eb2e29ef8021cf42ecdfa4d3139478523380262"
     }
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.2.1"
+  "version": "0.3.0"
 }

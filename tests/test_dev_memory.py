@@ -69,6 +69,42 @@ class MemoryTestCase(unittest.TestCase):
 
 
 class StoreTests(MemoryTestCase):
+    def test_resume_recovers_checkpoint_candidates_without_binding_a_task(self) -> None:
+        for task in ("task-a", "task-b"):
+            self.apply(scope="task", task=task, turn=task, operations=[
+                {"op": "CHECKPOINT", "scope": "task", "record": self.record(kind="checkpoint", title=task)}])
+        ordinary = store.recall("continue", project_root=self.project_a, global_root=self.global_root)
+        self.assertFalse(any(r["kind"] == "checkpoint" for block in ordinary["stores"] for r in block["records"]))
+        resumed = store.recall("continue", project_root=self.project_a, global_root=self.global_root, resume=True, force=True)
+        block = resumed["stores"][1]
+        self.assertEqual({r["task_id"] for r in block["records"]}, {"task-a", "task-b"})
+        self.assertIsNone(block["task_id"])
+        b = store.recall("continue", project_root=self.project_b, global_root=self.global_root, resume=True, force=True)
+        self.assertFalse(b["stores"][1]["records"])
+        limited = store.recall("continue", project_root=self.project_a, global_root=self.global_root, resume=True,
+                               max_details=1, force=True)
+        self.assertTrue(limited["stores"][1]["context_incomplete"])
+
+    def test_mixed_batch_project_context_does_not_stamp_global_records(self) -> None:
+        global_rule = self.record(scope="global", kind="preference", title="Reply order", content="Conclusion first.",
+                                  conditions="All development projects", exceptions="", dont="")
+        payload = {"schema_version": 1, "scope": "both", "session_id": "mixed-session", "turn_id": "mixed-turn",
+                   "task_id": "task-a", "branch": "project-A-private-branch", "commit_id": "abc123",
+                   "idempotency_key": "mixed-context", "operations": [
+                       {"op": "ADD", "scope": "global", "record": global_rule},
+                       {"op": "CHECKPOINT", "scope": "task", "record": self.record(kind="checkpoint")}]}
+        result = store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)
+        self.assertEqual(result["status"], "saved", result)
+        global_id = result["stores"][0]["operations"][0]["id"]
+        record = store.show_record("global", global_id, global_root=self.global_root)["record"]
+        for key in ("task_id", "branch", "commit_id", "workspace_id"):
+            self.assertFalse(record.get(key), key)
+        project_id = result["stores"][1]["operations"][0]["id"]
+        self.assertEqual(store.show_record("project", project_id, project_root=self.project_a)["record"]["task_id"], "task-a")
+        payload["idempotency_key"] = "explicit-global-task"
+        payload["operations"][0]["record"]["task_id"] = "task-a"
+        self.assertEqual(store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)["stores"][0]["status"], "failed")
+
     def test_independent_paths_and_empty_namespaces(self) -> None:
         gbase, gdb = store.global_paths(self.global_root)
         self.assertEqual(gbase, (self.global_root / "global").resolve())

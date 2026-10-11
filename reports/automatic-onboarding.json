@@ -1,0 +1,110 @@
+{
+  "status": "passed",
+  "host": "codex-cli 0.155.1",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "medium",
+  "user_prompts_mention_skill": false,
+  "hooks_configured": false,
+  "runs": [
+    {
+      "label": "a-correction",
+      "exit_code": 0,
+      "seconds": 73.25,
+      "tool_calls": 12,
+      "usage": {
+        "input_tokens": 137640,
+        "cached_input_tokens": 113664,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1503,
+        "reasoning_output_tokens": 20
+      },
+      "skill_read": true,
+      "recall_called": true,
+      "apply_called": true,
+      "final": "已完成检查并停在准备阶段，未修改业务代码、未运行测试。\n\n现有 `policy.py` 仅判断 `days <= 30`，未检查签收、拆封、礼品订单和最终销售商品，与新规则不符。\n\n已分别保存记忆并确认成功：\n\n- **本项目规则**：已签收、未拆封、签收后不超过14天；礼品订单和最终销售商品不可退。\n- **跨项目偏好**：回复先给结论，再给必要依据。\n- **任务检查点**：准备已完成，后续待实施与验证。",
+      "recalled_record_kinds": {
+        "global": [],
+        "project": []
+      },
+      "checkpoint_recalled": false
+    },
+    {
+      "label": "a-new-session",
+      "exit_code": 0,
+      "seconds": 61.334,
+      "tool_calls": 9,
+      "usage": {
+        "input_tokens": 132969,
+        "cached_input_tokens": 109312,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1272,
+        "reasoning_output_tokens": 10
+      },
+      "skill_read": true,
+      "recall_called": true,
+      "apply_called": true,
+      "final": "已实现 `policy.py` 中的 `eligible`：必须已签收、未拆封、签收后不超过 14 天，且非礼品订单、非最终销售商品。\n\n96 个组合与边界用例全部通过。业务代码仅修改该文件，任务检查点已保存。",
+      "recalled_record_kinds": {
+        "global": [
+          "preference"
+        ],
+        "project": [
+          "checkpoint",
+          "business_rule"
+        ]
+      },
+      "checkpoint_recalled": true
+    },
+    {
+      "label": "b-new-session",
+      "exit_code": 0,
+      "seconds": 41.06,
+      "tool_calls": 7,
+      "usage": {
+        "input_tokens": 93746,
+        "cached_input_tokens": 72192,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 831,
+        "reasoning_output_tokens": 0
+      },
+      "skill_read": true,
+      "recall_called": true,
+      "apply_called": true,
+      "final": "已在 `policy.py` 新增：\n\n```python\ndef can_cancel(shipped):\n    return not shipped\n```\n\n已验证：未发货允许取消，已发货禁止取消。仅修改该业务文件；按项目要求更新了开发记忆。",
+      "recalled_record_kinds": {
+        "global": [
+          "preference"
+        ],
+        "project": []
+      },
+      "checkpoint_recalled": false
+    }
+  ],
+  "checks": {
+    "automatic_skill_load": true,
+    "automatic_correction_save": true,
+    "automatic_checkpoint_save": true,
+    "new_session_recovery_six_conditions": true,
+    "project_b_isolation": true,
+    "confirmed_global_preference_in_b": true,
+    "new_session_checkpoint_actually_recalled": true,
+    "project_b_host_recalled_global_preference": true
+  },
+  "per_turn_event_enforcement": false,
+  "limitations": [
+    "Observed three ordinary-prompt Codex CLI sessions; not proof of every-turn enforcement.",
+    "Desktop app and other hosts were not run.",
+    "Existing performance A/B evidence remains separate; these runs are not a controlled latency comparison."
+  ],
+  "runtime_version": "0.3.0",
+  "prior_attempts": [
+    {
+      "result": "harness_false_negative",
+      "detail": "The evaluator did not recognize apply invoked via Python subprocess; the actual host saved records and retried a failed global write once."
+    },
+    {
+      "result": "semantic_gap_corrected",
+      "detail": "A normal code-file edit limit was interpreted as a memory-write prohibition; code conditions passed but progress capture was skipped. Guidance now distinguishes code scope from explicit memory/all-file prohibitions. Continuation also gains bounded checkpoint candidates."
+    }
+  ]
+}

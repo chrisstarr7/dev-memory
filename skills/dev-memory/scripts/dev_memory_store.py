@@ -281,6 +281,7 @@ CREATE TABLE IF NOT EXISTS memories(
 );
 CREATE INDEX IF NOT EXISTS memory_scope_status ON memories(scope,status,kind);
 CREATE INDEX IF NOT EXISTS memory_task ON memories(task_id,status);
+CREATE INDEX IF NOT EXISTS memory_task_recent ON memories(task_id,kind,status,updated_at,id);
 CREATE INDEX IF NOT EXISTS memory_summary_source ON memories(kind,status);
 CREATE TABLE IF NOT EXISTS derived_edges(
  source_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
@@ -884,6 +885,11 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
     if not config.get("capture_enabled", True) or config.get("excluded") is True:
         return {"scope": target_scope, "status": "skipped_private", "checked": False}
     top = dict(top)
+    if kind == "global":
+        # Request context belongs to the project side of a mixed-scope batch.
+        # Explicit project identifiers in a global record still fail validation.
+        for key in ("task_id", "workspace_id", "project_id", "branch", "commit_id", "module", "_workspace_signature"):
+            top.pop(key, None)
     if kind == "project" and root is not None and any(isinstance(op.get("record"), dict) and op["record"].get("verification") for op in operations):
         top["_workspace_signature"] = _workspace_signature(root, top.get("module"))
     idem = str(top.get("idempotency_key") or "")
@@ -1113,7 +1119,7 @@ def _verification_status(record: dict[str, Any], root: Path | None, current_head
 
 def _recall_store(kind: str, root: Path | None, global_root: Path | None, query: str, *, task_id: str | None,
                   session_id: str | None, module: str | None, max_candidates: int, max_details: int,
-                  max_chars: int, force: bool, readonly: bool) -> dict[str, Any]:
+                  max_chars: int, force: bool, readonly: bool, resume: bool = False) -> dict[str, Any]:
     try:
         base, db_path, config = _config_for(kind, root, global_root)
     except MemoryError as exc:
@@ -1144,7 +1150,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             active_task = task_id
     cache_value = {
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
-        "revision": current_revision, "task": active_task, "module": module,
+        "revision": current_revision, "task": active_task, "module": module, "resume": resume,
         "query_terms": sorted(_token_terms(query[:10000]))[:128],
         "limits": [max_candidates, max_details, max_chars],
     }
@@ -1194,6 +1200,17 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 "SELECT id FROM memories WHERE kind IN ('preference','convention') AND status='active' ORDER BY CASE strength WHEN 'hard' THEN 0 ELSE 1 END,updated_at DESC LIMIT ?",
                 (max_candidates + 1,),
             ).fetchall())
+        if resume and kind == "project" and not active_task:
+            # Offer recent task candidates without silently binding an ambiguous
+            # "continue" request to one task. Detail budgets still apply.
+            selected_ids.update(row[0] for row in conn.execute(
+                """SELECT m.id FROM memories m
+                WHERE m.scope='task' AND m.kind='checkpoint' AND m.status IN ('active','conflicted')
+                AND NOT EXISTS (SELECT 1 FROM memories n WHERE n.task_id=m.task_id AND n.kind='checkpoint'
+                    AND n.status IN ('active','conflicted') AND
+                    (n.updated_at>m.updated_at OR (n.updated_at=m.updated_at AND n.id>m.id)))
+                ORDER BY m.updated_at DESC,m.id DESC LIMIT ?""", (min(3, max_candidates) + 1,),
+            ).fetchall())
         if active_task and kind == "project":
             selected_ids.update(row[0] for row in conn.execute(
                 "SELECT id FROM memories WHERE scope='task' AND task_id=? AND kind='checkpoint' AND status IN ('active','conflicted') ORDER BY updated_at DESC LIMIT 2",
@@ -1219,7 +1236,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 records.append(record)
         conn.close()
         records.sort(key=lambda record: (
-            0 if record["kind"] == "checkpoint" and record.get("task_id") == active_task else 1,
+            0 if record["kind"] == "checkpoint" and (record.get("task_id") == active_task or resume) else 1,
             0 if record["strength"] == "hard" else 1,
             -record["_score"], record["updated_at"],
         ))
@@ -1250,7 +1267,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
 def recall(query: str, *, project_root: Path | None = None, global_root: Path | None = None,
            task_id: str | None = None, session_id: str | None = None, module: str | None = None,
            max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
-           force: bool = False, readonly: bool = False) -> dict[str, Any]:
+           force: bool = False, readonly: bool = False, resume: bool = False) -> dict[str, Any]:
     if project_root is None:
         limits = (max_candidates, max_details, max_chars)
         stores = [_recall_store("global", None, global_root, query, task_id=None, session_id=session_id,
@@ -1270,7 +1287,7 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
         project_result = _recall_store(
             "project", project_root, global_root, query, task_id=task_id, session_id=session_id, module=module,
             max_candidates=max_candidates - half_candidates, max_details=remaining_details,
-            max_chars=remaining_chars, force=force, readonly=readonly,
+            max_chars=remaining_chars, force=force, readonly=readonly, resume=resume,
         )
         stores = [global_result, project_result]
     return {

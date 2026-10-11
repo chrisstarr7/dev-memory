@@ -64,8 +64,8 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue((self.home / '.claude/skills/dev-memory/SKILL.md').is_file())
         self.assertFalse((self.home / '.agents').exists())
         self.assertIn('基础命令检查通过', stdout.getvalue())
-        self.assertIn('新建会话', stdout.getvalue())
-        self.assertIn('为当前项目启用研发记忆', stdout.getvalue())
+        self.assertIn('--project', stdout.getvalue())
+        self.assertNotIn('发送：', stdout.getvalue())
         self.assertFalse((self.home / '.dev-memory').exists())
 
     def test_cancel_and_invalid_selection_do_not_install(self) -> None:

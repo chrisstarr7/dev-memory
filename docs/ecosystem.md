@@ -20,3 +20,18 @@ Vercel 安装器支持众多 Agent，不证明各宿主都能运行 Python或每
 开发模式采用：失败样例/合同 → 程序与 Skill 流程 → 临时库回归 → 模型语义评测 → 真实宿主 E2E → 白名单发布。CLI 负责确定性事务和隔离，当前 AI 负责语义，参考文件按需读取，Hook 单独适配。纯指令无法完成事务/删除/准确回执；无需因此引入后台服务或专有平台。
 
 测试、语义评分和宿主事件分别记录；CI 不调用模型。A/B 显式运行并固定模型/思考/起点，记录延迟及约束遗漏。可参考 [OpenAI Skill evals](https://developers.openai.com/blog/eval-skills)。源码与分发采用同一运行目录，不生成各宿主分叉副本。格式能保证发现方式，权限和执行正确性仍须实测。
+
+## 项目默认启用（0.3.0）
+
+Skill 的隐式选择不等于每轮加载。初始化现在同时配置宿主自动读取的项目指令，再由当前 AI 按 Skill 管理记忆；不要求用户在每个会话发送启用口令。
+
+| 宿主 | 使用的启动机制 | 官方依据 |
+| --- | --- | --- |
+| Codex | `AGENTS.md` 或已有非空 `AGENTS.override.md` | [指令发现与加载](https://developers.openai.com/codex/guides/agents-md) |
+| Claude Code | `CLAUDE.local.md` | [项目本地指令](https://code.claude.com/docs/en/memory) |
+| Cursor | `.cursor/rules/dev-memory.mdc`，`alwaysApply: true` | [Rules](https://cursor.com/docs/rules) |
+| Gemini CLI | `GEMINI.md` | [上下文配置](https://geminicli.com/docs/reference/configuration/) |
+| GitHub Copilot | `.github/copilot-instructions.md` | [Repository instructions](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions) |
+| OpenCode | `AGENTS.md` | [Rules](https://opencode.ai/docs/rules/) |
+
+这些是指令加载机制，不是通用的强制事件协议。真实模型运行证据与版本在验证报告中单独列出，不能从配置测试推断所有宿主已验证。

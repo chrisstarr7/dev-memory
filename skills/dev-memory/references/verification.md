@@ -4,7 +4,7 @@
 
 - **Program tests** can verify routing, transactions, scope isolation, validation, exact receipt states, bounded SQL results, data deletion and filesystem behavior using synthetic temporary stores.
 - **Semantic evaluation** asks whether an AI correctly inferred scope, retained conditions/negative constraints, avoided forbidden data, and resumed the right task. Program unit tests cannot prove these natural-language judgments. The source repository contains `evals/scenarios.json` for S01–S48; the installed runtime does not bundle evals.
-- **Host end-to-end** requires a trusted, configured hook and actual Codex sessions on a named version. Hook protocol unit tests are not host E2E.
+- **Host end-to-end** distinguishes automatically loaded project instructions from enforced hook events. The former requires actual ordinary-prompt sessions on a named host/version; the latter additionally requires trusted, configured hooks and observed events. Synthetic protocol tests are not host E2E.
 - **Latency comparison** must measure whole model tasks. SQLite timings alone are not workflow latency. Compare the same code snapshot, task, model and reasoning setting over repeated randomized trials for `off/on × empty/history`.
 
 ## A/B runner

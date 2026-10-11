@@ -76,3 +76,7 @@ Query terms and output budgets also participate in cache identity; a topic chang
 Forgetting removes managed Markdown views immediately rather than leaving private text waiting for an export. Check `view_cleanup_incomplete` and `backup_cleanup_incomplete` for failure to clean a managed artifact. A later export removes old empty buckets. This is logical deletion, not secure disk erasure.
 
 The empty config example is not a ready runtime config: initialize with the CLI to generate namespace/workspace identity. Authorized changes to limits narrow recall budgets; `excluded: true` disables project capture and recall. Do not alter identity/storage routing fields.
+
+For an ordinary continuation request with no known task ID, use `recall --resume --force`. It includes bounded recent task checkpoint candidates from the current project without automatically binding a task. Select the relevant task from current user intent and visible progress; ask if candidates make that materially ambiguous. Explicit task IDs retain the normal focused path. Resume intent participates in cache identity; incomplete results still require inspection.
+
+A mixed-scope envelope may carry a project task/branch/commit context. The global transaction excludes these inherited fields; explicit project markers inside a global record still fail validation. Project and task operations keep their own context, identity and independent receipt.

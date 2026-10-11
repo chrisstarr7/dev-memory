@@ -99,3 +99,32 @@ Tested commit: `60344057ae916fc5128b5080b8af285c1fe6735d`. Evidence: `reports/in
 - Actual GitHub source ZIP was downloaded and its 36 manifest hashes verified. `python3 install.py claude --json` succeeded from the extracted archive, checking the installed CLI with Python 3.14.2 / SQLite 3.50.4. It initialized no memory and changed no hooks.
 - [CI run 38106077305](https://github.com/chrisstarr7/dev-memory/actions/runs/38106077305) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs, each with 74 tests and a successful release build. The download checks and CI apply to the named commit. Later evidence/documentation-only updates do not change runtime or installer code.
 - Real AI onboarding/model behavior, automatic hook delivery and Windows E2E remain unverified. No new latency or semantic accuracy claims are made.
+
+## Default project activation — 0.3.0
+
+### Program and package verification
+
+- Final local suite: `python3 -B -m unittest discover -s tests -q`, 91 tests passed. Added project-activation, mixed-scope context and no-task-ID continuation regressions. All data/configuration writes use synthetic temporary homes/projects.
+- Python syntax parsing passed. Skill creator validation passed using an isolated author-only PyYAML 6.0.3 environment; no runtime dependency was added. Whitelist release build passed with 41 ZIP entries including the generated manifest.
+- `install.py <host> --project <project>` installs, checks the actual installed runtime, initializes independent empty stores and merges host-native instructions. Repeating it preserves data, identities, existing instructions and pause/read-only settings. A guide write failure is reported with actual initialized store results, never as complete activation.
+- Six host instruction formats have program coverage. This does not verify actual instruction loading or model behavior in six hosts.
+
+### Real Codex CLI sessions without Skill invocation
+
+Actual host: **Codex CLI 0.155.1**, macOS, Python 3.14.2, SQLite 3.50.4. Model configuration: `gpt-6-astra`, medium reasoning. The host used an isolated temporary HOME/CODEX_HOME, synthetic Git projects and actual login. Existing user instructions/configurations, Skill installations and memories were not changed. No hooks were configured or trusted. JSON evidence: [automatic-onboarding.json](automatic-onboarding.json). Reproducible explicit evaluator: `evals/check_automatic.py`.
+
+| Ordinary user request | Observed result | Full invocation | Tool calls |
+| --- | --- | ---: | ---: |
+| A: correct return eligibility and stop at preparation; separately confirm a cross-project reply preference | Automatically read Skill, recalled empty stores, saved A-only business rule, global preference and task checkpoint | 73.250 s | 12 |
+| A, fresh session: continue and implement the function, modifying only its code file | Automatically read Skill, `recall --resume --force` returned checkpoint and rule; six independent eligibility assertions passed; new progress was saved | 61.334 s | 9 |
+| B, fresh session: implement its own cancellation rule | Automatically read Skill and recalled the confirmed global preference; project recall was empty, A's return rule stayed absent, B's code and capture checks passed | 41.060 s | 7 |
+
+None of the user prompts named dev-memory, invoked a Skill, or requested saving/recall. Each host ran recall and apply; persisted records and per-scope results were inspected. The resumed host's actual recall output included both `checkpoint` and `business_rule`; B's actual host recall included only the global preference and no project records.
+
+Two earlier attempts are retained as failures/gaps in the evidence summary: first, the evaluator missed writes performed via Python subprocess (the AI actually saved and retried one failed global write); second, the AI recovered the business conditions and implemented code but treated a normal code-file scope as a memory opt-out. The guidance and evaluator were corrected before the final successful sequence. These are not hidden as NOOP or counted as successful runs.
+
+### Actual limits
+
+This establishes observed **project-guided default behavior** in three fresh Codex CLI sessions. It does not establish enforced hook events, every-turn compliance, automatic compaction delivery, Codex Desktop or the five other host integrations. S40/S48's event/trust and cross-host requirements remain unverified. Existing S01–S48 semantic gaps above remain partial; no blanket pass is claimed.
+
+Times and token fields are whole real model invocations, not database microbenchmarks. These three different tasks are **not** a controlled on/off latency comparison. The historical A/B table remains scoped to its earlier runtime; no latency-free claim or new 0.3.0 A/B result is made.

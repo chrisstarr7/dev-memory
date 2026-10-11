@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import dev_memory_store as store
+import dev_memory_setup as activation
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 MARKER = ".dev-memory-skill-install"
@@ -24,14 +25,14 @@ SKILL_FILES = [
     "agents/openai.yaml", "assets/config.example.json",
     "references/protocol.md", "references/codex-hooks.md", "references/verification.md",
     "references/setup.md",
-    "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/codex_hook.py", "scripts/dev-memory",
+    "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/dev_memory_setup.py", "scripts/codex_hook.py", "scripts/dev-memory",
 ]
 RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "README.md", "LICENSE", ".gitignore", "install.py", "CONTRIBUTING.md", "SECURITY.md",
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
-    "tests/test_dev_memory.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py",
+    "tests/test_dev_memory.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py",
     "reports/verification.md", "reports/adversarial-review.md", "build_release.py",
-    "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
+    "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
@@ -144,6 +145,9 @@ def doctor(project_root: Path | None, global_root: Path | None) -> dict[str, Any
             "local_exclude_check": "ignored" if ignored and ignored.returncode == 0 else "not_ignored_or_not_git",
             "exclude_path_available": bool(gitdir and gitdir.returncode == 0),
         }
+    project_activation = activation.status(project_root)
+    if mode == "base" and project_activation["status"] == "configured":
+        mode = "project_guided"
     return {
         "status": "ok", "python": sys.version.split()[0], "python_minimum": "3.10",
         "sqlite": sqlite3.sqlite_version, "git_version": _command_version("git", ["--version"]),
@@ -155,7 +159,8 @@ def doctor(project_root: Path | None, global_root: Path | None) -> dict[str, Any
         "global_data_default": str(store.global_paths(global_root)[0]),
         "project_data_default": str(project_root / ".dev-memory") if project_root else "unbound",
         "stores": stores, "git": project_git,
-        "read_only": True, "real_host_e2e_verified": False,
+        "read_only": True, "project_activation": project_activation,
+        "real_host_e2e_verified": False,
     }
 
 def _command_version(binary: str, args: list[str]) -> str | None:
@@ -312,7 +317,7 @@ def _check_managed_install(path: Path) -> None:
     allowed = set(SKILL_FILES)
     # Preserve compatibility with the former all-in-one managed release layout.
     allowed.update({"README.md", "LICENSE.pending", "build_release.py", "templates/config.example.json",
-                    "tests/test_dev_memory.py", "evals/scenarios.json", "evals/bench_compare.py", "reports/verification.md"})
+                    "tests/test_dev_memory.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "reports/verification.md"})
     allowed_dirs = {str(parent) for name in allowed for parent in Path(name).parents if str(parent) != "."}
     for entry in path.rglob("*"):
         rel = entry.relative_to(path).as_posix()
@@ -394,11 +399,15 @@ def _parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("doctor")
     p.add_argument("--project-root", type=Path)
+    p = sub.add_parser("setup", help="Initialize this project and configure automatic host instructions")
+    p.add_argument("--project-root", type=Path, default=Path.cwd())
+    p.add_argument("--agent", choices=tuple(AGENT_DIRS), default="codex")
     p = sub.add_parser("init")
     p.add_argument("--global", dest="init_global", action="store_true")
     p.add_argument("--project-root", type=Path)
     p = sub.add_parser("recall")
     p.add_argument("--query", default="")
+    p.add_argument("--resume", action="store_true", help="Include recent checkpoint candidates when continuing without a task ID")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--task-id")
     p.add_argument("--session-id")
@@ -473,6 +482,10 @@ def main(argv: list[str] | None = None) -> int:
         if command == "doctor":
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             _json_out(doctor(root, global_root))
+        elif command == "setup":
+            result = activation.setup(args.project_root, args.agent, PACKAGE_ROOT, sys.executable, global_root)
+            _json_out(result)
+            return 0 if result["status"] == "initialized" else 1
         elif command == "init":
             results = []
             if args.init_global:
@@ -487,7 +500,7 @@ def main(argv: list[str] | None = None) -> int:
             _json_out(store.recall(
                 args.query, project_root=root, global_root=global_root, task_id=args.task_id,
                 session_id=args.session_id, module=args.module if args.module is not None else _module_label(root), max_candidates=args.max_candidates,
-                max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly,
+                max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, resume=args.resume,
             ))
         elif command == "show":
             scope, root = _scope_arg(args)

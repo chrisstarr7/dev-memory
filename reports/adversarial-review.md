@@ -49,3 +49,22 @@ Complexity review after checks: removed two unused cache helpers and reused exis
 74 program tests passed, including 10 installer regressions. A real terminal menu selected Codex in a temporary HOME, verified the CLI, displayed next steps, and left memory/hooks uninitialized. All tests are synthetic; no developer memory or installation was modified. A test-fixture assumption placed global config at the wrong parent path; the corrected fixture follows global_paths and the final suite passed. Program checks do not prove that a novice AI session follows the guide or that hosts discover the Skill. No new model onboarding evaluation, automatic host E2E or latency A/B was run.
 
 Complexity review: reuse the existing managed copy/upgrade implementation, add one small human-facing entry point, keep machine JSON behind --json. No network bootstrap, shell-pipe installer, package registry dependency or host-directory guessing was added.
+
+## Default project activation review — 0.3.0
+
+### Findings corrected
+
+- Installation only placed the Skill and left invocation to the user. Added explicit `install.py --project` and installed CLI `setup` to initialize independent stores and merge host-native project instructions. Normal tasks no longer require an enable/save/continue phrase.
+- Codex can prefer `AGENTS.override.md` over `AGENTS.md`. Setup uses an existing nonempty override; it does not create an override that hides team instructions. An empty override is left empty and the existing `AGENTS.md` is updated.
+- A new session had no task ID, so ordinary focused recall could exclude its checkpoint. Explicit continuation now uses bounded `--resume` candidates without choosing an ambiguous task automatically. The intent participates in cache identity.
+- A mixed-scope batch inherited the envelope's project task/branch into its global operation. Global processing now drops inherited project metadata; explicit project markers inside a global record remain rejected. Separate commits and receipts are retained.
+- Model evaluation exposed a code-edit scope being treated as a memory opt-out. The Skill now scopes normal code-file limits to business edits while respecting explicit memory/state/all-file write prohibitions.
+- Cursor's managed rule could have `alwaysApply: false` yet be reported configured. Setup rejects that conflict and doctor reports it inactive.
+
+### Checked invariants
+
+Synthetic tests cover all six host guide paths, idempotent one-command setup, preserving existing instructions/bindings/paused settings, empty stores, unknown/symlinked paths, malformed markers, oversized instruction files, existing setup locks, tracked memory paths, project/global partial failures, unavailable bindings and truthful diagnostics. A changed guide under the activation lock is rejected instead of overwriting concurrent user edits.
+
+### Limits retained
+
+Project instructions guide the current model; they are not an enforced per-turn event system. Host trust, instruction settings, nested overrides and context limits can affect loading. Only named real-host sessions in the verification report establish observed AI behavior. Cross-host and desktop behavior are not inferred from six-host configuration tests. A same-user adversarial file replacement race remains outside the filesystem threat boundary. Setup's bounded lock can remain after an interrupted process and requires inspection before removal. Uninstall does not enumerate other projects or erase private memories.
