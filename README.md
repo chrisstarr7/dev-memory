@@ -21,10 +21,10 @@ dev-memory 是一个独立的 Agent Skill，由通用 Skill、小型 Python CLI 
 
 ### 一条命令在线安装
 
-在**要开发的项目根目录**打开终端，复制执行：
+macOS / Linux：在**要开发的项目根目录**打开终端，复制执行：
 
 ```sh
-python3 -c 'import urllib.request as u; exec(u.urlopen("https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py", timeout=30).read())' codex
+bash -o pipefail -c 'curl -fsSL --max-time 30 https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py | python3 - "$@"' -- codex
 ```
 
 默认安装到 Codex。使用其他 AI 时，只需把末尾 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot` 或 `opencode`。
@@ -40,7 +40,7 @@ py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercont
 
 </details>
 
-需要 Python 3.10+（含 sqlite3）。**命令会在线安装、检查运行时、初始化当前项目的空库，并配置 AI 自动加载。** 无需手动下载、解压或填写项目路径，也无需 Git、npm 或后台服务。
+需要 Python 3.10+（含 sqlite3）；macOS/Linux 入口使用系统 Bash 和 curl。**命令会在线安装、检查运行时、初始化当前项目的空库，并配置 AI 自动加载。** 无需手动下载、解压或填写项目路径，也无需 Git、npm 或后台服务。
 
 看到“安装成功”和“项目已初始化”后，在该项目新建 AI 会话，直接开发即可。重复执行同一命令可升级；已有记忆、原项目指令及暂停状态会保留。另一个项目也在它的根目录运行同一命令。
 

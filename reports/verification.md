@@ -140,7 +140,7 @@ Times and token fields are whole real model invocations, not database microbench
 
 The default README entry now installs directly from GitHub and initializes the current business project in one command. Manual source download and an extra enable prompt are not required. Local source installation and the installed `setup` command remain available for offline use.
 
-- Local program suite: **105 tests passed**, including **14 online bootstrap regressions**, with synthetic snapshots, temporary homes and projects.
+- Local program suite: **107 tests passed**, including **16 online bootstrap regressions**, with synthetic snapshots, temporary homes and projects.
 - Covered: six host selectors, current-project binding, explicit project/custom target, repeat installation preserving a saved business rule and paused/disabled controls, stable memory identity, unrelated instructions, source cleanup, unavailable Python/sqlite3, offline/timeout failures, invalid arguments, ZIP/manifest/hash attacks, malformed child results, complete and partial receipts, and download/expanded size bounds.
 - Skill schema validation passed using author-only PyYAML; no dependency was added to the runtime.
 - Public GitHub online execution and CI evidence will be recorded after publication below.

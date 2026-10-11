@@ -2,10 +2,10 @@
 
 ## 在线安装并初始化
 
-在**业务项目根目录**执行一条命令：
+macOS / Linux：在**业务项目根目录**执行一条命令：
 
 ```sh
-python3 -c 'import urllib.request as u; exec(u.urlopen("https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py", timeout=30).read())' codex
+bash -o pipefail -c 'curl -fsSL --max-time 30 https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py | python3 - "$@"' -- codex
 ```
 
 Windows PowerShell：
@@ -14,7 +14,7 @@ Windows PowerShell：
 py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py', timeout=30).read())" codex
 ```
 
-只替换命令最后的 AI 名称，见下表。需要 Python 3.10+ 和标准库 sqlite3，无需手动下载或克隆。安装器从 GitHub 获取同一份源码快照，核对完整性清单后安装；临时源码自动清理。安装只读取公开程序，不上传项目或记忆。
+只替换命令最后的 AI 名称，见下表。需要 Python 3.10+ 和标准库 sqlite3；macOS/Linux 在线入口还使用 Bash 和 curl。无需手动下载或克隆。安装器从 GitHub 获取同一份源码快照，核对完整性清单后安装；临时源码自动清理。安装只读取公开程序，不上传项目或记忆。
 
 成功时显示安装路径、项目和引导文件。一条命令完成安装、运行检查、独立空库初始化和项目引导，已有记忆及暂停状态不会重置。默认使用运行命令的当前目录；若在其他目录执行，命令末尾可加 `--project /项目绝对路径`。
 
@@ -78,6 +78,7 @@ DISABLE_TELEMETRY=1 npx skills@1.7.2 add chrisstarr7/dev-memory -g -a codex --co
 AI 可从安装副本运行 `doctor --project-root <路径>`，检查 `project_activation` 和各存储状态。检查不会初始化或写入。`configured` 证明引导与运行文件存在，不证明每一轮都执行了。每次实际保存须检查回执；未检查、失败和 NOOP 必须区分。
 
 - **网络失败**：先确认能访问 GitHub，再重试同一在线命令；没有“安装成功”和项目初始化回执时，不算完成。下载、校验失败不会安装，安装阶段超时可能留下部分结果，应检查后重试。
+- **HTTPS 证书错误**：保持证书验证，不使用 `-k` 或关闭 SSL 检查。macOS 安装包读取会加载系统 CA；自定义 `SSL_CERT_FILE` / `SSL_CERT_DIR` 会被保留。Windows/Python 首次下载失败时检查系统或管理员的 CA 配置。
 - **原会话未生效**：新建该项目会话，使宿主重新加载启动指令。
 - **只读或暂停**：初始化不会取消该设置；只有用户要求恢复时才执行 `capture on`。
 - **找不到程序**：安装可能被移动或卸载。重新执行安装并初始化命令更新绑定。

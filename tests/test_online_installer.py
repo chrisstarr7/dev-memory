@@ -262,6 +262,37 @@ class OnlineTests(unittest.TestCase):
             self.assertEqual(self.run_online('codex')[0], 1)
             child.assert_not_called()
 
+    def test_macos_system_cas_and_explicit_ca_settings(self):
+        for custom in (False, True):
+            with self.subTest(custom=custom), patch.dict(os.environ, {
+                    'SSL_CERT_FILE': '/custom/ca' if custom else '', 'SSL_CERT_DIR': ''}), \
+                    patch.object(sys, 'platform', 'darwin'), patch.object(Path, 'is_file', return_value=True), \
+                    patch('ssl.create_default_context') as create, \
+                    patch('urllib.request.urlopen', return_value=io.BytesIO(b'zip')) as request:
+                self.assertEqual(install.download_snapshot(), b'zip')
+                request.assert_called_once_with(install.ONLINE_URL, timeout=15, context=create.return_value)
+                if custom:
+                    create.return_value.load_verify_locations.assert_not_called()
+                else:
+                    create.return_value.load_verify_locations.assert_called_once_with(cafile='/etc/ssl/cert.pem')
+
+    def test_recommended_shell_propagates_upstream_fetch_failure(self):
+        import shlex
+        import subprocess
+        line = next(x for x in (ROOT/'README.md').read_text().splitlines() if x.startswith('bash -o pipefail '))
+        command = shlex.split(line)
+        fake = self.base / 'bin'
+        fake.mkdir()
+        curl = fake / 'curl'
+        curl.write_text('#!/bin/sh\nexit 7\n')
+        curl.chmod(0o700)
+        result = subprocess.run(command, cwd=self.project, capture_output=True, text=True,
+                                env={**self.env, 'PATH': str(fake)+os.pathsep+os.environ['PATH']}, timeout=10)
+        self.assertEqual(result.returncode, 7)
+        self.assertNotIn('安装成功', result.stdout)
+        self.assertEqual(list(self.home.iterdir()), [])
+        self.assertFalse((self.project/'.dev-memory').exists())
+
     def test_exec_entry_without_file_routes_to_online(self):
         source = (ROOT / 'install.py').read_text()
         # Stop at the selected entry to avoid a real network call in this test.

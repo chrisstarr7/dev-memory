@@ -145,13 +145,22 @@ MAX_EXPANDED = 16 * 1024 * 1024
 
 
 def download_snapshot() -> bytes:
+    import os
+    import ssl
     import time
     import urllib.request
 
+    context = ssl.create_default_context()
+    # python.org macOS builds can lack their optional certificate bundle. Use
+    # the system CA file without weakening verification or overriding custom CAs.
+    system_ca = Path("/etc/ssl/cert.pem")
+    if (sys.platform == "darwin" and system_ca.is_file()
+            and not os.environ.get("SSL_CERT_FILE") and not os.environ.get("SSL_CERT_DIR")):
+        context.load_verify_locations(cafile=str(system_ca))
     started = time.monotonic()
     chunks = []
     size = 0
-    with urllib.request.urlopen(ONLINE_URL, timeout=15) as response:
+    with urllib.request.urlopen(ONLINE_URL, timeout=15, context=context) as response:
         while True:
             chunk = response.read(min(65536, MAX_DOWNLOAD + 1 - size))
             size += len(chunk)
