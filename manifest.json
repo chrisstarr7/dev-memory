@@ -158,7 +158,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "1dee480829a0a0b8431eb73b6aa3a8c686a20b836b3b7d8172ff98a57359a83b"
+      "sha256": "f20f602bfdc558fc9c2b17e3e2e3b9c07f5d1126f12a4cf149d93d8b7ded7c01"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -178,11 +178,11 @@
     },
     {
       "path": "reports/lifecycle-review.md",
-      "sha256": "d85c39fcc16a2909755d328c4ec29cd29fc54f95c50302bc16ef44211ac7ec17"
+      "sha256": "dc014052b2825112719de376918c214d985b914da96951a662880918ea11e849"
     },
     {
       "path": "reports/lifecycle-host.json",
-      "sha256": "b633443d3d67f108cb86bbda9eae5cc766a02681993184fd6dcbc9478615273c"
+      "sha256": "e64e5bfe41c4278f85e8a07df038c172c4efd9f74b8be914e8a45d70de163f98"
     },
     {
       "path": "reports/lifecycle-benchmark.json",

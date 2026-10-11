@@ -227,3 +227,13 @@ Plain observations record historical test outcomes; absent structured time/versi
 ### Whole-workflow timing boundary
 
 The new matched on/off comparison was **not run** after the host credit rejection. Its harness now freezes runtime hashes, seeds identical history in both modes and separately observes first business edit, but these changes are not timing results. The latest actual comparison remains the 0.4.0 partial sample above: on tasks took about 86–89 seconds versus 52–53 seconds off. No claim of no material slowdown or measured whole-task improvement is made for 0.5.0. Earlier Windows, cross-host, hook-event and S01–S48 gaps are unchanged.
+
+### Public installation and CI — 0.5.0
+
+Tested feature commit: `070bdda6821d48f103a9c05de5372aa91b594a9c`. Sanitized results are in [lifecycle-host.json](lifecycle-host.json), under `public_distribution`.
+
+- Actual public `npx -y chrisstarr7/dev-memory <host>` passed fresh and repeat installation for all six selectors on macOS in temporary HOME/cache/projects. Fourteen installed runtime files matched source. New global/project stores were empty; repeated installation retained synthetic records, store identities, capture/recall controls and unrelated project instructions. No hooks or npm files were added to the business project. This verifies distribution/configuration, not automatic model behavior on every host.
+- Pinned 0.4.0 to public 0.5.0 upgrade passed using the same temporary cache. Bodies, conditions, exceptions, evidence, revisions, namespace, paused capture and unrelated instructions survived; pending work remained queued once and paused maintenance stayed suppressed.
+- Downloaded public source ZIP passed all 57 manifest hashes using TLS-verified curl. The first Python download failed because its local certificate issuer was unavailable; no insecure TLS bypass was used.
+- [GitHub Actions 38139487751](https://github.com/chrisstarr7/dev-memory/actions/runs/38139487751) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs with Node.js 22: each ran 157 tests and built a 58-entry release archive.
+- These isolated checks changed no real user memories or installed AI configuration. Windows transport and new model timing remain unverified.

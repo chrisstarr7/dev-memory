@@ -69,3 +69,13 @@ Latest actual workflow comparison: [0.4.0 report](maintenance-benchmark.json), e
 ## Remaining boundaries
 
 Model adherence, semantic extraction, arbitrary paraphrase deduplication and lossless prose compaction cannot be guaranteed by SQLite. Other hosts' automatic behavior, trusted hook events and Windows installation remain unverified. Relevant unknown constraints must be obtained before business changes; overflow/deferred work cannot be called NOOP. The historical S01–S48 acceptance gaps remain open unless separately verified.
+
+### Public installation and CI — 0.5.0
+
+Tested feature commit: `070bdda6821d48f103a9c05de5372aa91b594a9c`. Sanitized results are in [lifecycle-host.json](lifecycle-host.json), under `public_distribution`.
+
+- Actual public `npx -y chrisstarr7/dev-memory <host>` passed fresh and repeat installation for all six selectors on macOS in temporary HOME/cache/projects. Fourteen installed runtime files matched source. New global/project stores were empty; repeated installation retained synthetic records, store identities, capture/recall controls and unrelated project instructions. No hooks or npm files were added to the business project. This verifies distribution/configuration, not automatic model behavior on every host.
+- Pinned 0.4.0 to public 0.5.0 upgrade passed using the same temporary cache. Bodies, conditions, exceptions, evidence, revisions, namespace, paused capture and unrelated instructions survived; pending work remained queued once and paused maintenance stayed suppressed.
+- Downloaded public source ZIP passed all 57 manifest hashes using TLS-verified curl. The first Python download failed because its local certificate issuer was unavailable; no insecure TLS bypass was used.
+- [GitHub Actions 38139487751](https://github.com/chrisstarr7/dev-memory/actions/runs/38139487751) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs with Node.js 22: each ran 157 tests and built a 58-entry release archive.
+- These isolated checks changed no real user memories or installed AI configuration. Windows transport and new model timing remain unverified.

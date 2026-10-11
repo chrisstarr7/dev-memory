@@ -417,5 +417,145 @@
     "elapsed_seconds": 22.838,
     "command": "python3 -m unittest discover -s tests -v",
     "isolated_synthetic_data": true
+  },
+  "public_distribution": {
+    "short_command": {
+      "version": "0.5.0",
+      "command": "npx -y chrisstarr7/dev-memory codex",
+      "tested_commit": "070bdda6821d48f103a9c05de5372aa91b594a9c",
+      "platform": "darwin",
+      "node": "v26.0.0",
+      "npm": "11.12.1",
+      "hosts": [
+        {
+          "agent": "codex",
+          "status": "passed",
+          "first_install_seconds": 23.677,
+          "repeat_seconds": 7.148,
+          "runtime_file_matches": 14,
+          "current_project_initialized": true,
+          "initial_project_empty": true,
+          "repeat_preserves_records_controls_identity_instructions": true,
+          "no_npm_files_in_business_project": true,
+          "stable_installed_bindings": true,
+          "default_hooks": false
+        },
+        {
+          "agent": "claude",
+          "status": "passed",
+          "first_install_seconds": 13.111,
+          "repeat_seconds": 6.851,
+          "runtime_file_matches": 14,
+          "current_project_initialized": true,
+          "initial_project_empty": true,
+          "repeat_preserves_records_controls_identity_instructions": true,
+          "no_npm_files_in_business_project": true,
+          "stable_installed_bindings": true,
+          "default_hooks": false
+        },
+        {
+          "agent": "cursor",
+          "status": "passed",
+          "first_install_seconds": 5.918,
+          "repeat_seconds": 8.512,
+          "runtime_file_matches": 14,
+          "current_project_initialized": true,
+          "initial_project_empty": true,
+          "repeat_preserves_records_controls_identity_instructions": true,
+          "no_npm_files_in_business_project": true,
+          "stable_installed_bindings": true,
+          "default_hooks": false
+        },
+        {
+          "agent": "gemini",
+          "status": "passed",
+          "first_install_seconds": 8.148,
+          "repeat_seconds": 6.774,
+          "runtime_file_matches": 14,
+          "current_project_initialized": true,
+          "initial_project_empty": true,
+          "repeat_preserves_records_controls_identity_instructions": true,
+          "no_npm_files_in_business_project": true,
+          "stable_installed_bindings": true,
+          "default_hooks": false
+        },
+        {
+          "agent": "copilot",
+          "status": "passed",
+          "first_install_seconds": 7.057,
+          "repeat_seconds": 6.446,
+          "runtime_file_matches": 14,
+          "current_project_initialized": true,
+          "initial_project_empty": true,
+          "repeat_preserves_records_controls_identity_instructions": true,
+          "no_npm_files_in_business_project": true,
+          "stable_installed_bindings": true,
+          "default_hooks": false
+        },
+        {
+          "agent": "opencode",
+          "status": "passed",
+          "first_install_seconds": 13.179,
+          "repeat_seconds": 7.947,
+          "runtime_file_matches": 14,
+          "current_project_initialized": true,
+          "initial_project_empty": true,
+          "repeat_preserves_records_controls_identity_instructions": true,
+          "no_npm_files_in_business_project": true,
+          "stable_installed_bindings": true,
+          "default_hooks": false
+        }
+      ],
+      "environment": "Temporary HOME/npm cache/projects; global and system Git config disabled; no login prompt",
+      "windows": "not_run",
+      "new_model_sessions": "not_run",
+      "new_workflow_latency_ab": "not_run",
+      "status": "passed"
+    },
+    "upgrade": {
+      "status": "passed",
+      "from_version": "0.4.0",
+      "old_commit": "02facbf6c60559d79ea72b80a5b7d1f44d989241",
+      "to_version": "0.5.0",
+      "tested_commit": "070bdda6821d48f103a9c05de5372aa91b594a9c",
+      "upgrade_command": "npx -y chrisstarr7/dev-memory codex",
+      "saved_body_conditions_evidence_revision_preserved": true,
+      "namespace_and_pause_preserved": true,
+      "unrelated_project_instructions_preserved": true,
+      "old_history_queued_once": true,
+      "paused_maintenance_suppressed": true,
+      "installed_runtime_matches_public_source": true,
+      "same_temporary_cache": true,
+      "initial_install_was_pinned_old_commit": true,
+      "real_user_stores_modified": false
+    },
+    "source_zip": {
+      "status": "passed",
+      "commit": "070bdda6821d48f103a9c05de5372aa91b594a9c",
+      "version": "0.5.0",
+      "manifest_files_verified": 57,
+      "source_url": "https://codeload.github.com/chrisstarr7/dev-memory/zip/070bdda6821d48f103a9c05de5372aa91b594a9c",
+      "transport": "curl TLS verification enabled",
+      "initial_python_transport": "local certificate issuer unavailable; no insecure retry"
+    },
+    "ci": {
+      "status": "passed",
+      "run_url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38139487751",
+      "tested_commit": "070bdda6821d48f103a9c05de5372aa91b594a9c",
+      "matrix": [
+        "Ubuntu/Python 3.10",
+        "Ubuntu/Python 3.14",
+        "macOS/Python 3.10",
+        "macOS/Python 3.14"
+      ],
+      "node": "22",
+      "test_counts": [
+        "157",
+        "157",
+        "157",
+        "157"
+      ],
+      "release_build": "58 archive entries; 57 manifest files"
+    }
   }
 }
