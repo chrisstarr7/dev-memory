@@ -1,22 +1,16 @@
 # 安装与项目初始化
 
-## 在线安装并初始化
+## 推荐：短命令在线安装
 
-macOS / Linux：在**业务项目根目录**执行一条命令：
+在**业务项目根目录**执行，macOS、Linux、Windows 使用同一条命令：
 
 ```sh
-bash -o pipefail -c 'curl -fsSL --max-time 30 https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py | python3 - "$@"' -- codex
+npx -y chrisstarr7/dev-memory codex
 ```
 
-Windows PowerShell：
+只替换末尾的 AI 名称，见下表。需要 Node.js 22+、npm/npx、Git 和 Python 3.10+（含 sqlite3）。`npx` 直接获取这个公开 GitHub 仓库的程序，不需要 npm 账号。安装器无第三方 Node 依赖、无安装生命周期脚本，记忆运行时仍是 Python 标准库和 SQLite；安装完成后的记忆管理不调用 npx 或网络下载。
 
-```powershell
-py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py', timeout=30).read())" codex
-```
-
-只替换命令最后的 AI 名称，见下表。需要 Python 3.10+ 和标准库 sqlite3；macOS/Linux 在线入口还使用 Bash 和 curl。无需手动下载或克隆。安装器从 GitHub 获取同一份源码快照，核对完整性清单后安装；临时源码自动清理。安装只读取公开程序，不上传项目或记忆。
-
-成功时显示安装路径、项目和引导文件。一条命令完成安装、运行检查、独立空库初始化和项目引导，已有记忆及暂停状态不会重置。默认使用运行命令的当前目录；若在其他目录执行，命令末尾可加 `--project /项目绝对路径`。
+成功时显示程序、项目和引导文件。一条命令完成下载、运行检查、独立空库初始化和项目引导。重复执行更新受管理安装；已有记忆、暂停状态和原有指令保留。默认使用当前目录；其他目录执行时可加 `--project /项目绝对路径`。加 `--json` 获取机器回执。
 
 | AI 参数 | 自动加载的项目引导 | Python 安装目录 |
 | --- | --- | --- |
@@ -57,6 +51,22 @@ python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py setup --project-root /
 
 `setup` 保存私有项目绑定 `.dev-memory/activation.json`，主机程序路径留在本项目范围内。项目记忆和绑定通过 Git 本地 exclude 排除。宿主指令文件只有通用协议，已有受版本管理的指令会出现一个管理块 diff，可正常审查；不会插入业务内容或个人绝对路径。
 
+## 没有 Node.js：Python 在线入口
+
+macOS / Linux（使用系统 Bash、curl 和 Python）：
+
+```sh
+bash -o pipefail -c 'curl -fsSL --max-time 30 https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py | python3 - "$@"' -- codex
+```
+
+Windows PowerShell：
+
+```powershell
+py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py', timeout=30).read())" codex
+```
+
+这个替代入口核对单份公开源码快照的完整性清单，并清理临时源码。下载、校验失败返回非零状态；HTTPS 保持证书验证。没有后台服务，不上传项目或记忆。
+
 ## 离线源码 / 仅安装程序
 
 已有完整源码时，在仓库目录执行 `python3 install.py codex --project /业务项目绝对路径`。这与在线安装调用同一套运行检查和初始化逻辑；Windows 使用 `py -3`。
@@ -79,6 +89,8 @@ AI 可从安装副本运行 `doctor --project-root <路径>`，检查 `project_a
 
 - **网络失败**：先确认能访问 GitHub，再重试同一在线命令；没有“安装成功”和项目初始化回执时，不算完成。下载、校验失败不会安装，安装阶段超时可能留下部分结果，应检查后重试。
 - **HTTPS 证书错误**：保持证书验证，不使用 `-k` 或关闭 SSL 检查。macOS 安装包读取会加载系统 CA；自定义 `SSL_CERT_FILE` / `SSL_CERT_DIR` 会被保留。Windows/Python 首次下载失败时检查系统或管理员的 CA 配置。
+- **找不到 npx**：使用含 npm 的 Node.js 22+，或使用上面的 Python 在线入口。
+- **Windows PowerShell 限制 npx.ps1**：用 `npx.cmd -y chrisstarr7/dev-memory codex`，无需修改执行策略。
 - **原会话未生效**：新建该项目会话，使宿主重新加载启动指令。
 - **只读或暂停**：初始化不会取消该设置；只有用户要求恢复时才执行 `capture on`。
 - **找不到程序**：安装可能被移动或卸载。重新执行安装并初始化命令更新绑定。

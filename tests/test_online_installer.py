@@ -279,7 +279,7 @@ class OnlineTests(unittest.TestCase):
     def test_recommended_shell_propagates_upstream_fetch_failure(self):
         import shlex
         import subprocess
-        line = next(x for x in (ROOT/'README.md').read_text().splitlines() if x.startswith('bash -o pipefail '))
+        line = next(x for x in (ROOT/'docs/installation.md').read_text().splitlines() if x.startswith('bash -o pipefail '))
         command = shlex.split(line)
         fake = self.base / 'bin'
         fake.mkdir()

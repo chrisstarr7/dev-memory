@@ -82,3 +82,10 @@ Project instructions guide the current model; they are not an enforced per-turn 
 Complexity review: reuse the existing installer/setup/storage functions and argument parser; the standalone online bootstrap uses only Python standard-library HTTP, temporary files and ZIP support. No npm package, service, daemon or per-turn network operation was introduced. Integrity checks establish consistency of trusted GitHub source, not independent code authenticity.
 
 Windows command syntax is provided, but no real Windows installation or Windows host session was run. The online transport change does not establish new cross-host model behavior, hook enforcement or whole-workflow latency; existing limitations remain.
+
+
+## Short npx entry review — 0.3.2
+
+The long shell command exposed transport and safety machinery in the default onboarding flow. Added a standard GitHub npx package entry and a small dependency-free Node launcher. The default command is `npx -y chrisstarr7/dev-memory codex`; no npm account/public registry publication is required. The existing Python online entry remains an advanced alternative.
+
+The launcher preserves the original cwd, accepts an explicit project/custom target, probes Python 3.10+/sqlite3 with bounded calls, and delegates setup and updates to the existing installer. It does not guess a host in noninteractive mode, enable hooks, alter controls, or claim success after Python fails. No npm lifecycle scripts or dependencies execute extra installation work; an explicit file whitelist excludes real data. Node/npm/Git are transport requirements, not memory runtime dependencies. Actual npx cache/source behavior is tested separately from direct launcher program checks.

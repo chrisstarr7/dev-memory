@@ -1,0 +1,109 @@
+{
+  "version": "0.3.1",
+  "tested_commit": "4380cbdcd6c85922872f33ef8be90896d65c5105",
+  "method": "Exact README Bash pipefail/curl/Python command, real GitHub raw and codeload HTTPS; isolated HOME and projects",
+  "platform": "darwin",
+  "python": "3.14.2",
+  "hosts": [
+    {
+      "agent": "codex",
+      "status": "passed",
+      "first_install_seconds": 6.249,
+      "repeat_seconds": 5.578,
+      "verified_manifest_files": 41,
+      "runtime_files_match": 14,
+      "project_activation": "configured",
+      "first_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "git_excluded": true,
+      "default_hooks_configured": false
+    },
+    {
+      "agent": "claude",
+      "status": "passed",
+      "first_install_seconds": 6.512,
+      "repeat_seconds": 3.629,
+      "verified_manifest_files": 41,
+      "runtime_files_match": 14,
+      "project_activation": "configured",
+      "first_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "git_excluded": true,
+      "default_hooks_configured": false
+    },
+    {
+      "agent": "cursor",
+      "status": "passed",
+      "first_install_seconds": 5.046,
+      "repeat_seconds": 5.103,
+      "verified_manifest_files": 41,
+      "runtime_files_match": 14,
+      "project_activation": "configured",
+      "first_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "git_excluded": true,
+      "default_hooks_configured": false
+    },
+    {
+      "agent": "gemini",
+      "status": "passed",
+      "first_install_seconds": 6.312,
+      "repeat_seconds": 6.628,
+      "verified_manifest_files": 41,
+      "runtime_files_match": 14,
+      "project_activation": "configured",
+      "first_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "git_excluded": true,
+      "default_hooks_configured": false
+    },
+    {
+      "agent": "copilot",
+      "status": "passed",
+      "first_install_seconds": 5.136,
+      "repeat_seconds": 4.797,
+      "verified_manifest_files": 41,
+      "runtime_files_match": 14,
+      "project_activation": "configured",
+      "first_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "git_excluded": true,
+      "default_hooks_configured": false
+    },
+    {
+      "agent": "opencode",
+      "status": "passed",
+      "first_install_seconds": 5.397,
+      "repeat_seconds": 7.377,
+      "verified_manifest_files": 41,
+      "runtime_files_match": 14,
+      "project_activation": "configured",
+      "first_project_empty": true,
+      "repeat_preserves_records_controls_identity_instructions": true,
+      "git_excluded": true,
+      "default_hooks_configured": false
+    }
+  ],
+  "earlier_online_transport_attempt": {
+    "passed_hosts_before_stop": [
+      "codex",
+      "claude",
+      "cursor",
+      "gemini"
+    ],
+    "failed_host": "copilot",
+    "exit_code": 35,
+    "cause": "curl TLS handshake failed before any installation",
+    "result": "not counted as a pass; subsequent bounded rerun records actual results"
+  },
+  "transport_failures": [],
+  "windows": "not_run",
+  "new_host_model_sessions": "not_run",
+  "new_latency_ab": "not_run",
+  "initial_check": {
+    "status": "failed_before_installation",
+    "cause": "Python macOS default CA file unavailable",
+    "fix": "System curl for entry, system CA bundle for verified macOS snapshot reads; explicit custom CAs retained"
+  },
+  "status": "passed"
+}

@@ -4,7 +4,7 @@
 
 任务开始时召回相关要求，纠错时保存准确条件，下一会话接着真实进度继续开发。
 
-dev-memory 是一个独立的 Agent Skill，由通用 Skill、小型 Python CLI 和可选宿主适配器组成。程序与协议公开，每个安装者的记忆保存在自己的本地目录。首次启用从空知识库开始。
+dev-memory 是一个独立的 Agent Skill，由通用 Skill、小型 Python CLI 和可选宿主适配器组成。程序与协议公开，每个安装者的记忆保存在自己的本地目录。首次初始化从空知识库开始。
 
 [开始使用](#开始使用) · [日常使用](#日常使用) · [工作方式](#工作方式) · [架构](#架构) · [隐私与安全](#隐私与安全) · [贡献](#贡献与反馈)
 
@@ -19,36 +19,25 @@ dev-memory 是一个独立的 Agent Skill，由通用 Skill、小型 Python CLI 
 
 ## 开始使用
 
-### 一条命令在线安装
+### 一条命令安装并初始化
 
-macOS / Linux：在**要开发的项目根目录**打开终端，复制执行：
+在**要开发的项目根目录**执行（macOS、Linux、Windows 使用同一条命令）：
 
 ```sh
-bash -o pipefail -c 'curl -fsSL --max-time 30 https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py | python3 - "$@"' -- codex
+npx -y chrisstarr7/dev-memory codex
 ```
 
-默认安装到 Codex。使用其他 AI 时，只需把末尾 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot` 或 `opencode`。
+使用其他 AI 时，把末尾 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot` 或 `opencode`。
 
-<details>
-<summary>Windows 命令</summary>
+需要 Node.js 22+（含 npm/npx）、Git 和 Python 3.10+（含 sqlite3）。**安装器自动下载程序、检查环境、初始化当前项目，并配置 AI 自动加载。** 无需下载 ZIP、填写项目路径或发送启用口令。
 
-在项目根目录打开 PowerShell，执行：
-
-```powershell
-py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py', timeout=30).read())" codex
-```
-
-</details>
-
-需要 Python 3.10+（含 sqlite3）；macOS/Linux 入口使用系统 Bash 和 curl。**命令会在线安装、检查运行时、初始化当前项目的空库，并配置 AI 自动加载。** 无需手动下载、解压或填写项目路径，也无需 Git、npm 或后台服务。
-
-看到“安装成功”和“项目已初始化”后，在该项目新建 AI 会话，直接开发即可。重复执行同一命令可升级；已有记忆、原项目指令及暂停状态会保留。另一个项目也在它的根目录运行同一命令。
+看到“安装成功”和“项目已初始化”后，在该项目新建 AI 会话，直接开发即可。升级或初始化另一个项目，也在它的根目录运行同一命令；已有记忆、原项目指令和暂停状态会保留。
 
 也可以让本地 AI 安装：
 
-> 请从 https://github.com/chrisstarr7/dev-memory 在线安装并初始化当前项目的 dev-memory，选择当前 AI 宿主，检查成功回执，保留已有记忆和配置。
+> 请从 https://github.com/chrisstarr7/dev-memory 安装并初始化当前项目的 dev-memory，选择当前 AI 宿主，检查成功回执，保留已有记忆和配置。
 
-失败排查、离线安装及卸载见 [安装指南](docs/installation.md)。网页聊天或没有本机文件与命令权限的会话无法直接安装到你的电脑。
+没有 Node.js、需要离线安装或卸载时，见 [安装指南](docs/installation.md)。网页聊天或没有本机文件与命令权限的会话无法直接安装到你的电脑。
 
 ### 然后正常开发
 
@@ -129,7 +118,9 @@ dev-memory/
 ├── evals/                  # 验收场景与性能评估工具
 ├── reports/                # 验证证据和已知限制
 ├── .github/workflows/      # CI
-├── install.py              # 在线安装与本地安装入口
+├── bin/install.cjs         # npx 安装入口
+├── package.json            # GitHub npx 分发配置
+├── install.py              # 共享 Python 安装与初始化逻辑
 ├── build_release.py        # 发布包与完整性清单
 └── plugin.json             # 可选插件描述
 ```

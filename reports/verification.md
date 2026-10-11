@@ -143,6 +143,17 @@ The default README entry now installs directly from GitHub and initializes the c
 - Local program suite: **107 tests passed**, including **16 online bootstrap regressions**, with synthetic snapshots, temporary homes and projects.
 - Covered: six host selectors, current-project binding, explicit project/custom target, repeat installation preserving a saved business rule and paused/disabled controls, stable memory identity, unrelated instructions, source cleanup, unavailable Python/sqlite3, offline/timeout failures, invalid arguments, ZIP/manifest/hash attacks, malformed child results, complete and partial receipts, and download/expanded size bounds.
 - Skill schema validation passed using author-only PyYAML; no dependency was added to the runtime.
-- Public GitHub online execution and CI evidence will be recorded after publication below.
+- Public GitHub online execution passed on macOS for all six host selectors, including repeated installation, saved-rule/control/identity/instruction preservation, stable installed bindings, runtime file comparisons and Git exclusion. See `reports/online-installation.json` (tested commit `4380cbdcd6c85922872f33ef8be90896d65c5105`). One initial TLS-handshake transport failure was returned as failure; a bounded rerun completed.
+- [CI run 38108587855](https://github.com/chrisstarr7/dev-memory/actions/runs/38108587855) passed Ubuntu/macOS × Python 3.10/3.14, 107 tests and a 42-file release build in each job.
 
 These are installation/program checks. No new model session or full latency A/B was run for 0.3.1; the observed 0.3.0 Codex CLI session results are historical evidence. Windows and actual automatic behavior on other hosts remain unverified.
+
+
+## Short GitHub npx entry — 0.3.2
+
+- Local program suite: **114 tests passed**, including seven Node-launcher/packaging tests and the existing Python online checks. Node.js 26.0.0 / npm 11.12.1 were used locally; the CI config now selects Node.js 22.
+- Checked: all six host selectors, current/original project binding, explicit project/custom directory, idempotent setup preserving paused controls, unavailable Python, invalid/conflicting/omitted noninteractive host, source failures and unchanged exit codes, no Node dependencies/lifecycle scripts, and an exact npm pack whitelist excluding injected synthetic SQLite/private files.
+- The default command is `npx -y chrisstarr7/dev-memory codex`; the Python-only online command remains in the installation guide. The memory runtime does not require Node or run npm.
+- Real public GitHub npx execution and final CI are checked after this source publication; their results will be added below.
+
+Windows CLI selection is implemented (`py -3`, then Python fallbacks), but no Windows installation or host session was executed. This packaging change adds no new model-session or workflow-latency evidence.

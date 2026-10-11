@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "b543b83f813e08696a2ff48297901baf51374c423dbf148d6b284fced6cae5e8"
+      "sha256": "d0dceb2eda88af10fef160bd83f30fb66e91dccbfbe08452e113bdf7e3923296"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -34,11 +34,11 @@
     },
     {
       "path": "skills/dev-memory/references/setup.md",
-      "sha256": "a2af3da5aae5d52494b1ed45d0b2b089dc367f7023bcac31ad6ea0e25b3adfba"
+      "sha256": "f06dc98fa2c2842ecd88dbd5d36ed919a6565e474a90a092dd1b9365505855ec"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "8c66f0871edad807aa8c41a607d69ba3ae78946fe9f8770bc73fa001173a419c"
+      "sha256": "a178d6a732ac282e95c5f50fc81affaaa9b6c8c560d9afdd38858ede4d6a64d2"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "ec0d255939828017cf88f4c5a2f85108aa79b38d6b17d7f75b09560da01df33d"
+      "sha256": "9af648812adabf46eb7914442644d76ce8caa3cfcf51f36399cb1b3c93314df4"
     },
     {
       "path": "LICENSE",
@@ -73,6 +73,14 @@
       "sha256": "7e96c9869655cebff475719c2f8864aecf173635e243976d800156496ce8fa48"
     },
     {
+      "path": "package.json",
+      "sha256": "4ea267b9ffc18026ecf80d8eab94dfc843ecfb0f54f76621ae30acafaa74b9c9"
+    },
+    {
+      "path": "bin/install.cjs",
+      "sha256": "3f53aee8a903d7f21223c2d5527429eb84cd71cbe3257b1e913b29c3a093095c"
+    },
+    {
       "path": "CONTRIBUTING.md",
       "sha256": "e17a454e22f1a4cc1d8807f93b22f6469c38569b238466a7b7268cd3ca44d4e9"
     },
@@ -82,7 +90,7 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "46aa1066618300508080e64db08ed1ea15db7cc5d5b4a0d0c71d81dcb9152901"
+      "sha256": "20c9cdeb1866c07648b8b815a0095d5098656d5869daef93f5b5d284fed1f831"
     },
     {
       "path": "docs/ecosystem.md",
@@ -90,7 +98,7 @@
     },
     {
       "path": "docs/architecture.md",
-      "sha256": "bfabac47f6055919df716b1c613aac192f509785823a94f4c7ba8a29e97dc697"
+      "sha256": "e45166a33cd9ecf16471aeca13f2602ce87d5f31a9f801c38e2a905acff6c989"
     },
     {
       "path": "tests/test_dev_memory.py",
@@ -110,7 +118,11 @@
     },
     {
       "path": "tests/test_online_installer.py",
-      "sha256": "4c5727f948d0f6b19f0c4576dd3fcd81a3313b181eec8469898d460808f99e7f"
+      "sha256": "eac5b171b5064a5034626c0fe18bb09593a344cac6693c4c6ced443fa36629b2"
+    },
+    {
+      "path": "tests/test_npx_installer.py",
+      "sha256": "221f080e3b559ebb89d1a937e05d79996275ed12b4833920240d8a93b24423cc"
     },
     {
       "path": "tests/install_smoke.py",
@@ -130,15 +142,19 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "e90ba8bff24e221e61cf5f85e92143dbc92fe8e0d2f6b11099b1d9732ac64be5"
+      "sha256": "756a6ad72a5aed9d70b1c289b3a7924e38e83107eb9db550eb7b0a544e9b8970"
     },
     {
       "path": "reports/adversarial-review.md",
-      "sha256": "56257d04f09107f42e1e0e41739a2128b047dca2eff7e669fdfb28f4fa5d6b65"
+      "sha256": "5583810ede630185c9f6cd980f4a209e5b001fcf3d301f61f789f33666649070"
     },
     {
       "path": "build_release.py",
-      "sha256": "f4ac1be3d1d79592cb6fc8cc3e3eb4599bc7022e0e60f59ca9fdf986e9841510"
+      "sha256": "6d84b6315f864e05b73dbd2b74ab0313685d867bf2804d512039e259941a56a7"
+    },
+    {
+      "path": "reports/online-installation.json",
+      "sha256": "9fa0f936a3507b9ba8986386abb29843a0fc0d3300b18a75ab67188d6895e183"
     },
     {
       "path": "reports/automatic-onboarding.json",
@@ -158,14 +174,14 @@
     },
     {
       "path": ".github/workflows/check.yml",
-      "sha256": "47dba526c880ff1d992b690756ec71981a1bd4178f0c5e512ba45a157f66a01b"
+      "sha256": "34957c7d1990f0eea9be1a9a1e2deee3cc8803b2aa3815a093e8f0195e978391"
     },
     {
       "path": "plugin.json",
-      "sha256": "b937ce647bd7f1d91a028b6772ee4371693b890bd00c1d5bbee21d4fec5387a5"
+      "sha256": "aaacefbb634729acb5ae3986c882e4b1441ab1dab1f297d66a7c2db5283dd187"
     }
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.3.1"
+  "version": "0.3.2"
 }

@@ -1,0 +1,35 @@
+{
+  "name": "dev-memory",
+  "version": "0.3.2",
+  "description": "Private local development memory for AI coding assistants.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chrisstarr7/dev-memory.git"
+  },
+  "bin": {
+    "dev-memory": "bin/install.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "bin/install.cjs",
+    "install.py",
+    "LICENSE",
+    "skills/dev-memory/SKILL.md",
+    "skills/dev-memory/LICENSE",
+    "skills/dev-memory/.dev-memory-skill-install",
+    "skills/dev-memory/agents/openai.yaml",
+    "skills/dev-memory/assets/config.example.json",
+    "skills/dev-memory/references/protocol.md",
+    "skills/dev-memory/references/codex-hooks.md",
+    "skills/dev-memory/references/verification.md",
+    "skills/dev-memory/references/setup.md",
+    "skills/dev-memory/scripts/dev_memory.py",
+    "skills/dev-memory/scripts/dev_memory_store.py",
+    "skills/dev-memory/scripts/dev_memory_setup.py",
+    "skills/dev-memory/scripts/codex_hook.py",
+    "skills/dev-memory/scripts/dev-memory"
+  ]
+}
