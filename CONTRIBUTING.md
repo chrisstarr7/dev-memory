@@ -21,3 +21,27 @@ The output directory receives synthetic JSONL transcripts and the report. Verify
 `python3 evals/check_maintenance.py --model MODEL --reasoning medium --output /outside/repository/maintenance.json` checks two real ordinary-prompt Codex sessions with synthetic duplicates, a long distinct rule and prose-only version/exception constraints. It verifies successful receipts and actual records, including no fresh-session paraphrase duplicate and scope isolation. It uses the same isolated login/scratch policy as the activation check and consumes host account usage.
 
 For a matched coding comparison, add `--scenario automatic-maintenance` to the A/B command. Keep failed calls, unavailable tokens and unknown correctness in the report; present completed-task timing separately. Freeze runtime source while comparing. Do not call a first-tool-action timestamp a measured first business edit. Published JSON reports must omit raw transcripts, login material and local user paths.
+
+## Lifecycle and matched performance checks
+
+Use synthetic projects and an output path outside this repository. The program-only scale probe has no model calls:
+
+```sh
+python3 -B evals/check_lifecycle.py --program-only --output /tmp/dev-memory-scale.json
+```
+
+The explicit host evaluator creates a fresh requirements/schema/API session, an implementation/correction session, an injected-defect repair session and a separate-project session:
+
+```sh
+python3 -B evals/check_lifecycle.py --model gpt-6-astra --reasoning medium --timeout-seconds 600 --output /tmp/dev-memory-cycle.json
+```
+
+After host usage is available, run matched empty/history comparisons separately from other model evaluations:
+
+```sh
+python3 -B evals/bench_compare.py --scenario automatic-maintenance --model gpt-6-astra --reasoning medium --repetitions 3 --timeout-seconds 240 --output /tmp/dev-memory-performance.json
+```
+
+Freeze runtime sources throughout a model evaluation. Identical history is seeded in both modes; off has no installed/activated Skill. Business task/code/model/reasoning stay equal. First business edit is sampled separately from the first-tool proxy and does not prove a correct edit. Retain failed invocations and unavailable metrics; do not treat quota failures as successful fast tasks. These tools consume the existing host account's model usage; they are optional contributor evaluations, not runtime dependencies or background work. Never publish their raw authentication files or synthetic transcripts by default.
+
+Review semantic predicates as well as outputs: an explicitly superseded historical condition is not an active permission. Plain successful tool-result observations may be stored without optional machine-verification fields; they do not certify the present workspace. The 0.5.0 final host pass and matched workflow timings remain blocked as documented in `reports/lifecycle-review.md`.

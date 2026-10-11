@@ -30,8 +30,8 @@ SKILL_FILES = [
 RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "README.md", "LICENSE", ".gitignore", "install.py", "package.json", "bin/install.cjs", "CONTRIBUTING.md", "SECURITY.md",
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
-    "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py",
-    "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "build_release.py",
+    "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
+    "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json",
 ]
@@ -162,6 +162,32 @@ def doctor(project_root: Path | None, global_root: Path | None) -> dict[str, Any
         "read_only": True, "project_activation": project_activation,
         "real_host_e2e_verified": False,
     }
+
+def context(query: str = '', *, project_root: Path | None = None, global_root: Path | None = None,
+            task_id: str | None = None, session_id: str | None = None, module: str | None = None,
+            max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
+            force: bool = False, readonly: bool = False, resume: bool = False) -> dict[str, Any]:
+    """One normal startup call: bounded recall and pending check, no host probes/init."""
+    result = store.recall(query, project_root=project_root, global_root=global_root, task_id=task_id,
+                          session_id=session_id, module=module, max_candidates=max_candidates,
+                          max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, resume=resume)
+    for bucket in result['stores']:
+        if readonly:
+            bucket['maintenance'] = {'status': 'not_requested_readonly'}
+        elif bucket['status'] in {'unavailable', 'disabled', 'deferred'}:
+            bucket['maintenance'] = {'status': 'not_requested_unavailable'}
+        else:
+            try:
+                bucket['maintenance'] = store.maintenance_prepare(bucket['scope'], project_root=project_root, global_root=global_root)
+            except (store.MemoryError, sqlite3.Error, OSError):
+                bucket['maintenance'] = {'status': 'deferred', 'reason': 'storage_unavailable'}
+    project_activation = activation.status(project_root)
+    result['activation'] = project_activation
+    result['mode'] = 'read_only' if readonly else ('project_guided' if project_activation['status'] == 'configured' else 'base')
+    if all(b['status'] in {'unavailable', 'disabled'} for b in result['stores']):
+        result['mode'] = 'unavailable'
+    return result
+
 
 def _command_version(binary: str, args: list[str]) -> str | None:
     if not shutil.which(binary):
@@ -405,22 +431,26 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser("init")
     p.add_argument("--global", dest="init_global", action="store_true")
     p.add_argument("--project-root", type=Path)
-    p = sub.add_parser("recall")
-    p.add_argument("--query", default="")
-    p.add_argument("--resume", action="store_true", help="Include recent checkpoint candidates when continuing without a task ID")
-    p.add_argument("--project-root", type=Path)
-    p.add_argument("--task-id")
-    p.add_argument("--session-id")
-    p.add_argument("--module")
-    p.add_argument("--max-candidates", type=int, default=20)
-    p.add_argument("--max-details", type=int, default=5)
-    p.add_argument("--max-chars", type=int, default=4000)
-    p.add_argument("--force", action="store_true")
-    p.add_argument("--readonly", action="store_true")
+    for name in ("recall", "context"):
+        p = sub.add_parser(name)
+        p.add_argument("--query", default="")
+        p.add_argument("--resume", action="store_true", help="Include recent checkpoint candidates when continuing without a task ID")
+        p.add_argument("--project-root", type=Path)
+        p.add_argument("--task-id")
+        p.add_argument("--session-id")
+        p.add_argument("--module")
+        p.add_argument("--max-candidates", type=int, default=20)
+        p.add_argument("--max-details", type=int, default=5)
+        p.add_argument("--max-chars", type=int, default=4000)
+        p.add_argument("--force", action="store_true")
+        p.add_argument("--readonly", action="store_true")
     p = sub.add_parser("show")
     p.add_argument("--scope", required=True)
     p.add_argument("--project-root", type=Path)
-    p.add_argument("--id", required=True)
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument("--id")
+    group.add_argument("--ids", nargs="+")
+    p.add_argument("--current", action="store_true", help="Current records only; omit evidence/revision audit history")
     p = sub.add_parser("list")
     p.add_argument("--scope", required=True)
     p.add_argument("--project-root", type=Path)
@@ -502,9 +532,10 @@ def main(argv: list[str] | None = None) -> int:
             if not results:
                 _die("validation_error", "Use --global and/or --project-root PATH.")
             _json_out({"status": "initialized", "stores": results})
-        elif command == "recall":
+        elif command in {"recall", "context"}:
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
-            _json_out(store.recall(
+            recall_func = context if command == "context" else store.recall
+            _json_out(recall_func(
                 args.query, project_root=root, global_root=global_root, task_id=args.task_id,
                 session_id=args.session_id, module=args.module if args.module is not None else _module_label(root), max_candidates=args.max_candidates,
                 max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, resume=args.resume,
@@ -513,7 +544,7 @@ def main(argv: list[str] | None = None) -> int:
             scope, root = _scope_arg(args)
             if scope == "task":
                 scope = "project"
-            result = store.show_record(scope, args.id, project_root=root, global_root=global_root)
+            result = store.show_current(scope, args.ids or [args.id], project_root=root, global_root=global_root) if args.current or args.ids else store.show_record(scope, args.id, project_root=root, global_root=global_root)
             store._ensure_not_sensitive(result)
             _json_out(result)
         elif command == "list":

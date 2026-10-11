@@ -207,3 +207,23 @@ Tested commit: `bfe40cd9f516a0f52e33eec5df9f4c3cbb735f52`. Evidence: [maintenanc
 - Actual public upgrade from pinned 0.3.2 to current 0.4.0 via the short command passed. Body/conditions/evidence/revision and namespace were retained; paused capture remained paused, old active history was queued once and paused maintenance was suppressed. The same temporary cache was reused; the initial old installation used a pinned commit rather than an unmodified main shorthand.
 - Downloaded public GitHub source ZIP passed all 51 manifest hashes. [GitHub Actions 38127667281](https://github.com/chrisstarr7/dev-memory/actions/runs/38127667281) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs, each with 145 tests and a 52-entry release build using Node.js 22.
 - Later additions of this evidence/report to the release whitelist do not add model or installation runs. Windows installation, other-host automatic behavior and the final scope-guidance model rerun remain unverified. Earlier release results remain scoped to their named commits.
+
+## Lifecycle review and lightweight startup — 0.5.0
+
+Full findings: [lifecycle-review.md](lifecycle-review.md). Machine-readable observations: [lifecycle-host.json](lifecycle-host.json); unmatched new workflow comparison status: [lifecycle-benchmark.json](lifecycle-benchmark.json).
+
+### Program evidence
+
+The full local suite passed **157 tests** in 22.838 seconds. The lifecycle regressions cover same-second checkpoint replacement and summary invalidation, global/project recall capacity, candidate overflow, unknown workspace invalidation, SQL interruption, bounded current batch lookup, normal startup without host probes, read-only cache behavior, actual CLI parsing and a seven-phase synthetic memory sequence with an A-to-B scope check. The scale probe ran ten repetitions at 1,000 and 10,000 active synthetic records. At 10,000, narrow recall median was 21.991 ms, saturated recall 41.364 ms and maintenance preparation 74.667 ms; saturated recall stayed incomplete and maintenance stayed bounded. These are local program measurements.
+
+### Real-host and semantic evidence
+
+Codex CLI 0.155.1, `gpt-6-astra`, medium reasoning; eight invocations with seven completed and one explicit workspace-credit rejection. The same fourteen runtime hashes were retained in all attempts. Two project-A cycles completed requirements, SQLite/API design, the 30-to-14-day correction, backend/frontend implementation, actual HTTP integration, testing and injected-boundary bug fixing. Independent behavior checks passed before injection and after repair. Record revisions preserved the correction and same-task checkpoint retirement was observed.
+
+The first evaluator incorrectly treated an explicitly superseded 30-day annotation as current permission; the second required an optional verification object even though successful tool-result observations were saved. Those failed assessments remain in the JSON. They do not constitute a complete evaluator pass. A third run with corrected predicates stopped on `Your workspace is out of credits. Add credits to continue.` No further model calls or credit purchase was attempted. **New project-B host behavior and the corrected complete four-session pass remain unverified.**
+
+Plain observations record historical test outcomes; absent structured time/version fields are not inferred as currently verified workspace status. Actual tool outputs were reviewed independently of the AI's final message. Finite synthetic checks do not prove complete semantic correctness or enforced execution on every turn.
+
+### Whole-workflow timing boundary
+
+The new matched on/off comparison was **not run** after the host credit rejection. Its harness now freezes runtime hashes, seeds identical history in both modes and separately observes first business edit, but these changes are not timing results. The latest actual comparison remains the 0.4.0 partial sample above: on tasks took about 86–89 seconds versus 52–53 seconds off. No claim of no material slowdown or measured whole-task improvement is made for 0.5.0. Earlier Windows, cross-host, hook-event and S01–S48 gaps are unchanged.

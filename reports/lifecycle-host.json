@@ -1,0 +1,421 @@
+{
+  "status": "partial_host_credit_blocked",
+  "runtime_version": "0.5.0",
+  "runtime_source_sha256": {
+    "SKILL.md": "8c9cf3289938cac1d47e76bc2f18ae10a038c2fd57f98dc42c129f8dc33f7281",
+    "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+    ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+    "agents/openai.yaml": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e",
+    "assets/config.example.json": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe",
+    "references/protocol.md": "88cfa26d2135eb12657c5ee02038f20f69f339ba3da374c073e54d9a89a1d47c",
+    "references/codex-hooks.md": "fccbc5c0ad2f6eb45296c2b6719f72e9bb5f9c65b86d9e739e4bd66f34fd74ff",
+    "references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+    "references/setup.md": "f06dc98fa2c2842ecd88dbd5d36ed919a6565e474a90a092dd1b9365505855ec",
+    "scripts/dev_memory.py": "032e3b4a77317f653a978cd587f53a934d0f3a491516de2e2eae3368c778c94d",
+    "scripts/dev_memory_store.py": "0a4531c489a0a638b984f996dd5d7ade67ae6f8331593483c85585d35b08e505",
+    "scripts/dev_memory_setup.py": "f7fd37d6c9b7047e1cafb0e92b668ea4763a00a927bbaa67415ad9614b21af4f",
+    "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
+    "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+  },
+  "same_runtime_snapshot_in_all_attempts": true,
+  "host": "codex-cli 0.155.1",
+  "model": "gpt-6-astra",
+  "reasoning": "medium",
+  "synthetic_only": true,
+  "real_user_stores_modified": false,
+  "hooks_configured": false,
+  "ordinary_prompts_without_skill_invocation": true,
+  "attempts": [
+    {
+      "status": "failed",
+      "runtime_version": "0.5.0",
+      "host": "codex-cli 0.155.1",
+      "model": "gpt-6-astra",
+      "reasoning": "medium",
+      "runtime_source_sha256": {
+        "SKILL.md": "8c9cf3289938cac1d47e76bc2f18ae10a038c2fd57f98dc42c129f8dc33f7281",
+        "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+        ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+        "agents/openai.yaml": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e",
+        "assets/config.example.json": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe",
+        "references/protocol.md": "88cfa26d2135eb12657c5ee02038f20f69f339ba3da374c073e54d9a89a1d47c",
+        "references/codex-hooks.md": "fccbc5c0ad2f6eb45296c2b6719f72e9bb5f9c65b86d9e739e4bd66f34fd74ff",
+        "references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+        "references/setup.md": "f06dc98fa2c2842ecd88dbd5d36ed919a6565e474a90a092dd1b9365505855ec",
+        "scripts/dev_memory.py": "032e3b4a77317f653a978cd587f53a934d0f3a491516de2e2eae3368c778c94d",
+        "scripts/dev_memory_store.py": "0a4531c489a0a638b984f996dd5d7ade67ae6f8331593483c85585d35b08e505",
+        "scripts/dev_memory_setup.py": "f7fd37d6c9b7047e1cafb0e92b668ea4763a00a927bbaa67415ad9614b21af4f",
+        "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
+        "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+      },
+      "synthetic_only": true,
+      "hooks_configured": false,
+      "ordinary_prompts_without_skill_invocation": true,
+      "runs": [
+        {
+          "label": "requirements-schema-api-draft",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 143.066,
+          "first_tool_action_seconds": 16.776,
+          "tool_calls": 9,
+          "usage": {
+            "input_tokens": 149333,
+            "cached_input_tokens": 121472,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4162,
+            "reasoning_output_tokens": 75
+          },
+          "host_errors": [],
+          "command_calls": 8
+        },
+        {
+          "label": "correction-code-frontend-integration",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 329.743,
+          "first_tool_action_seconds": 13.486,
+          "tool_calls": 26,
+          "usage": {
+            "input_tokens": 592844,
+            "cached_input_tokens": 546304,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 10754,
+            "reasoning_output_tokens": 909
+          },
+          "host_errors": [],
+          "command_calls": 23
+        },
+        {
+          "label": "testing-regression-bugfix",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 114.599,
+          "first_tool_action_seconds": 13.613,
+          "tool_calls": 20,
+          "usage": {
+            "input_tokens": 272293,
+            "cached_input_tokens": 213888,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3354,
+            "reasoning_output_tokens": 78
+          },
+          "host_errors": [],
+          "command_calls": 17
+        }
+      ],
+      "checks": {
+        "requirements_schema_api_artifacts": true,
+        "independent_before_bug": {
+          "integer_cents_uppercase_status": true,
+          "idempotent_replay": true,
+          "tenant_isolated_keys": true,
+          "key_conflict": true,
+          "boundary_and_all_exclusions": true,
+          "no_cross_tenant_order_leak": true,
+          "actual_frontend_backend_http": true
+        },
+        "injected_bug_detected": "('late', 201, {'refund_id': '8764ba76-f21e-4ac2-9701-40539fc7b062', 'order_id': 'late', 'amount_cents': 1499, 'status': 'APPROVED'})",
+        "independent_after_fix": {
+          "integer_cents_uppercase_status": true,
+          "idempotent_replay": true,
+          "tenant_isolated_keys": true,
+          "key_conflict": true,
+          "boundary_and_all_exclusions": true,
+          "no_cross_tenant_order_leak": true,
+          "actual_frontend_backend_http": true
+        }
+      },
+      "limitations": [
+        "One synthetic project cycle over fresh Codex CLI sessions; not exhaustive semantic validation or other-host enforcement.",
+        "Loopback networking is explicitly allowed for the local fixture; not proof of production authentication/security.",
+        "Independent behavior checks do not prove negligible whole-workflow overhead; matched benchmark is separate."
+      ],
+      "failure": "AssertionError: Old rule remained active.",
+      "attempt": "initial",
+      "assessment_note": "Evaluator false positive: superseded 30-day historical annotation was treated as an active condition."
+    },
+    {
+      "status": "failed",
+      "runtime_version": "0.5.0",
+      "host": "codex-cli 0.155.1",
+      "model": "gpt-6-astra",
+      "reasoning": "medium",
+      "runtime_source_sha256": {
+        "SKILL.md": "8c9cf3289938cac1d47e76bc2f18ae10a038c2fd57f98dc42c129f8dc33f7281",
+        "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+        ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+        "agents/openai.yaml": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e",
+        "assets/config.example.json": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe",
+        "references/protocol.md": "88cfa26d2135eb12657c5ee02038f20f69f339ba3da374c073e54d9a89a1d47c",
+        "references/codex-hooks.md": "fccbc5c0ad2f6eb45296c2b6719f72e9bb5f9c65b86d9e739e4bd66f34fd74ff",
+        "references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+        "references/setup.md": "f06dc98fa2c2842ecd88dbd5d36ed919a6565e474a90a092dd1b9365505855ec",
+        "scripts/dev_memory.py": "032e3b4a77317f653a978cd587f53a934d0f3a491516de2e2eae3368c778c94d",
+        "scripts/dev_memory_store.py": "0a4531c489a0a638b984f996dd5d7ade67ae6f8331593483c85585d35b08e505",
+        "scripts/dev_memory_setup.py": "f7fd37d6c9b7047e1cafb0e92b668ea4763a00a927bbaa67415ad9614b21af4f",
+        "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
+        "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+      },
+      "synthetic_only": true,
+      "hooks_configured": false,
+      "ordinary_prompts_without_skill_invocation": true,
+      "runs": [
+        {
+          "label": "requirements-schema-api-draft",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 144.789,
+          "first_tool_action_seconds": 18.87,
+          "command_calls": 8,
+          "tool_calls": 9,
+          "usage": {
+            "input_tokens": 133907,
+            "cached_input_tokens": 106112,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4427,
+            "reasoning_output_tokens": 122
+          },
+          "host_errors": []
+        },
+        {
+          "label": "correction-code-frontend-integration",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 264.153,
+          "first_tool_action_seconds": 13.672,
+          "command_calls": 17,
+          "tool_calls": 17,
+          "usage": {
+            "input_tokens": 291394,
+            "cached_input_tokens": 235648,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 9894,
+            "reasoning_output_tokens": 630
+          },
+          "host_errors": []
+        },
+        {
+          "label": "testing-regression-bugfix",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 113.158,
+          "first_tool_action_seconds": 22.036,
+          "command_calls": 15,
+          "tool_calls": 17,
+          "usage": {
+            "input_tokens": 227623,
+            "cached_input_tokens": 174976,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2659,
+            "reasoning_output_tokens": 48
+          },
+          "host_errors": []
+        }
+      ],
+      "checks": {
+        "requirements_schema_api_artifacts": true,
+        "independent_before_bug": {
+          "integer_cents_uppercase_status": true,
+          "idempotent_replay": true,
+          "tenant_isolated_keys": true,
+          "key_conflict": true,
+          "boundary_and_all_exclusions": true,
+          "no_cross_tenant_order_leak": true,
+          "actual_frontend_backend_http": true
+        },
+        "injected_bug_detected": "('late', 201, {'refund_id': 'refund_0e6ca0c177ca49aba03576f631a31c96', 'order_id': 'late', 'amount_cents': 1499, 'status': 'APPROVED'})",
+        "independent_after_fix": {
+          "integer_cents_uppercase_status": true,
+          "idempotent_replay": true,
+          "tenant_isolated_keys": true,
+          "key_conflict": true,
+          "boundary_and_all_exclusions": true,
+          "no_cross_tenant_order_leak": true,
+          "actual_frontend_backend_http": true
+        },
+        "semantic_review_note": "Historical superseded-rule annotations may remain in current prose; manually distinguish them from operative conditions."
+      },
+      "limitations": [
+        "One synthetic project cycle over fresh Codex CLI sessions; not exhaustive semantic validation or other-host enforcement.",
+        "Loopback networking is explicitly allowed for the local fixture; not proof of production authentication/security.",
+        "Independent behavior checks do not prove negligible whole-workflow overhead; matched benchmark is separate."
+      ],
+      "failure": "AssertionError: No actual test result captured.",
+      "attempt": "corrected-history-check",
+      "assessment_note": "Evaluator false positive: optional machine-verification object was required despite an actual tool-result observation being saved."
+    },
+    {
+      "status": "failed",
+      "runtime_version": "0.5.0",
+      "host": "codex-cli 0.155.1",
+      "model": "gpt-6-astra",
+      "reasoning": "medium",
+      "runtime_source_sha256": {
+        "SKILL.md": "8c9cf3289938cac1d47e76bc2f18ae10a038c2fd57f98dc42c129f8dc33f7281",
+        "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+        ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+        "agents/openai.yaml": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e",
+        "assets/config.example.json": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe",
+        "references/protocol.md": "88cfa26d2135eb12657c5ee02038f20f69f339ba3da374c073e54d9a89a1d47c",
+        "references/codex-hooks.md": "fccbc5c0ad2f6eb45296c2b6719f72e9bb5f9c65b86d9e739e4bd66f34fd74ff",
+        "references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+        "references/setup.md": "f06dc98fa2c2842ecd88dbd5d36ed919a6565e474a90a092dd1b9365505855ec",
+        "scripts/dev_memory.py": "032e3b4a77317f653a978cd587f53a934d0f3a491516de2e2eae3368c778c94d",
+        "scripts/dev_memory_store.py": "0a4531c489a0a638b984f996dd5d7ade67ae6f8331593483c85585d35b08e505",
+        "scripts/dev_memory_setup.py": "f7fd37d6c9b7047e1cafb0e92b668ea4763a00a927bbaa67415ad9614b21af4f",
+        "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
+        "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+      },
+      "synthetic_only": true,
+      "hooks_configured": false,
+      "ordinary_prompts_without_skill_invocation": true,
+      "runs": [
+        {
+          "label": "requirements-schema-api-draft",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 144.196,
+          "first_tool_action_seconds": 20.083,
+          "command_calls": 7,
+          "tool_calls": 8,
+          "usage": {
+            "input_tokens": 133783,
+            "cached_input_tokens": 105984,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4388,
+            "reasoning_output_tokens": 94
+          },
+          "host_errors": []
+        },
+        {
+          "label": "correction-code-frontend-integration",
+          "exit_code": 1,
+          "timed_out": false,
+          "seconds": 15.529,
+          "first_tool_action_seconds": null,
+          "command_calls": 0,
+          "tool_calls": 0,
+          "usage": null,
+          "host_errors": [
+            {
+              "type": "error",
+              "message": "Your workspace is out of credits. Add credits to continue."
+            },
+            {
+              "type": "turn.failed",
+              "error": {
+                "message": "Your workspace is out of credits. Add credits to continue."
+              }
+            }
+          ]
+        }
+      ],
+      "checks": {
+        "requirements_schema_api_artifacts": true
+      },
+      "limitations": [
+        "One synthetic project cycle over fresh Codex CLI sessions; not exhaustive semantic validation or other-host enforcement.",
+        "Loopback networking is explicitly allowed for the local fixture; not proof of production authentication/security.",
+        "Independent behavior checks do not prove negligible whole-workflow overhead; matched benchmark is separate."
+      ],
+      "failure": "AssertionError: Host did not complete correction-code-frontend-integration",
+      "attempt": "final-corrected-evaluator",
+      "assessment_note": "Stopped after an explicit workspace-credit exhaustion event; no further model invocations attempted."
+    }
+  ],
+  "observed": {
+    "completed_invocations": 7,
+    "host_failed_invocations": 1,
+    "project_a_full_development_cycles_with_independent_integration_and_fault_fix": 2,
+    "new_project_b_host_session": "not_run_credit_blocked",
+    "new_matched_workflow_benchmark": "not_run_credit_blocked"
+  },
+  "semantic_review": {
+    "corrected_14_day_rule": true,
+    "historical_30_day_annotation_is_not_active_permission": true,
+    "saved_tool_result_observations_match_actual_successful_test_outputs": true,
+    "checkpoint_same_task_supersession_observed": true,
+    "machine_verified_status_is_optional_and_not_inferred_from_plain_observation": true,
+    "perfect_semantics_or_every_turn_execution": "not_proven"
+  },
+  "program_scale": {
+    "synthetic_only": true,
+    "model_invoked": false,
+    "repetitions": 10,
+    "cells": [
+      {
+        "active_records": 1000,
+        "operations": {
+          "narrow_recall": {
+            "median_ms": 19.196,
+            "max_ms": 23.997,
+            "status": "ok",
+            "records_returned": 1,
+            "context_incomplete": false,
+            "candidate_limit_reached": false
+          },
+          "saturated_recall": {
+            "median_ms": 19.573,
+            "max_ms": 20.626,
+            "status": "ok",
+            "records_returned": 4,
+            "context_incomplete": true,
+            "candidate_limit_reached": true
+          },
+          "pending_maintenance": {
+            "median_ms": 6.197,
+            "max_ms": 6.518,
+            "status": "prepare",
+            "records_returned": 8,
+            "context_incomplete": false,
+            "candidate_limit_reached": false
+          }
+        }
+      },
+      {
+        "active_records": 10000,
+        "operations": {
+          "narrow_recall": {
+            "median_ms": 21.991,
+            "max_ms": 26.427,
+            "status": "ok",
+            "records_returned": 1,
+            "context_incomplete": false,
+            "candidate_limit_reached": false
+          },
+          "saturated_recall": {
+            "median_ms": 41.364,
+            "max_ms": 42.966,
+            "status": "ok",
+            "records_returned": 4,
+            "context_incomplete": true,
+            "candidate_limit_reached": true
+          },
+          "pending_maintenance": {
+            "median_ms": 74.667,
+            "max_ms": 77.238,
+            "status": "prepare",
+            "records_returned": 8,
+            "context_incomplete": false,
+            "candidate_limit_reached": false
+          }
+        }
+      }
+    ]
+  },
+  "limitations": [
+    "The two completed project-A cycles terminated at faulty evaluator predicates, not failed independent application behavior; raw synthetic events were reviewed and the evaluator fixed.",
+    "The corrected complete four-session evaluator could not finish after the host reported workspace credits exhausted. No model-credit purchase or switch was made.",
+    "New project-B host behavior and matched end-to-end latency remain unverified. Previous release host/performance evidence retains its original version boundary.",
+    "A tool-result observation records history; without structured verification it does not certify the present workspace.",
+    "Model/evaluator semantic judgments and finite integration cases do not prove complete business correctness."
+  ],
+  "program_regression": {
+    "status": "passed",
+    "tests": 157,
+    "elapsed_seconds": 22.838,
+    "command": "python3 -m unittest discover -s tests -v",
+    "isolated_synthetic_data": true
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "status": "not_run_host_credit_blocked",
+  "runtime_version": "0.5.0",
+  "planned_scenario": "automatic-maintenance",
+  "planned_model": "gpt-6-astra",
+  "planned_reasoning": "medium",
+  "planned_repetitions_per_cell": 3,
+  "planned_cells": [
+    "off/empty",
+    "on/empty",
+    "off/history",
+    "on/history"
+  ],
+  "planned_runtime_source_sha256": {
+    "SKILL.md": "8c9cf3289938cac1d47e76bc2f18ae10a038c2fd57f98dc42c129f8dc33f7281",
+    "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+    ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+    "agents/openai.yaml": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e",
+    "assets/config.example.json": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe",
+    "references/protocol.md": "88cfa26d2135eb12657c5ee02038f20f69f339ba3da374c073e54d9a89a1d47c",
+    "references/codex-hooks.md": "fccbc5c0ad2f6eb45296c2b6719f72e9bb5f9c65b86d9e739e4bd66f34fd74ff",
+    "references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+    "references/setup.md": "f06dc98fa2c2842ecd88dbd5d36ed919a6565e474a90a092dd1b9365505855ec",
+    "scripts/dev_memory.py": "032e3b4a77317f653a978cd587f53a934d0f3a491516de2e2eae3368c778c94d",
+    "scripts/dev_memory_store.py": "0a4531c489a0a638b984f996dd5d7ade67ae6f8331593483c85585d35b08e505",
+    "scripts/dev_memory_setup.py": "f7fd37d6c9b7047e1cafb0e92b668ea4763a00a927bbaa67415ad9614b21af4f",
+    "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
+    "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+  },
+  "trials": [],
+  "reason": "Actual Codex host returned: Your workspace is out of credits. Add credits to continue.",
+  "reason_source": "lifecycle-host.json final-corrected-evaluator correction-code-frontend-integration host_errors",
+  "harness_improvements": [
+    "Identical historical synthetic stores seeded for both off/history and on/history; only feature activation differs.",
+    "Runtime hashes checked before and after trials to reject mixed-source timing.",
+    "First business edit observed at approximately 250ms sampling resolution, separately from first-tool proxy.",
+    "Completed-only metrics and unavailable/unknown metrics retained separately from failures."
+  ],
+  "latest_completed_workflow_comparison": "maintenance-benchmark.json (0.4.0 prepublication partial comparison)",
+  "latency_requirement": "not_verified_for_0.5.0; prior workflow comparison showed material overhead; local database timing is not workflow timing."
+}

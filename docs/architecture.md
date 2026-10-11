@@ -49,12 +49,12 @@ Each database contains its own records, evidence, revisions, retrieval terms, de
 ## Data flow
 
 1. **Check**: `doctor` reports capabilities without initializing stores. Plain installation copies programs only; online installation (current project), source `install.py --project` or installed `setup` explicitly authorizes project memory and merges automatically loaded host instructions. Startup instructions load the Skill without a chat invocation.
-2. **Recall**: a focused query, project/task identity and context state select applicable memory. The AI compares it with current instructions and authoritative project evidence.
+2. **Recall**: one `context` call combines focused global/project/task recall with the pending-maintenance check. Normal startup does not probe host versions, initialize stores or create a receipt. `doctor` remains an environment/integration diagnostic. The AI compares memory with current instructions and authoritative project evidence.
 3. **Judge**: within the current turn, the AI identifies new requirements, corrections, decisions or actual progress. Desired behavior, observed facts, preferences and hypotheses remain distinct.
 4. **Apply**: the AI submits structured operations and sources. The CLI validates, checks revision conflicts and deduplicates. A read-only `match` returns bounded related candidates when existing context is insufficient; identical text reuses a rule automatically, paraphrases require the current AI's semantic review. Global and project batches use separate transactions and results; one call can succeed in one store and fail in the other.
 5. **Acknowledge**: saved content has a successful receipt. Checked turns with no increment have a short NOOP receipt. Missing checks and failed writes retain their actual status.
 6. **Maintain**: changed IDs queue within their owning store. Five pending IDs or a 1200-character body yield one bounded related pack in the successful apply response. The AI reviews at most one batch in the current turn; `MERGE_DUPLICATES`, `COMPACT` and `MAINTENANCE_REVIEW` use current revision guards. Task boundaries can prepare smaller pending topics. No background model, full-library sweep or recursive maintenance.
-7. **Continue**: checkpoints describe completed work, unfinished work, blockers, next steps and workspace/code boundaries. New sessions recall the checkpoint.
+7. **Continue**: checkpoints describe completed work, unfinished work, blockers, next steps and workspace/code boundaries. A new active checkpoint supersedes older active checkpoints of the same task in its transaction, retaining their audit history and invalidating dependent summaries. Other tasks keep their own checkpoints. New sessions recall the current checkpoint; ambiguous task continuation remains explicit.
 
 An AI restatement or retrieval hit is not new user evidence. A passed test requires an actual tool result. The program validates source structure but cannot prove that an AI's semantic interpretation is true.
 
@@ -67,12 +67,16 @@ Summaries refer to source IDs and expected revisions within one scope. Source re
 ## Lightweight operation
 
 - Recall at task start/resume, project/module/topic changes and relevant rule changes. Reuse context while query, task, workspace and store state remain valid.
+- Reuse loaded Skill/protocol instructions within the current runtime/context. Default recall reserves one third of its character budget for global memory and two thirds for the project; global preferences cannot consume the entire project budget. With the default five-detail budget, this means one global and four project/task details.
+- Candidate SQL reads a sentinel beyond the limit. Overflow remains incomplete and cannot be cached as complete. Batch `show --ids ... --current` retrieves up to eight current records/12000 characters without old audit bodies. Full single-record `show` remains available for explicit provenance inspection.
 - Force recall after compaction/resume; inspect incomplete results before acting on key constraints. Cache metadata cannot prove that conversation content survived compaction.
+- Git dirty-path or bounded non-Git metadata traversal overflow makes the workspace fingerprint unknown. Unknown workspaces are not cached and are not labeled currently verified. The fingerprint is a bounded metadata check, not a cryptographic snapshot of every source file.
+- Recall and maintenance SQL have a 500 ms progress budget; interruption returns deferred/incomplete. This does not bound process startup, SQLite lock waiting, Git calls or model reasoning. Failures never become checked NOOPs.
 - Save explicit corrections promptly; batch ordinary changes at turn end. Do not summarize after every tool call or start a default second AI turn.
 - NOOP writes only the necessary receipt. Consolidation handles changed related sources. Markdown views are exported on demand.
 - Optional receipt repair is bounded to one attempt with timeouts. There is no background worker.
 
-Database speed alone does not establish AI workflow latency. Historical model A/B measurements and their version boundary are in [verification](../reports/verification.md); the 0.4.0 A/B attempted 12 tasks, with 8 completed and 4 host exits. Memory-on completed tasks took materially longer. It is a small prepublication sample, not a frozen final-source or latency-free claim.
+Database speed alone does not establish AI workflow latency. Historical model A/B measurements and their version boundary are in [verification](../reports/verification.md); the 0.4.0 A/B attempted 12 tasks, with 8 completed and 4 host exits. Memory-on completed tasks took materially longer. It is a small prepublication sample, not a frozen final-source or latency-free claim. The 0.5.0 matched comparison was blocked by an actual workspace-credit rejection; its local scale probe and two project-A host cycles do not establish a total-task speed improvement. See the [lifecycle review](../reports/lifecycle-review.md).
 
 ## Trust and lifecycle
 

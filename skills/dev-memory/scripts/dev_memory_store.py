@@ -135,6 +135,8 @@ def _workspace_signature(root: Path, module: str | None = None) -> str | None:
     result = _run_git(root, ["-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all"])
     if result and result.returncode == 0:
         rows = [row for row in result.stdout.split("\0") if row]
+        if len(rows) > 1000:
+            return None  # Unknown workspace; never cache a truncated fingerprint as complete.
         bits = ["\n".join(rows[:1000])]
         for row in rows[:1000]:
             path_text = row[3:].split(" -> ")[-1]
@@ -146,8 +148,6 @@ def _workspace_signature(root: Path, module: str | None = None) -> str | None:
                 bits.append(f"{path_text}:{stat.st_size}:{stat.st_mtime_ns}")
             except OSError:
                 bits.append(f"{path_text}:missing")
-        if len(rows) > 1000:
-            bits.append(f"overflow:{len(rows)}")
         return hashlib.sha256("\n".join(bits).encode("utf-8", errors="replace")).hexdigest()
     root_resolved = root.resolve()
     candidate = (root_resolved / module).resolve() if module else root_resolved
@@ -155,11 +155,13 @@ def _workspace_signature(root: Path, module: str | None = None) -> str | None:
     bits = []
     visited_dirs = 0
     visited_files = 0
+    truncated = False
     for current, dirs, files in os.walk(scan_root, followlinks=False):
         rel_current = Path(current).relative_to(scan_root)
         depth = len(rel_current.parts)
         dirs[:] = [name for name in dirs if name not in {".git", ".dev-memory", "node_modules", ".venv", "venv", "vendor"}]
         if depth >= 2:
+            truncated |= bool(dirs)
             dirs[:] = []
         visited_dirs += 1
         for name in dirs:
@@ -177,8 +179,10 @@ def _workspace_signature(root: Path, module: str | None = None) -> str | None:
                 bits.append(f"file:{rel}:missing")
             visited_files += 1
         if visited_dirs >= 64 or visited_files >= 500:
-            bits.append(f"truncated:{visited_dirs}:{visited_files}")
+            truncated = True
             break
+    if truncated:
+        return None
     return hashlib.sha256("\n".join(sorted(bits)).encode("utf-8", errors="replace")).hexdigest()
 
 def _reject_unsafe_project_root(root: Path) -> Path:
@@ -1020,9 +1024,21 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
                     'revision': canonical['revision'] + int(changed), 'duplicate_merged': True,
                     'body_written': False, 'semantic_review': 'ai_claim_not_program_verified'}, bool(changed)
         memory_id, changed = _store_record(conn, data)
+        retired = []
+        if data['kind'] == 'checkpoint' and scope == 'task' and data['status'] == 'active':
+            previous = conn.execute("SELECT id FROM memories WHERE scope='task' AND task_id=? AND kind='checkpoint' AND status='active' AND id!=?", (data['task_id'], memory_id)).fetchall()
+            for (old_id,) in previous:
+                old = _select_record(conn, old_id)
+                conn.execute('INSERT INTO revisions VALUES(?,?,?,?)', (old_id, old['revision'], _snapshot(old), utc_now()))
+                conn.execute("UPDATE memories SET status='superseded',revision=revision+1,updated_at=? WHERE id=?", (utc_now(), old_id))
+                _invalidate_derived(conn, old_id)
+                _queue_maintenance(conn, old_id)
+                retired.append(old_id)
+            changed = changed or bool(retired)
         current = _select_record(conn, memory_id)
         return {"status": "saved" if changed else "duplicate_evidence", "id": memory_id,
-                "revision": current["revision"] if current else 1, "duplicate_merged": memory_id != data["id"]}, changed
+                "revision": current["revision"] if current else 1, "duplicate_merged": memory_id != data["id"],
+                "superseded_checkpoint_ids": retired}, changed
     memory_id = op.get("id")
     if not _valid_local_id(memory_id):
         raise MemoryError("validation_error", "This operation requires a valid record ID.")
@@ -1357,6 +1373,8 @@ def _verification_status(record: dict[str, Any], root: Path | None, current_head
         return None
     if root is None:
         return "version_unknown"
+    if current_signature is None:
+        return "workspace_unknown"
     verified_signature = verification.get("workspace_fingerprint")
     verified_commit = verification.get("commit_id") or record.get("commit_id")
     if verified_signature and current_signature and verified_signature != current_signature:
@@ -1415,14 +1433,18 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         cache_value["head"] = current_head
         cache_value["workspace_signature"] = current_signature
     cache_key = hashlib.sha256(json.dumps(cache_value, sort_keys=True).encode("utf-8")).hexdigest()
+    can_cache = root is None or current_signature is not None
+    conn = None
     try:
-        if session_id and not force and not readonly:
+        if session_id and not force and not readonly and can_cache:
             cache_conn = _connect(db_path, readonly=True)
             previous = cache_conn.execute("SELECT 1 FROM session_context WHERE session_id=? AND context_key=?", (session_id, cache_key)).fetchone()
             cache_conn.close()
             if previous:
                 return {"scope": kind, "status": "cached", "records": [], "context_incomplete": False, "data_revision": current_revision}
         conn = _connect(db_path, readonly=True)
+        deadline = time.monotonic() + 0.5
+        conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
         conn.row_factory = sqlite3.Row
         ns_row = conn.execute("SELECT value FROM meta WHERE key='namespace_id'").fetchone()
         if not ns_row or ns_row[0] != config["namespace_id"]:
@@ -1430,6 +1452,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             return {"scope": kind, "status": "namespace_mismatch", "records": []}
         terms = set(sorted(_token_terms(query[:10000]))[:128])
         scores: dict[str, int] = {}
+        candidate_limit_reached = False
         if terms:
             placeholders = ",".join("?" for _ in terms)
             scopes = ["global"] if kind == "global" else ["project", "task"]
@@ -1441,8 +1464,9 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 AND m.scope IN ({scope_marks})
                 AND (m.scope!='task' OR (? IS NOT NULL AND m.task_id=?))
                 GROUP BY m.id ORDER BY score DESC,m.updated_at DESC LIMIT ?""",
-                (*sorted(terms), *scopes, active_task, active_task, max_candidates),
+                (*sorted(terms), *scopes, active_task, active_task, max_candidates + 1),
             ).fetchall()
+            candidate_limit_reached = len(found) > max_candidates
             scores = {row["id"]: row["score"] for row in found}
         selected_ids = set(scores)
         if kind == "global":
@@ -1472,11 +1496,12 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 (max_candidates + 1,),
             ).fetchall())
         if not selected_ids:
+            empty_store = conn.execute("SELECT 1 FROM memories WHERE status IN ('active','candidate','conflicted') LIMIT 1").fetchone() is None
             conn.close()
-            if session_id and not readonly:
+            if session_id and not readonly and can_cache:
                 _claim_context(kind, db_path, config, session_id, cache_key, True)
             return {"scope": kind, "status": "ok", "records": [], "context_incomplete": False,
-                    "candidate_count": 0, "data_revision": current_revision}
+                    "candidate_count": 0, "data_revision": current_revision, "empty_store": empty_store}
         records = []
         for memory_id in selected_ids:
             record = _select_record(conn, memory_id)
@@ -1485,10 +1510,11 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 record["verification_status"] = _verification_status(record, root, current_head, current_signature)
                 records.append(record)
         conn.close()
+        records.sort(key=lambda record: (record["updated_at"], record["id"]), reverse=True)
         records.sort(key=lambda record: (
             0 if record["kind"] == "checkpoint" and (record.get("task_id") == active_task or resume) else 1,
             0 if record["strength"] == "hard" else 1,
-            -record["_score"], record["updated_at"],
+            -record["_score"],
         ))
         overflow_ids = [r["id"] for r in records[max_candidates:]]
         candidate_count = len(records)
@@ -1504,15 +1530,21 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             else:
                 details.append(shaped)
                 used += size
-        if session_id and not readonly and not remaining:
+        if session_id and not readonly and not remaining and can_cache:
             _claim_context(kind, db_path, config, session_id, cache_key, True)
         return {
             "scope": kind, "status": "ok", "records": details, "candidate_count": candidate_count,
             "context_incomplete": bool(remaining), "remaining_ids": remaining,
+            "candidate_limit_reached": candidate_limit_reached or bool(overflow_ids),
             "task_id": active_task, "namespace_id": config["namespace_id"], "data_revision": current_revision,
         }
+    except sqlite3.OperationalError:
+        return {"scope": kind, "status": "deferred", "reason": "query_budget_or_storage_failure", "context_incomplete": True, "records": []}
     except (sqlite3.Error, OSError, MemoryError):
         return {"scope": kind, "status": "unavailable", "reason": "storage_unavailable", "records": []}
+    finally:
+        if conn is not None:
+            conn.close()
 
 def recall(query: str, *, project_root: Path | None = None, global_root: Path | None = None,
            task_id: str | None = None, session_id: str | None = None, module: str | None = None,
@@ -1525,15 +1557,17 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
                                 force=force, readonly=readonly)]
     else:
         half_candidates = max(1, max_candidates // 2)
-        half_details = max_details
+        # Fixed per-store budgets remain stable when one side returns cached.
+        # Reserve project capacity even when many global preferences apply.
+        global_details = min(2, max(0, max_details // 3))
+        global_budget = max(0, max_chars // 3)
         global_result = _recall_store(
             "global", None, global_root, query, task_id=None, session_id=session_id, module=None,
-            max_candidates=half_candidates, max_details=half_details, max_chars=max_chars,
+            max_candidates=half_candidates, max_details=global_details, max_chars=global_budget,
             force=force, readonly=readonly,
         )
-        global_chars = sum(len(json.dumps(item, ensure_ascii=False)) for item in global_result.get("records", []))
-        remaining_details = max(0, max_details - len(global_result.get("records", [])))
-        remaining_chars = max(0, max_chars - global_chars)
+        remaining_details = max(0, max_details - global_details)
+        remaining_chars = max(0, max_chars - global_budget)
         project_result = _recall_store(
             "project", project_root, global_root, query, task_id=task_id, session_id=session_id, module=module,
             max_candidates=max_candidates - half_candidates, max_details=remaining_details,
@@ -1541,7 +1575,7 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
         )
         stores = [global_result, project_result]
     return {
-        "status": "partial" if any(s["status"] == "unavailable" for s in stores) else "ok",
+        "status": "partial" if any(s["status"] in {"unavailable", "deferred"} for s in stores) else "ok",
         "context_incomplete": any(s.get("context_incomplete", False) for s in stores),
         "stores": stores,
     }
@@ -1554,6 +1588,32 @@ def data_revision(db_path: Path) -> int:
         return int(row[0]) if row else 0
     except (sqlite3.Error, MemoryError, OSError):
         return 0
+
+def show_current(kind: str, memory_ids: list[str], *, project_root: Path | None = None,
+                 global_root: Path | None = None) -> dict[str, Any]:
+    if not 1 <= len(memory_ids) <= 8 or len(set(memory_ids)) != len(memory_ids) or any(not _valid_local_id(i) for i in memory_ids):
+        raise MemoryError('validation_error', 'Current lookup requires 1..8 distinct valid IDs.')
+    _, db, config = _config_for(kind, project_root, global_root)
+    if not config.get('recall_enabled', True) or config.get('excluded'):
+        return {'scope': kind, 'status': 'disabled', 'records': []}
+    conn = _connect(db, readonly=True)
+    try:
+        records, remaining, missing, used = [], [], [], 0
+        for memory_id in memory_ids:
+            record = _select_record(conn, memory_id)
+            if record is None:
+                missing.append(memory_id)
+                continue
+            size = len(json.dumps(record, ensure_ascii=False))
+            if used + size > 12000:
+                remaining.append(memory_id)
+            else:
+                records.append(record); used += size
+        return {'scope': kind, 'status': 'ok', 'records': records, 'remaining_ids': remaining,
+                'missing_ids': missing, 'context_incomplete': bool(remaining or missing), 'audit_not_loaded': True}
+    finally:
+        conn.close()
+
 
 def show_record(kind: str, memory_id: str, *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
     _, db, _ = _config_for(kind, project_root, global_root)

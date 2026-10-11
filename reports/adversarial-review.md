@@ -106,3 +106,9 @@ Real npx verification used an isolated HOME/cache without global/system Git conf
 - Fast database calls do not prove fast AI interaction. The partial real on/off test measured significant total-task/call/token overhead. Four failed host invocations are retained separately; two explicitly reported quota exhaustion. No all-host/every-turn/zero-latency claim is made.
 
 No runtime dependency, daemon, paid summarizer, vector store or extra model round was added. Current AI performs semantics within the existing turn; SQLite owns state transitions. Model evaluators are explicit optional development tools and consume host account usage.
+
+## Lifecycle and recall review — 0.5.0
+
+See the [lifecycle review](lifecycle-review.md) for reproducible checkpoint-order, global-budget, candidate-overflow, unknown-workspace and SQL-budget findings and fixes. Startup now combines bounded recall/pending checks; current records can be loaded in a bounded batch without audit history. Seven-phase synthetic program coverage preserves corrected conditions, exclusions, history and project isolation.
+
+Two real project-A cycles passed independent design-to-bugfix integration checks. Evaluator false positives were retained and corrected; the final corrected run then encountered a workspace-credit rejection. The new project-B host session and new matched model timing remain unverified. Local 10,000-record timings do not establish negligible workflow overhead. Active-history cleanup does not cap audit/backup disk growth. Existing other-host, hook and S01–S48 limitations remain.

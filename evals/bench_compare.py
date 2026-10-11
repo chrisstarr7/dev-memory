@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import random
@@ -22,6 +23,9 @@ PACKAGE = Path(__file__).resolve().parents[1] / "skills" / "dev-memory"
 sys.path.insert(0, str(PACKAGE / "scripts"))
 from dev_memory import SKILL_FILES
 SOURCES = tuple(SKILL_FILES)
+
+def source_hashes():
+    return {n: hashlib.sha256((PACKAGE / n).read_bytes()).hexdigest() for n in SOURCES}
 STARTER = "def refund_eligible(order):\n    raise NotImplementedError(\"policy not implemented\")\n"
 TASK = (
     "This project contains an optional local development-memory Skill at .agents/skills/dev-memory. "
@@ -109,7 +113,7 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
     skill = _copy_support(project) if mode == "on" else None
     global_root.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "CODEX_DISABLE_PROJECT_DOCS": "1", "DEV_MEMORY_HOME": str(global_root)}
-    if mode == "on":
+    if mode == "on" and scenario == "recovery":
         _seed_history(skill, project, global_root) if history else _seed_empty(skill, project, global_root)
     task_text = TASK
     if scenario == "automatic-maintenance":
@@ -122,25 +126,30 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
         env.update(HOME=str(home), USERPROFILE=str(home), CODEX_HOME=str(codex_home), PYTHONDONTWRITEBYTECODE="1")
         env.pop("CODEX_DISABLE_PROJECT_DOCS", None)
         task_text = AUTOMATIC_TASK
+        seed_skill = skill or PACKAGE
+        _seed_history(seed_skill, project, global_root) if history else _seed_empty(seed_skill, project, global_root)
         if mode == "on":
             import dev_memory_setup
             dev_memory_setup.setup(project, "codex", skill, sys.executable, global_root)
-            if history:
-                import dev_memory_store
-                original = dev_memory_store.list_records("project",project_root=project)["records"][0]
-                record = dev_memory_store.show_record("project",original["id"],project_root=project)["record"]
-                for n, body in enumerate(("Every stated condition must hold, including both exclusions.",
-                                           "Require all stated refund conditions and both exclusions. " * 30)):
-                    replacement = {k:v for k,v in record.items() if k not in {"id","revision","semantic_hash","created_at","updated_at"}}
-                    replacement.update(content=body, source={"type":"user_confirmation","excerpt":"Synthetic repeated confirmation of the same refund rule."})
-                    dev_memory_store.apply_payload({"schema_version":1,"scope":"project","session_id":"benchmark-seed",
-                        "turn_id":f"paraphrase-{n}","idempotency_key":f"paraphrase-{n}","operations":[{"op":"ADD","record":replacement}]},project_root=project)
+        if history:
+            import dev_memory_store
+            original = dev_memory_store.list_records("project",project_root=project)["records"][0]
+            record = dev_memory_store.show_record("project",original["id"],project_root=project)["record"]
+            for n, body in enumerate(("Every stated condition must hold, including both exclusions.",
+                                       "Require all stated refund conditions and both exclusions. " * 30)):
+                replacement = {k:v for k,v in record.items() if k not in {"id","revision","semantic_hash","created_at","updated_at"}}
+                replacement.update(content=body, source={"type":"user_confirmation","excerpt":"Synthetic repeated confirmation of the same refund rule."})
+                dev_memory_store.apply_payload({"schema_version":1,"scope":"project","session_id":"benchmark-seed",
+                    "turn_id":f"paraphrase-{n}","idempotency_key":f"paraphrase-{n}","operations":[{"op":"ADD","record":replacement}]},project_root=project)
     last_message = scratch / "last-message.txt"
-    argv = [codex, "exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check",
+    argv = [codex, "exec", "--json", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check",
             "--sandbox", "workspace-write", "--model", model, "--config", f"model_reasoning_effort={reasoning}",
             "--add-dir", str(global_root), "--output-last-message", str(last_message), task_text]
     start = time.monotonic()
     first_action = None
+    first_business_edit = None
+    memory_events = 0
+    protocol_reads = 0
     tool_events = 0
     token_usage = None
     event_lines = 0
@@ -154,6 +163,12 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ)
     while selector.get_map():
+        try:
+            business_changed = (project / "refunds.py").read_text() != STARTER
+        except OSError:
+            business_changed = False
+        if first_business_edit is None and business_changed:
+            first_business_edit = time.monotonic() - start
         remaining = timeout - (time.monotonic() - start)
         if remaining <= 0:
             timed_out = True
@@ -181,6 +196,9 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
             item_type = item.get("type") if isinstance(item, dict) else None
             if event_type == "item.started" and item_type in {"command_execution", "mcp_tool_call", "tool_call", "file_change"}:
                 tool_events += 1
+                command = item.get("command", "")
+                memory_events += "dev_memory.py" in command
+                protocol_reads += "references/protocol.md" in command
                 if first_action is None:
                     first_action = received - start
     process.wait()
@@ -237,6 +255,8 @@ assert all(refunds.refund_eligible(order)==expected for order,expected in cases)
         "mode": mode, "history": history, "repetition": repetition, "exit_code": process.returncode,
         "timed_out": timed_out, "host_errors": host_errors, "duration_seconds": round(duration, 3),
         "first_effective_action_seconds": round(first_action, 3) if first_action is not None else None,
+        "first_business_edit_seconds": round(first_business_edit, 3) if first_business_edit is not None else None,
+        "memory_tool_events": memory_events, "protocol_read_events": protocol_reads,
         "tool_event_count": tool_events, "token_usage": token_usage, "jsonl_event_count": event_lines,
         "expected_behavior": expected, "automated_criterion_match": criterion,
         "policy_constraint_match": policy_match,
@@ -262,7 +282,10 @@ def _completed_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
               for r in rows if isinstance((u := r.get('token_usage')), dict)]
     return {'n': len(rows), 'duration_seconds': stats('duration_seconds'),
             'first_tool_action_seconds': stats('first_effective_action_seconds'),
+            'first_business_edit_seconds': stats('first_business_edit_seconds'),
             'tool_events': stats('tool_event_count'),
+            'memory_tool_events': stats('memory_tool_events'),
+            'protocol_read_events': stats('protocol_read_events'),
             'token_sum_median': statistics.median(tokens) if tokens else None,
             'tokens_available_n': len(tokens)}
 
@@ -300,7 +323,10 @@ def main() -> int:
              for history in (False, True) for mode in ("off", "on")]
     random.Random(args.seed).shuffle(order)
     rows = []
+    frozen = source_hashes()
     for index, (mode, history, rep) in enumerate(order, 1):
+        if source_hashes() != frozen:
+            raise RuntimeError("Runtime changed during the benchmark; do not publish mixed-source metrics.")
         with tempfile.TemporaryDirectory(prefix="dev-memory-bench-") as temp:
             print(f"[{index}/{len(order)}] mode={mode} history={history} repetition={rep}", file=sys.stderr, flush=True)
             try:
@@ -309,8 +335,10 @@ def main() -> int:
             except Exception as exc:
                 rows.append({"mode": mode, "history": history, "repetition": rep, "exit_code": None,
                              "timed_out": False, "duration_seconds": None, "first_effective_action_seconds": None,
-                             "tool_event_count": None, "token_usage": None, "automated_criterion_match": False,
+                             "tool_event_count": None, "token_usage": None, "automated_criterion_match": None,
                              "runner_error": f"{type(exc).__name__}: {exc}"})
+    if source_hashes() != frozen:
+        raise RuntimeError("Runtime changed during the benchmark; do not publish mixed-source metrics.")
     groups = {}
     for mode in ("off", "on"):
         for history in (False, True):
@@ -318,11 +346,13 @@ def main() -> int:
             groups[key] = _summary([r for r in rows if r["mode"] == mode and r["history"] == history])
     report = {
         "benchmark": "dev-memory A/B synthetic refund-rule coding task", "scenario": args.scenario,
-        "runtime_version": "0.4.0", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
+        "runtime_source_sha256": frozen,
+        "history_stores_identically_seeded_on_and_off": args.scenario == "automatic-maintenance",
+        "runtime_version": "0.5.0", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
         "model": args.model, "reasoning": args.reasoning, "codex_cli": _version(codex),
         "repetitions_per_cell": args.repetitions, "condition_order_seed": args.seed,
         "same_task_text": True, "same_starting_code": True,
-        "metrics_note": "Tool event counts and token use are best-effort Codex CLI JSONL observations. Input+output tokens are summed once; cached input is a subset. The first observable tool-action event proxies first effective action. Code-string policy checks and test execution do not replace semantic review.",
+        "metrics_note": "Tool event counts and token use are best-effort Codex CLI JSONL observations. Input+output tokens are summed once; cached input is a subset. The first observable tool-action event proxies first effective action; first_business_edit_seconds polls the starter file at approximately 250ms resolution and does not prove the edit is correct. Code-string policy checks and test execution do not replace semantic review.",
         "cells": groups, "trials": rows,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
