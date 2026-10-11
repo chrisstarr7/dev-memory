@@ -170,7 +170,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "244ab786f26df448704a0f8e154bdba65c4692076affe2fee0a902b44a14c0fd"
+      "sha256": "150a64ca3eb5989afe733fc551e4f14fe3b0d46ad8a48bb6988845755079ec30"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -246,7 +246,7 @@
     },
     {
       "path": "reports/deepseek.json",
-      "sha256": "1b6ed504ed8622a30f1d1f901cf15107f6512481739ff90580f5f61b690d813f"
+      "sha256": "48b37c12e672ab427d70535593cbe261dcaac21f6e90bc48c5756ab47ebdd277"
     }
   ],
   "license_status": "MIT",

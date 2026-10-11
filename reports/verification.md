@@ -249,3 +249,9 @@ The published **`@deepseek-ai/dsh-skill-filesystem@0.2.0-rc.2`** provider was di
 Optional reproducible probe (downloads test-only npm dependencies in a temporary directory, no runtime dependency added): `python3 evals/check_deepseek.py --output /temporary-directory/deepseek-probe.json`. Results must be outside the source package. Machine-readable status: [deepseek.json](deepseek.json).
 
 Actual DSH model end-to-end behavior and workflow latency remain **not run**. Custom profiles can disable providers, omit/truncate project instructions or deny commands; installation cannot override these controls. Earlier model/benchmark evidence remains scoped to its named release and host.
+
+### Public distribution checks — 0.5.1
+
+Feature commit `fb4740f5dd81f0a8212aaa7f0f54d9b3a5a73ee4`: actual public short-command installation and repeat installation passed for **all seven selectors**, including `deepseek`, in temporary homes/projects on macOS. Installed runtime bytes matched all fourteen public files. DSH's empty initial store, synthetic record retention, namespace, capture/recall controls, unrelated `AGENTS.md` instructions and stable runtime binding survived repeated installation. No npm project files or default hooks were added. This is distribution/program evidence, not a DeepSeek model session.
+
+An actual pinned 0.5.0 → 0.5.1 Codex upgrade retained body, conditions, exceptions, evidence, revisions, namespace, paused capture and unrelated project instructions using the same temporary npm cache. All 62 manifest hashes in the public source ZIP passed. [GitHub Actions 38144087727](https://github.com/chrisstarr7/dev-memory/actions/runs/38144087727) passed four Ubuntu/macOS × Python 3.10/3.14 jobs, each with 160 tests and a 63-entry release build using Node.js 22. Machine-readable outcomes are in [deepseek.json](deepseek.json). No real user store/configuration or API credential was changed.

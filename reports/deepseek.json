@@ -1,6 +1,6 @@
 {
   "runtime_version": "0.5.1",
-  "status": "program_and_native_provider_passed",
+  "status": "program_native_provider_and_public_distribution_passed",
   "program_tests": {
     "status": "passed",
     "count": 160,
@@ -28,7 +28,110 @@
   ],
   "probe_boundary": "Published filesystem provider directly invoked with a minimal context and Node filesystem fallback; no complete DSH profile or model run. Watchers disabled. Initial probe harness omitted ctx.get, then was corrected and the provider probe passed.",
   "public_installation": {
-    "status": "pending_public_source_check"
+    "version": "0.5.1",
+    "command": "npx -y chrisstarr7/dev-memory codex",
+    "tested_commit": "fb4740f5dd81f0a8212aaa7f0f54d9b3a5a73ee4",
+    "platform": "darwin",
+    "node": "v26.0.0",
+    "npm": "11.12.1",
+    "hosts": [
+      {
+        "agent": "codex",
+        "status": "passed",
+        "first_install_seconds": 24.474,
+        "repeat_seconds": 7.241,
+        "runtime_file_matches": 14,
+        "current_project_initialized": true,
+        "initial_project_empty": true,
+        "repeat_preserves_records_controls_identity_instructions": true,
+        "no_npm_files_in_business_project": true,
+        "stable_installed_bindings": true,
+        "default_hooks": false
+      },
+      {
+        "agent": "claude",
+        "status": "passed",
+        "first_install_seconds": 9.529,
+        "repeat_seconds": 7.125,
+        "runtime_file_matches": 14,
+        "current_project_initialized": true,
+        "initial_project_empty": true,
+        "repeat_preserves_records_controls_identity_instructions": true,
+        "no_npm_files_in_business_project": true,
+        "stable_installed_bindings": true,
+        "default_hooks": false
+      },
+      {
+        "agent": "cursor",
+        "status": "passed",
+        "first_install_seconds": 12.273,
+        "repeat_seconds": 16.054,
+        "runtime_file_matches": 14,
+        "current_project_initialized": true,
+        "initial_project_empty": true,
+        "repeat_preserves_records_controls_identity_instructions": true,
+        "no_npm_files_in_business_project": true,
+        "stable_installed_bindings": true,
+        "default_hooks": false
+      },
+      {
+        "agent": "gemini",
+        "status": "passed",
+        "first_install_seconds": 9.168,
+        "repeat_seconds": 8.027,
+        "runtime_file_matches": 14,
+        "current_project_initialized": true,
+        "initial_project_empty": true,
+        "repeat_preserves_records_controls_identity_instructions": true,
+        "no_npm_files_in_business_project": true,
+        "stable_installed_bindings": true,
+        "default_hooks": false
+      },
+      {
+        "agent": "copilot",
+        "status": "passed",
+        "first_install_seconds": 7.201,
+        "repeat_seconds": 8.63,
+        "runtime_file_matches": 14,
+        "current_project_initialized": true,
+        "initial_project_empty": true,
+        "repeat_preserves_records_controls_identity_instructions": true,
+        "no_npm_files_in_business_project": true,
+        "stable_installed_bindings": true,
+        "default_hooks": false
+      },
+      {
+        "agent": "opencode",
+        "status": "passed",
+        "first_install_seconds": 7.175,
+        "repeat_seconds": 6.562,
+        "runtime_file_matches": 14,
+        "current_project_initialized": true,
+        "initial_project_empty": true,
+        "repeat_preserves_records_controls_identity_instructions": true,
+        "no_npm_files_in_business_project": true,
+        "stable_installed_bindings": true,
+        "default_hooks": false
+      },
+      {
+        "agent": "deepseek",
+        "status": "passed",
+        "first_install_seconds": 7.062,
+        "repeat_seconds": 6.645,
+        "runtime_file_matches": 14,
+        "current_project_initialized": true,
+        "initial_project_empty": true,
+        "repeat_preserves_records_controls_identity_instructions": true,
+        "no_npm_files_in_business_project": true,
+        "stable_installed_bindings": true,
+        "default_hooks": false
+      }
+    ],
+    "environment": "Temporary HOME/npm cache/projects; global and system Git config disabled; no login prompt",
+    "windows": "not_run",
+    "new_model_sessions": "not_run",
+    "new_workflow_latency_ab": "not_run",
+    "status": "passed"
   },
   "actual_dsh_model_e2e": "not_run",
   "model_api_credentials_modified": false,
@@ -54,5 +157,49 @@
     "scripts/dev_memory_setup.py": "28f76a26a44d94e9770f8028997b59b53a86c8e65101b1eb4c61f3d36e43b7c3",
     "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
     "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+  },
+  "public_upgrade": {
+    "status": "passed",
+    "from_version": "0.5.0",
+    "old_commit": "bd73103",
+    "to_version": "0.5.1",
+    "tested_commit": "fb4740f5dd81f0a8212aaa7f0f54d9b3a5a73ee4",
+    "upgrade_command": "npx -y chrisstarr7/dev-memory codex",
+    "saved_body_conditions_evidence_revision_preserved": true,
+    "namespace_and_pause_preserved": true,
+    "unrelated_project_instructions_preserved": true,
+    "old_history_queued_once": true,
+    "paused_maintenance_suppressed": true,
+    "installed_runtime_matches_public_source": true,
+    "same_temporary_cache": true,
+    "initial_install_was_pinned_old_commit": true,
+    "real_user_stores_modified": false
+  },
+  "source_zip": {
+    "status": "passed",
+    "commit": "fb4740f5dd81f0a8212aaa7f0f54d9b3a5a73ee4",
+    "version": "0.5.1",
+    "manifest_files_verified": 62,
+    "transport": "curl TLS verification enabled"
+  },
+  "ci": {
+    "conclusion": "success",
+    "status": "completed",
+    "url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38144087727",
+    "tested_commit": "fb4740f5dd81f0a8212aaa7f0f54d9b3a5a73ee4",
+    "test_counts": [
+      "160",
+      "160",
+      "160",
+      "160"
+    ],
+    "matrix": [
+      "Ubuntu/Python 3.10",
+      "Ubuntu/Python 3.14",
+      "macOS/Python 3.10",
+      "macOS/Python 3.14"
+    ],
+    "node": "22",
+    "release_entries": 63
   }
 }
