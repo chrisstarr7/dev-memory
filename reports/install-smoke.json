@@ -288,5 +288,112 @@
       "test_count_per_job": 74,
       "package_build_per_job": "passed"
     }
+  },
+  "onboarding_0_3_0": {
+    "program_tests": {
+      "status": "passed",
+      "count": 91
+    },
+    "github_source_zip": {
+      "status": "passed",
+      "source_commit": "08813ed633f3f8463414a0ee0ef8c440299aaef7",
+      "source": "actual GitHub source ZIP",
+      "version": "0.3.0",
+      "source_hashes_checked": 40,
+      "command": "python3 install.py claude --project <synthetic-project> --json",
+      "destination": ".claude/skills/dev-memory",
+      "runtime_check": {
+        "status": "passed",
+        "python": "3.14.2",
+        "sqlite": "3.50.4"
+      },
+      "memory_initialized": true,
+      "project_activation": "configured",
+      "hooks_changed": false
+    },
+    "skills_manager": {
+      "source": "chrisstarr7/dev-memory",
+      "source_commit": "08813ed633f3f8463414a0ee0ef8c440299aaef7",
+      "installer": "skills@1.7.2",
+      "node": "v24.13.0",
+      "host_invocation": "not established by installer or doctor",
+      "commands": [
+        {
+          "action": "github_install",
+          "exit_code": 0,
+          "elapsed_seconds": 11.712
+        },
+        {
+          "action": "doctor:codex",
+          "exit_code": 0,
+          "elapsed_seconds": 0.131
+        },
+        {
+          "action": "doctor:claude-code",
+          "exit_code": 0,
+          "elapsed_seconds": 0.121
+        },
+        {
+          "action": "doctor:cursor",
+          "exit_code": 0,
+          "elapsed_seconds": 0.106
+        },
+        {
+          "action": "doctor:gemini-cli",
+          "exit_code": 0,
+          "elapsed_seconds": 0.106
+        },
+        {
+          "action": "doctor:github-copilot",
+          "exit_code": 0,
+          "elapsed_seconds": 0.105
+        },
+        {
+          "action": "doctor:opencode",
+          "exit_code": 0,
+          "elapsed_seconds": 0.106
+        },
+        {
+          "action": "github_reinstall",
+          "exit_code": 0,
+          "elapsed_seconds": 6.761
+        },
+        {
+          "action": "remove",
+          "exit_code": 0,
+          "elapsed_seconds": 2.482
+        }
+      ],
+      "status": "passed",
+      "agents": [
+        "codex",
+        "claude-code",
+        "cursor",
+        "gemini-cli",
+        "github-copilot",
+        "opencode"
+      ],
+      "destinations": {
+        "codex": ".agents/skills/dev-memory",
+        "claude-code": ".claude/skills/dev-memory",
+        "cursor": ".agents/skills/dev-memory",
+        "gemini-cli": ".agents/skills/dev-memory",
+        "github-copilot": ".agents/skills/dev-memory",
+        "opencode": ".agents/skills/dev-memory"
+      },
+      "files_hash_checked": 84,
+      "memory_preserved": true,
+      "hooks_unchanged": true,
+      "install_reinstall_remove": true
+    },
+    "ci": {
+      "status": "passed",
+      "run_id": 38107607438,
+      "source_commit": "08813ed633f3f8463414a0ee0ef8c440299aaef7",
+      "url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38107607438",
+      "matrix": "Ubuntu/macOS x Python 3.10/3.14"
+    },
+    "real_host_evidence": "reports/automatic-onboarding.json",
+    "runtime_user_data_changed": false
   }
 }

@@ -27,6 +27,7 @@ AUTH = Path(os.environ.get('CODEX_HOME', Path.home() / '.codex')) / 'auth.json'
 CODEX = shutil.which('codex')
 report = {'status': 'running', 'host': subprocess.check_output([CODEX, '--version'], text=True).strip(),
           'model': 'gpt-6-astra', 'reasoning_effort': 'medium',
+          'permissions': {'sandbox': 'workspace-write', 'additional_writable_root': 'synthetic temporary HOME via --add-dir'},
           'user_prompts_mention_skill': False, 'hooks_configured': False, 'runtime_version': '0.3.0', 'runs': []}
 with tempfile.TemporaryDirectory(prefix='dev-memory automatic onboarding ') as tmp:
     home = Path(tmp).resolve()

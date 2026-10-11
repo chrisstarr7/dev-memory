@@ -82,7 +82,7 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "6ffd28a594ebd422226c5bf56a0936ad03c923a754f1ac0e956b638850c869cd"
+      "sha256": "757d174155813aeeb4c5421f5772c9107596a8d114c436921a6936fb8837e398"
     },
     {
       "path": "docs/ecosystem.md",
@@ -122,11 +122,11 @@
     },
     {
       "path": "evals/check_automatic.py",
-      "sha256": "5d08f2d07cee7191b51bc3cb40b190768191edd927def91322c71ffd3194d36e"
+      "sha256": "0bd3dab65999dc841be926471e5a0c963707c90c5f0319a92486c07e81cc0af1"
     },
     {
       "path": "reports/verification.md",
-      "sha256": "151b49cc72315826e0e80f30c47f50f1f14d128265e3c10d52fbffbcba144ad8"
+      "sha256": "0f16e627ad06e41ffdd76843af542c7c70fc283d0cd31b3a5cea76f68a52d7d4"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -138,11 +138,11 @@
     },
     {
       "path": "reports/automatic-onboarding.json",
-      "sha256": "739adc8485f56787a61913e666e23573b361fefff9ff9d924636893ad147d203"
+      "sha256": "1a1cffa46577f5953a92c2ecb543413ff66445d381d8ddaf8b476db82939fad5"
     },
     {
       "path": "reports/install-smoke.json",
-      "sha256": "8abb0f62c1106e5164ad0a6e1ae1db32bc31e365045f2adb6bed58f5ea13dc3a"
+      "sha256": "59d5b5d0b930352b33bdb7bdccb02a3b29b0f69e8500c0b4acd30f44be0d0513"
     },
     {
       "path": "reports/benchmark-2026-10-11.json",

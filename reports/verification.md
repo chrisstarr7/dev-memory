@@ -111,7 +111,7 @@ Tested commit: `60344057ae916fc5128b5080b8af285c1fe6735d`. Evidence: `reports/in
 
 ### Real Codex CLI sessions without Skill invocation
 
-Actual host: **Codex CLI 0.155.1**, macOS, Python 3.14.2, SQLite 3.50.4. Model configuration: `gpt-6-astra`, medium reasoning. The host used an isolated temporary HOME/CODEX_HOME, synthetic Git projects and actual login. Existing user instructions/configurations, Skill installations and memories were not changed. No hooks were configured or trusted. JSON evidence: [automatic-onboarding.json](automatic-onboarding.json). Reproducible explicit evaluator: `evals/check_automatic.py`.
+Actual host: **Codex CLI 0.155.1**, macOS, Python 3.14.2, SQLite 3.50.4. Model configuration: `gpt-6-astra`, medium reasoning. The host used an isolated temporary HOME/CODEX_HOME, synthetic Git projects and actual login. Existing user instructions/configurations, Skill installations and memories were not changed. The test used `workspace-write` plus `--add-dir` for the synthetic temporary HOME to permit writes to both isolated stores. This does not establish global-store write permission in a user's default sandbox. No hooks were configured or trusted. JSON evidence: [automatic-onboarding.json](automatic-onboarding.json). Reproducible explicit evaluator: `evals/check_automatic.py`.
 
 | Ordinary user request | Observed result | Full invocation | Tool calls |
 | --- | --- | ---: | ---: |
@@ -128,3 +128,9 @@ Two earlier attempts are retained as failures/gaps in the evidence summary: firs
 This establishes observed **project-guided default behavior** in three fresh Codex CLI sessions. It does not establish enforced hook events, every-turn compliance, automatic compaction delivery, Codex Desktop or the five other host integrations. S40/S48's event/trust and cross-host requirements remain unverified. Existing S01–S48 semantic gaps above remain partial; no blanket pass is claimed.
 
 Times and token fields are whole real model invocations, not database microbenchmarks. These three different tasks are **not** a controlled on/off latency comparison. The historical A/B table remains scoped to its earlier runtime; no latency-free claim or new 0.3.0 A/B result is made.
+
+### Public download and CI — 0.3.0
+
+- Commit `08813ed633f3f8463414a0ee0ef8c440299aaef7` was pushed to the public `chrisstarr7/dev-memory` repository. Its actual GitHub source ZIP passed all 40 manifest hashes; `install.py claude --project <synthetic-project> --json` completed runtime checking, independent store initialization and project guide configuration in a temporary HOME, leaving hooks unchanged.
+- Actual `skills@1.7.2` installation from this GitHub repository passed for six hosts: 84 runtime file checks, installed doctor calls, reinstall and removal. Databases remained unchanged and hooks were not configured.
+- [GitHub Actions 38107607438](https://github.com/chrisstarr7/dev-memory/actions/runs/38107607438) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs, including 91 tests and release building. Exact public-install evidence is in `reports/install-smoke.json` under `onboarding_0_3_0`. Subsequent report-only changes do not imply additional model runs.

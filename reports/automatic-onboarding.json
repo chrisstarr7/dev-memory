@@ -106,5 +106,10 @@
       "result": "semantic_gap_corrected",
       "detail": "A normal code-file edit limit was interpreted as a memory-write prohibition; code conditions passed but progress capture was skipped. Guidance now distinguishes code scope from explicit memory/all-file prohibitions. Continuation also gains bounded checkpoint candidates."
     }
-  ]
+  ],
+  "permissions": {
+    "sandbox": "workspace-write",
+    "additional_writable_root": "synthetic temporary HOME supplied via --add-dir",
+    "user_host_permissions_changed": false
+  }
 }
