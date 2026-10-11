@@ -38,7 +38,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "1ac4cda9294e05a1cbd016bbc1760cab1a9f867bf995015bceb31e2d854b34af"
+      "sha256": "1db473bb146dbe5bbc7994772adda538d40054b40e661d7e8f15fe24c00d88a4"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
@@ -150,7 +150,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "618582e20967409a5715342f95a339afe06e8d79a2738468ddc6ddf842974c14"
+      "sha256": "3f92dfc2792e8bcbeeea03a0db44546f42f40aa0ce0494b9d2eda96ddcf03d6e"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -163,6 +163,10 @@
     {
       "path": "reports/maintenance-benchmark.json",
       "sha256": "1f0967cc9ce4099ebe3a98dfa99289b164a353e156d2d6ee2645cc9331e6046d"
+    },
+    {
+      "path": "reports/maintenance-installation.json",
+      "sha256": "e051f3d5366ea37dbf418fdebae858f33e7fc851bdc55b6cd968595c783ba4ae"
     },
     {
       "path": "build_release.py",

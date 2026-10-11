@@ -31,7 +31,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "README.md", "LICENSE", ".gitignore", "install.py", "package.json", "bin/install.cjs", "CONTRIBUTING.md", "SECURITY.md",
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
     "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py",
-    "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "build_release.py",
+    "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json",
 ]

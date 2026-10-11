@@ -201,4 +201,9 @@ All **8 completed** tasks implemented the policy, passed six independent behavio
 
 ### Public release evidence
 
-Public source installation and CI for 0.4.0 are recorded below after execution. Earlier release results remain scoped to their named commits.
+Tested commit: `bfe40cd9f516a0f52e33eec5df9f4c3cbb735f52`. Evidence: [maintenance-installation.json](maintenance-installation.json).
+
+- Actual `npx -y chrisstarr7/dev-memory <host>` passed fresh and repeated installation for all six host selectors on macOS, with isolated HOME/cache and no real user-store changes. Fourteen installed runtime files matched public source; new stores were empty, repeated installation preserved synthetic records, identities, controls and unrelated instructions. No hooks or npm project files were added.
+- Actual public upgrade from pinned 0.3.2 to current 0.4.0 via the short command passed. Body/conditions/evidence/revision and namespace were retained; paused capture remained paused, old active history was queued once and paused maintenance was suppressed. The same temporary cache was reused; the initial old installation used a pinned commit rather than an unmodified main shorthand.
+- Downloaded public GitHub source ZIP passed all 51 manifest hashes. [GitHub Actions 38127667281](https://github.com/chrisstarr7/dev-memory/actions/runs/38127667281) passed all four Ubuntu/macOS × Python 3.10/3.14 jobs, each with 145 tests and a 52-entry release build using Node.js 22.
+- Later additions of this evidence/report to the release whitelist do not add model or installation runs. Windows installation, other-host automatic behavior and the final scope-guidance model rerun remain unverified. Earlier release results remain scoped to their named commits.
