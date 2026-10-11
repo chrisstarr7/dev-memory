@@ -1,0 +1,128 @@
+{
+  "evaluation": "manual Codex CLI cross-project recall sequence; synthetic data only",
+  "codex_cli": "codex-cli 0.155.1",
+  "model": "gpt-6-astra",
+  "reasoning": "medium",
+  "automatic_hooks_enabled": false,
+  "global_root_is_temporary": true,
+  "projects_are_temporary": true,
+  "sequence": [
+    "Project A user correction and project-local revision",
+    "new Codex CLI session resumes task and implements from recalled rule",
+    "Project B must not inherit Project A policy but can use confirmed global preference"
+  ],
+  "results": [
+    {
+      "stage": "a-correction",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 61.203,
+      "first_action_seconds": 10.282,
+      "tool_event_count": 12,
+      "token_usage": {
+        "input_tokens": 192085,
+        "cached_input_tokens": 162432,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1314,
+        "reasoning_output_tokens": 26
+      },
+      "token_total_input_plus_output": 193399,
+      "final_message": "Updated Project A’s existing refund record to **14 days**, preserving delivered/unopened conditions and gift/final-sale exclusions, with minimal correction evidence.\n\nSaved checkpoint **refund-fix**: rule corrected; implementation and tests next.\n\nNo code changed or tests run. No business rule promoted to global.",
+      "corrected_record_14_day": true,
+      "old_30_day_removed": true,
+      "checkpoint_exists": true
+    },
+    {
+      "stage": "a-new-session-continue",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 92.405,
+      "first_action_seconds": 15.449,
+      "tool_event_count": 20,
+      "token_usage": {
+        "input_tokens": 285622,
+        "cached_input_tokens": 249344,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2494,
+        "reasoning_output_tokens": 75
+      },
+      "token_total_input_plus_output": 288116,
+      "final_message": "Implemented the recalled Project A policy in `refunds.py`.\n\n- Added six tests; `python3 -m unittest discover -v` passes.\n- Updated the project checkpoint with completed work, verification, and next step: review.\n- Kept the business rule project-local; global memory unchanged.",
+      "code_constraints": {
+        "delivered": true,
+        "unopened": true,
+        "14_days": true,
+        "gift": true,
+        "final_sale": true
+      },
+      "independent_test_run": {
+        "command": "python3 -m unittest discover -v",
+        "exit_code": 0,
+        "test_count": 6,
+        "output_tail": "test_age_boundary (test_refunds.RefundEligibilityTests.test_age_boundary) ... ok\ntest_delivery_required (test_refunds.RefundEligibilityTests.test_delivery_required) ... ok\ntest_eligible_order (test_refunds.RefundEligibilityTests.test_eligible_order) ... ok\ntest_final_sale_excluded (test_refunds.RefundEligibilityTests.test_final_sale_excluded) ... ok\ntest_gifts_excluded (test_refunds.RefundEligibilityTests.test_gifts_excluded) ... ok\ntest_unopened_required (test_refunds.RefundEligibilityTests.test_unopened_required) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n"
+      }
+    },
+    {
+      "stage": "b-no-leak-global-pref",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 37.85,
+      "first_action_seconds": 13.138,
+      "tool_event_count": 7,
+      "token_usage": {
+        "input_tokens": 114424,
+        "cached_input_tokens": 100736,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 503,
+        "reasoning_output_tokens": 19
+      },
+      "token_total_input_plus_output": 114927,
+      "final_message": "Project B has no saved refund eligibility policy. I applied the global preference for concise reporting. No code changed; no tests added or run.\n\nWhat refund eligibility policy should `refund_eligible(order)` use for Project B?",
+      "code_unchanged": true,
+      "did_not_leak_14_day_rule": true,
+      "asked_for_policy": true,
+      "concise_global_preference_proxy": true
+    }
+  ],
+  "limits": [
+    "Manual CLI/Skill path only; no automatic hook delivery or trust verification.",
+    "Constraint checks are literal-code/message proxies; inspect per-stage final messages and independent tests.",
+    "A two-project synthetic run does not establish general natural-language semantic accuracy."
+  ],
+  "metrics_note": "Tokens are input+output; cached input is a subset. First action is the first observable CLI tool event. Tool counts are selected JSONL item.started events.",
+  "previous_attempt": {
+    "status": "incomplete; followed by one successful rerun",
+    "observations": [
+      "Project A correction stage exited 0 and reported a saved 14-day rule/checkpoint.",
+      "The evaluator first checked task_id through list_records, whose rows omit task_id; this produced a false missing-checkpoint result. It now checks scoped recall.",
+      "The next-session and Project B CLI processes exited 1 before returning final messages; stderr was not retained in that attempt, so the cause is unknown."
+    ],
+    "stages": [
+      {
+        "stage": "a-correction",
+        "exit_code": 0,
+        "duration_seconds": 60.037,
+        "first_action_seconds": 16.629,
+        "tool_event_count": 12,
+        "token_total": 187608
+      },
+      {
+        "stage": "a-new-session-continue",
+        "exit_code": 1,
+        "duration_seconds": 15.584,
+        "first_action_seconds": 13.798,
+        "tool_event_count": 1,
+        "tests": "not run; no files created"
+      },
+      {
+        "stage": "b-no-leak-global-pref",
+        "exit_code": 1,
+        "duration_seconds": 14.617,
+        "first_action_seconds": null,
+        "tool_event_count": 0
+      }
+    ]
+  },
+  "source_version_boundary": "Historical pre-review build from 2026-10-11; not a 0.2.0 model/latency evaluation.",
+  "prior_release_manifest_sha256": "46fbc5ed357dc83553003b811fd7f348eb3b481a2fd3319dcc6814fbe9af031c"
+}

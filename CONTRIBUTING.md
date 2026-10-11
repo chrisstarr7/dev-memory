@@ -1,0 +1,11 @@
+# Contributing
+
+Python 3.10+ standard library only. Runtime lives under `skills/dev-memory`; tests/evals/docs belong at the repository root. Never add real stores, personal workflows, unrelated Skills, a background service or default paid model calls.
+
+Ground behavior in README, SKILL.md and protocol.md. Add synthetic regressions and run `python3 -m unittest discover -s tests -v`. Tests use temporary stores/fake homes. Optional real installer smoke: `python3 tests/install_smoke.py --output ../install-smoke.json`; downloads npm code into a temporary cache and does not alter real Skill directories.
+
+Keep semantic judgments with the current AI and deterministic state transitions in CLI/SQLite. Preserve physical isolation, provenance, source revisions, opt-outs and truthful receipts. Skill examples must actually execute.
+
+S01–S48 mapping is `evals/scenarios.json`. Semantic/host claims need actual runs. Optional model A/B: `python3 evals/bench_compare.py --model MODEL --reasoning medium --repetitions 3 --output ../benchmark.json`; consumes model usage and is excluded from CI.
+
+Update public files and release whitelist together. Version fields in SKILL.md, plugin.json and build_release.py must agree. Migrations preserve deletion/privacy suppression; use build_release.py for public archives and SHA-256 manifests.

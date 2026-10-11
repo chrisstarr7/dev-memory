@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.dev-memory/
+*.sqlite*
+*.db
+*.log
+.DS_Store
+skills-lock.json
