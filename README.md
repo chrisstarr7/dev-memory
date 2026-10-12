@@ -45,6 +45,8 @@ The AI needs local file and command access. A web-only chat cannot install softw
 
 </details>
 
+Windows Codex: version 0.5.2 repairs public program-directory ACL creation. Upgrade with the same command above and start a new session. See the [Windows access guide](docs/installation.md#windows-codex-访问权限).
+
 ## Features
 
 | Capability | What it does |

@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "2103fd0ac736c76082e84012e828e0b045e9116e5a0dbf829c43d13147f65a6c"
+      "sha256": "a1622f3b18ffcb9bb381da4d3a85980727a6a935b27f0ea0b2d6b9dc37eff528"
     },
     {
       "path": "LICENSE",
@@ -102,15 +102,15 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "a1baca6a0f20ccce729d6fd9d075584e08e8b4587e4bb053c9eee8abe678c06d"
+      "sha256": "0e1ebaf986369de03fa2371306ff466b4172f3484906377b8aa4a1102f835447"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "bdd31a087909c802aa040d42aa7818b393ed240d3f3a9e7b3054ae98c7dabcc3"
+      "sha256": "913d68b46459676818e02be9c65751bed6863cf3ef8b5a18b14c9e11775f460a"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "016e7e5c31747f5741ac7bc38ee76dadeeb62d66db3ada0b3d229956ab4bfd28"
+      "sha256": "de2bb33b182224dcaf1f90bbc99e638efebb9e078d8e4af6b8df3b300fc8eac4"
     },
     {
       "path": "tests/test_dev_memory.py",
@@ -170,7 +170,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "acd12e060cfcb18f5491cc23bca736515f04f917af368e49095a581d89c2eecd"
+      "sha256": "a9b11e3173aff3c4d8adf8790fd79bc71b58f7e88b249980776ef4ebf3a89ed6"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -250,7 +250,7 @@
     },
     {
       "path": "reports/windows-access.json",
-      "sha256": "98396e1eda25908bd57f4d8e31f8c830a19449d49e95d36145cc70cd8d325eb3"
+      "sha256": "ed1ae02845d3f2f31e56523ecb4955a858077d1637315ad76df6dbd2bfb7e1be"
     }
   ],
   "license_status": "MIT",

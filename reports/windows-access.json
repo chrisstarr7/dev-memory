@@ -1,6 +1,6 @@
 {
   "runtime_version": "0.5.2",
-  "status": "final_windows_version_aware_retry_pending",
+  "status": "program_acl_and_six_platform_ci_passed",
   "user_environment": "Windows Codex desktop App; exact version and denied path not supplied",
   "confirmed_installer_defect": "Public program directories used mode 0700, which Windows Python maps to current-user/admin-only access controls.",
   "specific_user_failure_root_cause": "not_confirmed_without_denied_path_error_and_app_version",
@@ -12,7 +12,43 @@
     "elapsed_seconds": 25.02,
     "skip_reason": "Native Windows ACL test requires Windows"
   },
-  "native_windows_ci": "pending",
+  "native_windows_ci": {
+    "status": "passed",
+    "run_url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38267060939",
+    "tested_commit": "fdf3a7dbf05f0c174a860d2e8729118b1d591e64",
+    "jobs": [
+      {
+        "name": "test (ubuntu-latest, 3.10)",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.14)",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.10)",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.10)",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.14)",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.14)",
+        "conclusion": "success"
+      }
+    ],
+    "tests_each": 163,
+    "native_acl_test": "passed on both Windows jobs",
+    "skips": "Windows skips only the POSIX Bash command check; Ubuntu/macOS skip only native Windows ACL.",
+    "release_archive_entries": 64,
+    "node": "22",
+    "models_called": 0
+  },
   "actual_windows_codex_app_e2e": "not_run",
   "admin_or_sandbox_policy_changes": false,
   "real_user_stores_modified": false,
@@ -50,5 +86,47 @@
     "windows_python_3_14": "native ACL test passed; all program tests passed",
     "windows_python_3_10": "one fixture failure: 3.10.11 ignores mode 0700 and its legacy public directory was already readable",
     "refinement": "Modern Python must reproduce the restrictive old ACL. Every version must preserve its private ACL baseline exactly and provide readable upgraded public programs."
+  },
+  "public_upgrade_macos": {
+    "status": "passed",
+    "from_version": "0.5.1",
+    "old_commit": "831c80117beb39351cc91028945218e89b47962e",
+    "to_version": "0.5.2",
+    "tested_commit": "5a2d500be0e3e865f21dcd25bdb2a6af5380f48a",
+    "upgrade_command": "npx -y chrisstarr7/dev-memory codex",
+    "saved_body_conditions_evidence_revision_preserved": true,
+    "namespace_and_pause_preserved": true,
+    "unrelated_project_instructions_preserved": true,
+    "old_history_queued_once": true,
+    "paused_maintenance_suppressed": true,
+    "installed_runtime_matches_public_source": true,
+    "same_temporary_cache": true,
+    "initial_install_was_pinned_old_commit": true,
+    "real_user_stores_modified": false
+  },
+  "public_source_zip": {
+    "status": "passed",
+    "commit": "e99e1f4c19cbe97cff12b5e1844a9f0eec7ee787",
+    "version": "0.5.2",
+    "manifest_files_verified": 63,
+    "transport": "TLS verified public source ZIP",
+    "native_windows_app_test": "not_run"
+  },
+  "older_windows_python_boundary": "The 3.10.11 CI build ignores 0700. Every tested version retains its original private ACL exactly; modern 3.14 reproduces and repairs the owner/admin-only legacy program ACL. Restrictiveness on older builds depends on the containing directory ACL.",
+  "runtime_source_sha256": {
+    "SKILL.md": "bc3e5b8b0bf8646da4adcc49756a9d88754756d08379a023e057b971927ce489",
+    "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+    ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+    "agents/openai.yaml": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e",
+    "assets/config.example.json": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe",
+    "references/protocol.md": "88cfa26d2135eb12657c5ee02038f20f69f339ba3da374c073e54d9a89a1d47c",
+    "references/codex-hooks.md": "fccbc5c0ad2f6eb45296c2b6719f72e9bb5f9c65b86d9e739e4bd66f34fd74ff",
+    "references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+    "references/setup.md": "702c598c51bcbaebb18da5c1dbd173bb981956ce7c28050fc4baceec1af098b8",
+    "scripts/dev_memory.py": "dab3c55eb5d5092d956c83039fb433e1ece0a61169575a3ba64b4844807d1d5c",
+    "scripts/dev_memory_store.py": "0a4531c489a0a638b984f996dd5d7ade67ae6f8331593483c85585d35b08e505",
+    "scripts/dev_memory_setup.py": "28f76a26a44d94e9770f8028997b59b53a86c8e65101b1eb4c61f3d36e43b7c3",
+    "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
+    "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
   }
 }

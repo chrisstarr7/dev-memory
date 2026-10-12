@@ -45,6 +45,8 @@ AI 需要本机文件与命令权限。网页聊天不能直接安装到你的�
 
 </details>
 
+Windows Codex：0.5.2 已修复程序目录的 ACL 创建方式。用上面的同一命令升级，再新建会话。详见 [Windows 访问说明](../../docs/installation.md#windows-codex-访问权限)。
+
 ## 特性
 
 | 能力 | 作用 |

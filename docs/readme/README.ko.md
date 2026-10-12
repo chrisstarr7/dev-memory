@@ -45,6 +45,8 @@ AI에는 로컬 파일 및 명령 실행 권한이 필요합니다. 웹 채팅�
 
 </details>
 
+Windows Codex: 0.5.2에서 프로그램 디렉터리의 ACL 생성 방식을 수정했습니다. 같은 명령으로 업데이트한 뒤 새 세션을 시작하세요. [Windows 접근 안내](../../docs/installation.md#windows-codex-访问权限)를 참고하세요.
+
 ## 주요 기능
 
 | 기능 | 동작 |
