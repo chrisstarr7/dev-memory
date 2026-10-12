@@ -1,0 +1,25 @@
+{
+  "runtime_version": "0.5.2",
+  "status": "local_program_checks_passed_windows_ci_pending",
+  "user_environment": "Windows Codex desktop App; exact version and denied path not supplied",
+  "confirmed_installer_defect": "Public program directories used mode 0700, which Windows Python maps to current-user/admin-only access controls.",
+  "specific_user_failure_root_cause": "not_confirmed_without_denied_path_error_and_app_version",
+  "fix": "Use inherited parent ACL for Windows public program directories; managed upgrades recreate directories and nested runtime files. POSIX/private memory creation remains unchanged.",
+  "local_tests": {
+    "status": "passed",
+    "count": 162,
+    "skipped": 1,
+    "skip_reason": "Native Windows ACL test requires Windows",
+    "elapsed_seconds": 25.093
+  },
+  "native_windows_ci": "pending",
+  "actual_windows_codex_app_e2e": "not_run",
+  "admin_or_sandbox_policy_changes": false,
+  "real_user_stores_modified": false,
+  "boundaries": [
+    "Inherited ACL cannot override a restrictive parent or a managed permission profile.",
+    "Private memory ACLs and physical scope boundaries are not relaxed or relocated.",
+    "A host initialization UAC requirement is distinct from giving the AI administrator rights.",
+    "Normal installer execution is not evidence of sandbox process access."
+  ]
+}

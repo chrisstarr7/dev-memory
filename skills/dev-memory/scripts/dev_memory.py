@@ -34,7 +34,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
-    ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json",
+    ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
               "gemini-cli": ".gemini/skills", "github-copilot": ".copilot/skills", "opencode": ".config/opencode/skills",
@@ -315,17 +315,22 @@ def _copy_release(target: Path) -> None:
     missing = [name for name in SKILL_FILES if not (PACKAGE_ROOT / name).is_file()]
     if missing:
         raise store.MemoryError("package_incomplete", "Cannot install: release files are missing.")
-    target.mkdir(parents=True, exist_ok=False, mode=0o700)
+    # Windows treats 0700 as an owner/admin-only ACL, hiding public Skill code
+    # from legitimate sandbox identities. Inherit the program parent's ACL;
+    # private memory storage keeps its separate restrictive policy.
+    program_mode = 0o755 if sys.platform == "win32" else 0o700
+    target.mkdir(parents=True, exist_ok=False, mode=program_mode)
     for name in SKILL_FILES:
         src, dst = PACKAGE_ROOT / name, target / name
         if not src.resolve().is_relative_to(PACKAGE_ROOT.resolve()):
             raise store.MemoryError("path_escape", "Release file path escaped package root.")
-        dst.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        dst.parent.mkdir(parents=True, exist_ok=True, mode=program_mode)
         shutil.copyfile(src, dst)
-        try:
-            os.chmod(dst, 0o700 if name.endswith(".py") or name.endswith("/dev-memory") else 0o600)
-        except OSError:
-            pass
+        if sys.platform != "win32":
+            try:
+                os.chmod(dst, 0o700 if name.endswith(".py") or name.endswith("/dev-memory") else 0o600)
+            except OSError:
+                pass
 
 def _install_path(target: Path | None, agent: str = "codex") -> Path:
     default = (Path(os.environ.get("DSH_HOME") or str(Path.home() / ".dsh")) / "skills" / "dev-memory"
@@ -393,7 +398,9 @@ def install(target: Path | None, with_hooks: bool, upgrade: bool, agent: str = "
                            "skill_installed": True}
     else:
         hook_status = {"status": "not_requested"}
-    return {"status": "installed", "path": str(install_path), "data_preserved": True, "hooks": hook_status}
+    return {"status": "installed", "path": str(install_path), "data_preserved": True, "hooks": hook_status,
+            "program_permissions": "inherited_windows_acl" if sys.platform == "win32" else "private_posix_modes",
+            "sandbox_access_verified": False}
 
 def uninstall(target: Path | None, agent: str = "codex") -> dict[str, Any]:
     install_path = _install_path(target, agent)

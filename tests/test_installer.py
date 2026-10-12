@@ -62,6 +62,48 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(json.loads(result.stdout)['error'], 'path_escape')
         self.assertFalse((self.home / '.dev-memory').exists())
 
+    def test_public_program_directory_modes_do_not_change_memory_policy(self) -> None:
+        original = Path.mkdir
+        for platform, expected in (('win32', 0o755), ('linux', 0o700)):
+            modes = []
+            def mkdir(path, mode=0o777, parents=False, exist_ok=False):
+                modes.append(mode)
+                return original(path, mode=mode, parents=parents, exist_ok=exist_ok)
+            target = self.home / platform
+            with patch.object(dev_memory.sys, 'platform', platform), patch.object(Path, 'mkdir', mkdir):
+                dev_memory._copy_release(target)
+            self.assertTrue(modes)
+            self.assertTrue(all(mode == expected for mode in modes), modes)
+            self.assertEqual((target / 'SKILL.md').read_bytes(), (ROOT / 'skills/dev-memory/SKILL.md').read_bytes())
+
+    @unittest.skipUnless(sys.platform == 'win32', 'Actual Windows ACL regression')
+    def test_windows_upgrade_inherits_public_acl_but_preserves_private_store_acl(self) -> None:
+        parent = self.home / 'acl-parent'
+        parent.mkdir()
+        # A synthetic read principal on one temporary parent; no real-user ACLs.
+        subprocess.run(['icacls', str(parent), '/grant', '*S-1-5-32-545:(OI)(CI)(RX)'],
+                       check=True, capture_output=True, text=True, timeout=10)
+        target = parent / 'dev-memory'
+        with patch.object(dev_memory.sys, 'platform', 'old-policy'):
+            dev_memory._copy_release(target)  # Reproduce the former Windows 0700 ACL.
+        store.init_global(parent / 'private-memory')
+        def inherited_read(path):
+            script = '''$a=Get-Acl -LiteralPath $env:DM_ACL_TEST_PATH;
+$rules=$a.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]);
+$found=@($rules | Where-Object {$_.IdentityReference.Value -eq 'S-1-5-32-545' -and $_.IsInherited -and $_.AccessControlType -eq 'Allow' -and ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::ReadAndExecute) -eq [System.Security.AccessControl.FileSystemRights]::ReadAndExecute});
+if($found.Count -gt 0){'true'}else{'false'}'''
+            result = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', script],
+                                    env={**os.environ, 'DM_ACL_TEST_PATH': str(path)},
+                                    capture_output=True, text=True, check=True, timeout=15)
+            return result.stdout.strip() == 'true'
+        self.assertFalse(inherited_read(target))
+        result = dev_memory.install(target, with_hooks=False, upgrade=True)
+        self.assertEqual(result['program_permissions'], 'inherited_windows_acl')
+        self.assertFalse(result['sandbox_access_verified'])
+        for path in (target, target / 'scripts', target / 'scripts/dev_memory.py', target / 'SKILL.md'):
+            self.assertTrue(inherited_read(path), str(path))
+        self.assertFalse(inherited_read(parent / 'private-memory/global'))
+
     def test_interactive_selection_installs_requested_host_and_prints_next_step(self) -> None:
         stdout = io.StringIO()
         with patch.dict(os.environ, self.env), patch.object(sys.stdin, 'isatty', return_value=True), \

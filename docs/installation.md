@@ -42,6 +42,32 @@ npx -y chrisstarr7/dev-memory deepseek
 
 本工具依赖 DSH 的文件系统 Skill provider、项目指令加载和命令执行权限。默认 base profile 有相应指令机制；自定义 profile 禁用这些功能或截断 `AGENTS.md` 时，不能声称自动加载成功。依据：[官方 Skill 文档](https://github.com/deepseek-ai/deepseek-harness/blob/d743267388641bc76f17c45ce8b4c231aed1d32c/docs/subsystems/skills.md)、[官方项目指令文档](https://github.com/deepseek-ai/deepseek-harness/blob/d743267388641bc76f17c45ce8b4c231aed1d32c/packages/context/agent-instructions/README.md)。程序安装验证与真实模型端到端验证分别列在 [验证报告](../reports/verification.md)。
 
+## Windows Codex 访问权限
+
+0.5.2 修复了程序目录的 Windows ACL 创建方式：以前将 `0700` 同时用于公开 Skill 程序和私有数据，而 Windows Python 会把这种目录限制为当前用户和管理员可访问。Codex 沙箱身份可能因此读不到 Skill。现在公开程序目录继承安装父目录的 ACL，macOS/Linux 的模式和私有记忆库权限保持原策略。
+
+已有安装在业务项目根目录的**普通终端**重复执行原命令即可升级：
+
+```sh
+npx -y chrisstarr7/dev-memory codex
+```
+
+安装器会重建受管理的程序目录和子目录，保留已有记忆、暂停设置、项目指令及绑定。完成后新建 Codex App 会话。该修复不要求给 AI 管理员权限，不运行 `RunAs`、`takeown`、`icacls /reset`，不修改整个 `.agents`、Codex 沙箱或企业权限策略。
+
+继承父目录 ACL 不能保证任意父目录或权限 profile 都允许访问。如果普通终端也不能读写原 `.agents` 目录，可显式选择普通用户可写、且 Codex 可读的项目内程序位置（程序不含记忆数据）：
+
+```sh
+npx -y chrisstarr7/dev-memory codex --target ./tools/dev-memory
+```
+
+自定义程序位置通过项目引导和绑定使用；它不保证作为原生 Skill 目录被发现，需通过 `AGENTS.md` 加载。请选不存在的目录或本工具受管理目录；此选项不会删除旧安装，也不会更改它的 ACL。自定义程序目录是否提交 Git 由项目决定，私有记忆仍默认排除。升级和卸载须继续指定同一 `--target`。
+
+安装回执 `program_permissions: inherited_windows_acl` 描述程序创建方式，`sandbox_access_verified: false` 明确普通安装进程的运行检查不能代替当前 Codex 沙箱检查。真实会话需确认能读取绑定中的 `SKILL.md`、执行 CLI，并报告各库访问/写入结果。全局库不可访问时不能将它移到项目，项目内容也不能改存全局。
+
+如果新会话仍拒绝访问，请在普通 PowerShell 中只读检查实际拒绝路径的 `Get-Acl`，再核对 Codex 的权限 profile、受管理限制和沙箱状态。目录 ACL、profile 的路径限制、旧 sandbox 初始化失败属于不同问题。企业禁止的路径或 Codex 旧沙箱本身需要管理员批准的初始化不能由 Skill 绕过；针对私有库的必要访问授权也不能冒充已完成。
+
+依据：[Python 3.14 mkdir 权限](https://docs.python.org/3.14/library/os.html#os.mkdir)、[Python 3.10.15 的同类行为](https://docs.python.org/3.10/library/os.html#os.mkdir)、[OpenAI Windows 沙箱文档](https://learn.chatgpt.com/docs/windows/windows-sandbox)、[受保护目录规则](https://learn.chatgpt.com/docs/agent-approvals-security#protected-paths-in-writable-roots)。Windows 程序 ACL 测试与桌面 App 验证状态见 [报告](../reports/windows-access.json)。
+
 ## 给 AI 的安装流程
 
 用户要求安装并初始化时：
