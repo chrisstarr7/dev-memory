@@ -18,7 +18,7 @@ def argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--agent", dest="agent_option", help="Compatible explicit AI selector")
     parser.add_argument("--project", type=Path, help="Install and initialize this project for automatic memory")
     parser.add_argument("--target", type=Path, help="Custom Skill directory")
-    parser.add_argument("--upgrade", action="store_true", help="Replace a managed installation; preserve memory")
+    parser.add_argument("--upgrade", action="store_true", help="Force rebuilding a managed installation; normal runs reuse/update automatically")
     parser.add_argument("--with-codex-hooks", action="store_true", help="Explicitly configure optional Codex hooks")
     parser.add_argument("--json", action="store_true", help="Structured result for automation")
     return parser
@@ -71,14 +71,15 @@ def main(argv: list[str] | None = None) -> int:
     result: dict = {}
     try:
         # --project is explicit authorization for managed project activation.
-        target = dev_memory._install_path(args.target, agent)
+        dev_memory._install_path(args.target, agent)
         if args.project:
             import dev_memory_setup
             project = store._reject_unsafe_project_root(args.project)
             guide = dev_memory_setup.guide_path(project, agent)
             dev_memory_setup._merged(guide.read_bytes() if guide.exists() else b"", agent)
+            dev_memory_setup._activation(project)
         result = dev_memory.install(args.target, args.with_codex_hooks,
-                                    args.upgrade or bool(args.project and target.exists()), agent)
+                                    args.upgrade, agent)
         installed_cli = Path(result["path"]) / "scripts/dev_memory.py"
         check = subprocess.run([sys.executable, "-B", str(installed_cli), "doctor"],
                                capture_output=True, text=True, encoding="utf-8", timeout=10)
@@ -100,6 +101,9 @@ def main(argv: list[str] | None = None) -> int:
                           message="Skill 文件已安装且基础检查通过，但可选 hooks 配置失败；请检查 hooks 结果。")
     except store.MemoryError as exc:
         result.update(status="failed", error=exc.code, message=exc.message)
+    except PermissionError:
+        result.update(status="failed", error="permission_denied",
+                      message="程序或项目路径访问被拒绝；请检查普通用户与宿主权限。已有记忆不会转存到其他范围。")
     except (OSError, ValueError, subprocess.SubprocessError):
         result.update(status="failed", error="installation_check_failed",
                       message="安装或检查失败。若已返回 path，文件可能已安装；请从该目录运行 doctor 检查。")
@@ -123,11 +127,15 @@ def report(result: dict, args: argparse.Namespace, agent: str) -> None:
                 print(f"{item.get('scope', 'store')}：{item.get('status', 'unknown')}"
                       + (f" ({item['error']})" if item.get('error') else ""), file=sys.stderr)
             print("项目引导：" + str(setup.get("activation", "unknown")), file=sys.stderr)
-        if result.get("error") == "already_installed":
-            print(f"升级已有安装：python3 install.py {agent} --upgrade", file=sys.stderr)
+        if result.get("error") == "source_older":
+            print(f"获取最新版本：npx -y --prefer-online chrisstarr7/dev-memory#main {agent}", file=sys.stderr)
     else:
         print("安装成功；基础命令检查通过。")
         print("程序目录：" + result["path"])
+        print("程序处理：" + str(result.get("program_action", "installed")))
+        cleanup = result.get("old_program_cleanup", "")
+        if isinstance(cleanup, str) and cleanup.startswith("pending:"):
+            print("旧程序目录清理待完成：" + cleanup.split(":", 1)[1] + "；请在文件不再占用后清理该目录。")
         if args.project:
             print("项目已初始化：" + result["project_setup"]["project_root"])
             print("自动引导：" + result["project_setup"]["guide"])

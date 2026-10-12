@@ -40,7 +40,7 @@ SECRET_PATTERNS = [
     re.compile(r"[?&](?:X-Amz-Signature|Signature|sig)=([^&\s]{12,})", re.I),
 ]
 PROJECT_MARKERS = [
-    re.compile(r"(?:^|[\s\"'])(?:/Users/|/home/|[A-Za-z]:\\)[^\s\"']+", re.I),
+    re.compile(r"(?:^|[\s\"'])(?:/Users/|/home/|[A-Za-z]:[\\/]|\\\\)[^\s\"']+", re.I),
     re.compile(r"(?:^|[\s\"'])\.dev-memory(?:/|\\|$)", re.I),
     re.compile(r"\b(?:project_id|workspace_id|task_id|customer_id|tenant_id)\s*[:=]", re.I),
     re.compile(r"\b(?:ORD|ORDER|CUS|TENANT|PROJ|WS)-[A-Z0-9]{4,}\b", re.I),
@@ -1203,6 +1203,7 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
             "INSERT INTO receipts(idempotency_key,session_id,turn_id,status,checked_at,result_json,payload_hash) VALUES(?,?,?,?,?,?,?)",
             (idem, top.get("session_id"), top.get("turn_id"), status, utc_now(), result_blob, digest),
         )
+        committed_revision = int(conn.execute("SELECT value FROM meta WHERE key='data_revision'").fetchone()[0])
         conn.commit()
         conn.close()
         maintenance = {'status': 'not_due'}
@@ -1211,7 +1212,7 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
                 maintenance = maintenance_prepare(kind, project_root=root, global_root=global_root)
             except (MemoryError, sqlite3.Error, OSError):
                 maintenance = {'status': 'deferred', 'reason': 'storage_unavailable'}
-        output = {"scope": target_scope, "status": status, "operations": results, "data_revision": data_revision(db_path), "maintenance": maintenance}
+        output = {"scope": target_scope, "status": status, "operations": results, "data_revision": committed_revision, "maintenance": maintenance}
         if changed_ids:
             output["view_status"] = "stale_until_export"
         return output
@@ -1406,7 +1407,10 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
     max_candidates = max(1, min(int(max_candidates), 100))
     max_details = max(0, min(int(max_details), 20))
     max_chars = max(0, min(int(max_chars), 20000))
-    current_revision = data_revision(db_path)
+    try:
+        current_revision = data_revision(db_path)
+    except (sqlite3.Error, OSError, MemoryError):
+        return {"scope": kind, "status": "unavailable", "reason": "storage_unavailable", "records": []}
     active_task = task_id
     if kind == "project" and not active_task and session_id:
         try:

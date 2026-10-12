@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import sqlite3
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'skills/dev-memory/scripts'))
@@ -72,6 +73,42 @@ class NpxTests(unittest.TestCase):
             else:
                 self.assertEqual(config.read_bytes(),before)
         self.assertFalse((self.home/'.dsh').exists())
+
+    def test_project_a_then_b_then_a_share_runtime_and_keep_private_namespaces(self):
+        a = self.project
+        b = self.base / '项目 B'; b.mkdir()
+        (a / 'AGENTS.md').write_text('Team A instructions\n', encoding='utf-8')
+        first = self.run_cli('codex', '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        first = json.loads(first.stdout)
+        self.assertEqual(first['program_action'], 'installed')
+        config = a / '.dev-memory/config.json'
+        value = json.loads(config.read_text(encoding='utf-8')); value['capture_enabled'] = False
+        config.write_text(json.dumps(value), encoding='utf-8')
+        snapshots = {path: path.read_bytes() for path in (config, a / 'AGENTS.md', a / '.dev-memory/activation.json')}
+        public = Path(first['path'])
+        mtimes = {name: (public / name).stat().st_mtime_ns for name in dev_memory.SKILL_FILES}
+        for project in (b, a, b):
+            self.project = project
+            result = self.run_cli('codex', '--json')
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            result = json.loads(result.stdout)
+            self.assertEqual(result['program_action'], 'reused')
+            self.assertEqual(result['path'], str(public))
+            self.assertEqual(result['project_setup']['project_root'], str(project))
+            self.assertEqual(result['project_setup']['activation'], 'configured')
+        self.assertEqual(mtimes, {name: (public / name).stat().st_mtime_ns for name in dev_memory.SKILL_FILES})
+        for path, before in snapshots.items():
+            self.assertEqual(path.read_bytes(), before)
+        configs = [json.loads((project / '.dev-memory/config.json').read_text(encoding='utf-8')) for project in (a, b)]
+        self.assertNotEqual(configs[0]['namespace_id'], configs[1]['namespace_id'])
+        self.assertFalse(configs[0]['capture_enabled'])
+        self.assertTrue(configs[1]['capture_enabled'])
+        for project in (a, b):
+            with sqlite3.connect(project / '.dev-memory/memory.sqlite3') as conn:
+                self.assertEqual(conn.execute('SELECT COUNT(*) FROM memories').fetchone()[0], 0)
+            binding = json.loads((project / '.dev-memory/activation.json').read_text(encoding='utf-8'))['bindings']['codex']
+            self.assertEqual(binding['cli'], str(public / 'scripts/dev_memory.py'))
 
     def test_deepseek_explicit_target_overrides_home(self):
         target = self.home/'explicit skill'

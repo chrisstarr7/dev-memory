@@ -33,6 +33,8 @@ For development tasks in this project, use dev-memory automatically; the user ne
 
 def _safe_file(root: Path, relative: str) -> Path:
     path = root / relative
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise store.MemoryError('path_escape', 'Activation files cannot resolve outside their project.')
     for parent in (path, *path.parents):
         if parent == root:
             break

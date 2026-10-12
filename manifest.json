@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "bc3e5b8b0bf8646da4adcc49756a9d88754756d08379a023e057b971927ce489"
+      "sha256": "21a2a4dd6bbc7490b6100fbadf20bfbecde3f0bd93812bab79c099758024268a"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -38,15 +38,15 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "dab3c55eb5d5092d956c83039fb433e1ece0a61169575a3ba64b4844807d1d5c"
+      "sha256": "e7c33d43c0a8f24c62901a25460020b38623197993d7a7fae844305d16e34fee"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "0a4531c489a0a638b984f996dd5d7ade67ae6f8331593483c85585d35b08e505"
+      "sha256": "162697ab1f9e1062f0af0bb77c28ac0fa1692371bf97c6f840212abbefcb71ae"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
-      "sha256": "28f76a26a44d94e9770f8028997b59b53a86c8e65101b1eb4c61f3d36e43b7c3"
+      "sha256": "31f5b8f027f961f3eaa649040caf2288a10a028ad4ff5597b84958692730a549"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "a1622f3b18ffcb9bb381da4d3a85980727a6a935b27f0ea0b2d6b9dc37eff528"
+      "sha256": "28549edcfb6f8496ae3d1a59ed1dffe19dbd71d5a84834113d24922134508315"
     },
     {
       "path": "LICENSE",
@@ -70,11 +70,11 @@
     },
     {
       "path": "install.py",
-      "sha256": "bd8362ba079b279131564404ecd9222969081441baf451ec55dfd2dd08700d95"
+      "sha256": "1e332f5e7695a04da3c199c17821b96ef5629ef151ee75c8b3d7dda3862d5613"
     },
     {
       "path": "package.json",
-      "sha256": "7cab43f22c8566c3e8ab84c252589271eb4a227381bf56483a70234be03779f5"
+      "sha256": "cf6858cf3b4221e2017d639a1a8c4469e9c85706a6c9610cb8da975fddbbfd9f"
     },
     {
       "path": "bin/install.cjs",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "bcb6527e4002be0f2c7c3d6d032db2a39bf648f1371f91074a524374a0cac600"
+      "sha256": "dab585b33cf4048d1c21b07454cf78f3369a67c6660fddce167097377562a434"
     },
     {
       "path": "docs/ecosystem.md",
@@ -102,15 +102,15 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "0e1ebaf986369de03fa2371306ff466b4172f3484906377b8aa4a1102f835447"
+      "sha256": "4476cdf2cbdf373c19e7f3c712d86b1d9b26ab6368974c6578c96fb3cacd6138"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "913d68b46459676818e02be9c65751bed6863cf3ef8b5a18b14c9e11775f460a"
+      "sha256": "42644f40d32c0fcbd2396dc089553fa45db312860f6b9800e872d24bbdad8c3e"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "de2bb33b182224dcaf1f90bbc99e638efebb9e078d8e4af6b8df3b300fc8eac4"
+      "sha256": "185f8c53e849a2bd88ec682519f44036838f92e5a6ddb1c9ff2faa81e0497d3c"
     },
     {
       "path": "tests/test_dev_memory.py",
@@ -126,11 +126,11 @@
     },
     {
       "path": "tests/test_adversarial.py",
-      "sha256": "876144ddf7d27a66d5fa0190324d1f0b902c3216a310648a19eb5c2b20ef1ebd"
+      "sha256": "e152673e929632a6f6bb64282abda4190ca7674d3e6b9a0d504f56d87ceb023c"
     },
     {
       "path": "tests/test_installer.py",
-      "sha256": "dbc7d9f9c56e5e9414f4294a9771a9e5dc4695daec8608802488971d779bc572"
+      "sha256": "fad526c9a3cc453bda91e1d8bc49da8f3b0af3d21fd7168e7979cd916ad8c04b"
     },
     {
       "path": "tests/test_setup.py",
@@ -142,7 +142,7 @@
     },
     {
       "path": "tests/test_npx_installer.py",
-      "sha256": "4aa95898ea77cb3f89c7598d5c2a6f45eb567e505b9ee01f17cc30e03f2f3e23"
+      "sha256": "dcbe2aee0f0f6e47fb572718069cc91cbf51c6a61a7aa52cb180ce24848a2b2f"
     },
     {
       "path": "tests/install_smoke.py",
@@ -154,7 +154,7 @@
     },
     {
       "path": "evals/bench_compare.py",
-      "sha256": "0b45a7465a8ba72db2cafc1e0cde027951e0bf4710668b387b9c8110fd10698c"
+      "sha256": "6ee2c669ffd69bda70631d33b7152408dd959717bba162f70dd5f94cbaf73190"
     },
     {
       "path": "evals/check_automatic.py",
@@ -162,19 +162,19 @@
     },
     {
       "path": "evals/check_maintenance.py",
-      "sha256": "7c757084260100ea829b51560a2b1491fb1b52ca9ed74ba87846e6c928d1a4f6"
+      "sha256": "0d39d576eeb47c756f114a9da9dcdc486a2b0491d0c95dfffd02f9f57a878510"
     },
     {
       "path": "evals/check_lifecycle.py",
-      "sha256": "9ca66c482fef912a2e2479b7248515fc9fd7c4e5aec74ba966444182f986a300"
+      "sha256": "4817a6a6c37d6f8462a822dd878ab88f71b1b352c1a7a0257d9ae3d170108fcf"
     },
     {
       "path": "reports/verification.md",
-      "sha256": "a9b11e3173aff3c4d8adf8790fd79bc71b58f7e88b249980776ef4ebf3a89ed6"
+      "sha256": "1d3b6b505932823da1b1258c3d566c35b9d3c159e6595eeec8f6f416eeea147f"
     },
     {
       "path": "reports/adversarial-review.md",
-      "sha256": "4e2222e25d4665318fdf1d8e7b45e1d82a882f38ee3c1443c7f4a77c01884bb4"
+      "sha256": "3f347c6d28c67ebf0535ef8979f76c2c6b83584f0ba92b1d0c597cb7c89ea980"
     },
     {
       "path": "reports/maintenance-host.json",
@@ -202,7 +202,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "5072aea5d96524a21991df2b1ddd958015675e29f3940532e6cd83dc202a41d1"
+      "sha256": "89ccf7f9d8927c3cdac5b97101df655cb9dcfcd468d1beea9d2d7e796c22e76f"
     },
     {
       "path": "reports/online-installation.json",
@@ -238,11 +238,11 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "4103fce3c74b83bc0da7df52cb848bf761af3bd9c09424e48c42a0c57c97f91b"
+      "sha256": "40d621d81bb656ad587d72eebdba600119890ed5c69b887126a42eb002400f01"
     },
     {
       "path": "evals/check_deepseek.py",
-      "sha256": "4bdcbe73328ce4760eef93f5e1ce451a581882e989305e1d2c3bc384f656e4dc"
+      "sha256": "6235df500fcecd4141a0f7cd7cd28faae56bed0ab9ac5fb786f0996c56b6aeee"
     },
     {
       "path": "reports/deepseek.json",
@@ -251,9 +251,13 @@
     {
       "path": "reports/windows-access.json",
       "sha256": "ed1ae02845d3f2f31e56523ecb4955a858077d1637315ad76df6dbd2bfb7e1be"
+    },
+    {
+      "path": "reports/multi-project-review.md",
+      "sha256": "fc7d89adecdc2d170163bbb1f95b79eb2afc1274291eba4c13723927022f5663"
     }
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.5.2"
+  "version": "0.5.3"
 }

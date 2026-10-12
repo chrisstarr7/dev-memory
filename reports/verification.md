@@ -285,3 +285,8 @@ The third native run established the actual ACL result on Windows Python 3.14: t
 The native tests alter only a temporary parent's synthetic read principal, invoke normal APIs without an elevation request, and do not reset real user directories or create sandbox users. The CI runner's account is not evidence of a real non-admin Codex desktop session. Actual Windows **Codex App sandbox execution remains not run**, and the user's exact denied path/error/App version was not obtained. Parent restrictions, managed profiles and host initialization remain separate boundaries.
 
 The public source ZIP passed 63 manifest hashes. An actual public macOS 0.5.1 → 0.5.2 upgrade retained memory body, conditions, exceptions, evidence, revisions, namespace, paused capture and unrelated project instructions; this checks shared upgrade behavior and does not substitute for Windows App validation. Exact named-commit/source outcomes and failed earlier attempts are preserved in [windows-access.json](windows-access.json).
+
+
+## 0.5.3 — shared program and independent project initialization
+
+Local: 177 tests passed (two native Windows checks skipped on macOS), Skill format and whitespace checks passed. Added A → B → A initialization, managed reuse/update/repair/downgrade, shared install/removal lock, rename rollback, pending old-directory cleanup, manifest preflight, Windows path/junction guards, permission receipts, committed revision and independent recall tests. Public npx/native CI evidence will be recorded separately after execution; no new model, desktop App, hook or matched latency evaluation is claimed. See [review](multi-project-review.md).

@@ -112,3 +112,8 @@ No runtime dependency, daemon, paid summarizer, vector store or extra model roun
 See the [lifecycle review](lifecycle-review.md) for reproducible checkpoint-order, global-budget, candidate-overflow, unknown-workspace and SQL-budget findings and fixes. Startup now combines bounded recall/pending checks; current records can be loaded in a bounded batch without audit history. Seven-phase synthetic program coverage preserves corrected conditions, exclusions, history and project isolation.
 
 Two real project-A cycles passed independent design-to-bugfix integration checks. Evaluator false positives were retained and corrected; the final corrected run then encountered a workspace-credit rejection. The new project-B host session and new matched model timing remain unverified. Local 10,000-record timings do not establish negligible workflow overhead. Active-history cleanup does not cap audit/backup disk growth. Existing other-host, hook and S01–S48 limitations remain.
+
+
+## Multi-project and shared installer review — 0.5.3
+
+See [the first-principles review](multi-project-review.md) for the shared-install idempotency, multi-project binding, concurrency, Windows path boundaries, transactional receipt and independent-recall corrections. Historical findings above retain the versions and results at the time they were tested.

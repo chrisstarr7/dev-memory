@@ -11,6 +11,32 @@ from test_dev_memory import MemoryTestCase, ROOT, store, dev_memory
 
 
 class AdversarialTests(MemoryTestCase):
+    def test_global_guard_rejects_windows_drive_paths_with_either_separator(self):
+        for index, path in enumerate(('C:/Projects/asset-library/spec.md', r'C:\Projects\asset-library\spec.md', r'\\server\share\business\spec.md')):
+            record = self.record(scope='global', kind='preference', content='Generic preference', source_refs=[path])
+            result = self.apply(scope='global', turn=f'windows-global-{index}', operations=[{'op':'ADD', 'scope':'global', 'record':record}])
+            self.assertEqual(result['stores'][0]['error'], 'scope_error', result)
+        self.assertEqual(store.list_records('global', global_root=self.global_root)['records'], [])
+
+    def test_apply_returns_committed_revision_without_a_postcommit_database_reopen(self):
+        with patch.object(store, 'data_revision', side_effect=store.MemoryError('storage_unavailable', 'synthetic postcommit read failure')):
+            result = self.apply(scope='project', operations=[{'op':'ADD', 'scope':'project', 'record':self.record()}])
+        self.assertEqual(result['status'], 'saved', result)
+        self.assertEqual(result['stores'][0]['data_revision'], store.data_revision(store.project_paths(self.project_a)[1]))
+        self.assertEqual(store.receipt_for_turn('project', session_id='session-test', turn_id='turn-1', project_root=self.project_a)['status'], 'saved')
+
+    def test_global_revision_read_failure_does_not_block_independent_project_recall(self):
+        memory_id = self.add_project_rule()
+        original = store.data_revision
+        def fail_global(db):
+            if db == store.global_paths(self.global_root)[1]:
+                raise store.MemoryError('storage_unavailable', 'synthetic failed global revision read')
+            return original(db)
+        with patch.object(store, 'data_revision', side_effect=fail_global):
+            result = store.recall('退款', project_root=self.project_a, global_root=self.global_root, force=True)
+        self.assertEqual(result['status'], 'partial')
+        self.assertEqual(result['stores'][0]['status'], 'unavailable')
+        self.assertTrue(any(record['id'] == memory_id for record in result['stores'][1]['records']))
     def test_first_config_creation_cannot_replace_winning_namespace(self):
         path = self.home / "first-create/config.json"
         first = {"schema_version": 1, "namespace_id": "winner"}

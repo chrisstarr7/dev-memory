@@ -59,7 +59,7 @@ def main():
     if not codex:
         parser.error('Codex CLI is required for this optional real model check.')
     auth = Path(os.environ.get('CODEX_HOME',Path.home()/'.codex'))/'auth.json'
-    report = {'status':'running','runtime_version':'0.5.2','host':subprocess.check_output([codex,'--version'],text=True).strip(),
+    report = {'status':'running','runtime_version':'0.5.3','host':subprocess.check_output([codex,'--version'],text=True).strip(),
               'model':args.model,'reasoning_effort':args.reasoning,'synthetic_only':True,
               'user_prompts_mention_skill_or_maintenance':False,'hooks_configured':False,'runs':[]}
     with tempfile.TemporaryDirectory(prefix='dev-memory maintenance model ') as temporary:

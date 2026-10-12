@@ -34,7 +34,7 @@ Use `claude`, `cursor`, `gemini`, `copilot`, `opencode`, or `deepseek` (DeepSeek
 
 After installation succeeds, **start a new AI session in that project and develop normally**. No enable phrase, explicit Skill invocation, or repeated save/recall request is needed. Existing sessions must restart to load the new instructions.
 
-Run the same command to upgrade or initialize another project. Upgrades preserve existing memories, unrelated project instructions, and paused settings. Each project needs its own initialization; explicitly confirmed global preferences can be shared.
+Run the same command in each project to initialize or update it. One managed program is shared: identical files are reused, changed files are updated, and each project is initialized independently. Upgrades preserve existing memories, unrelated project instructions, and paused settings. Each project needs its own initialization; explicitly confirmed global preferences can be shared.
 
 <details>
 <summary>Ask your local AI to install it</summary>

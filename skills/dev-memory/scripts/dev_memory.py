@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 import re
@@ -34,7 +35,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
-    ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json",
+    ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json", "reports/multi-project-review.md",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
               "gemini-cli": ".gemini/skills", "github-copilot": ".copilot/skills", "opencode": ".config/opencode/skills",
@@ -353,43 +354,82 @@ def _check_managed_install(path: Path) -> None:
     # Preserve compatibility with the former all-in-one managed release layout.
     allowed.update({"README.md", "LICENSE.pending", "build_release.py", "templates/config.example.json",
                     "tests/test_dev_memory.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "reports/verification.md"})
-    allowed_dirs = {str(parent) for name in allowed for parent in Path(name).parents if str(parent) != "."}
+    allowed_dirs = {parent.as_posix() for name in allowed for parent in Path(name).parents if str(parent) != "."}
     for entry in path.rglob("*"):
         rel = entry.relative_to(path).as_posix()
-        if entry.is_symlink():
-            raise store.MemoryError("path_escape", "Managed installation contains a symlink; inspect it before removal.")
+        if entry.is_symlink() or not entry.resolve().is_relative_to(path.resolve()):
+            raise store.MemoryError("path_escape", "Managed installation contains a link or escaped path; inspect it before removal.")
         bytecode = "__pycache__" in entry.parts and (entry.is_dir() or entry.suffix == ".pyc")
         if not bytecode and rel not in (allowed_dirs if entry.is_dir() else allowed):
             raise store.MemoryError("unmanaged_files", "Installation contains extra files; move or review them before upgrade/removal.")
+
+@contextmanager
+def _installation_lock(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock = path.with_name("." + path.name + ".dev-memory-install.lock")
+    try:
+        fd = os.open(lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as exc:
+        raise store.MemoryError("installation_busy", "Another install/removal is running, or a stale installation lock needs inspection.") from exc
+    os.close(fd)
+    try:
+        yield
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def _release_version(path: Path) -> tuple[int, ...] | None:
+    skill = path / "SKILL.md"
+    if not skill.is_file():
+        return None
+    match = re.search(r'(?m)^\s+version:\s*"(\d+\.\d+\.\d+)"\s*$', skill.read_text(encoding="utf-8"))
+    return tuple(map(int, match[1].split("."))) if match else None
+
 
 def install(target: Path | None, with_hooks: bool, upgrade: bool, agent: str = "codex") -> dict[str, Any]:
     install_path = _install_path(target, agent)
     if with_hooks and agent != "codex":
         raise store.MemoryError("host_mismatch", "Codex hooks can only be requested for a Codex installation.")
-    if install_path.exists() and not upgrade:
-        raise store.MemoryError("already_installed", "Install target exists; use --upgrade only for a dev-memory-managed installation.")
+    with _installation_lock(install_path):
+        return _install_locked(install_path, with_hooks, upgrade)
+
+
+def _install_locked(install_path: Path, with_hooks: bool, upgrade: bool) -> dict[str, Any]:
+    version = _release_version(PACKAGE_ROOT)
+    action = "installed"
     if install_path.exists():
         _check_managed_install(install_path)
-    parent = install_path.parent
-    parent.mkdir(parents=True, exist_ok=True)
-    temp_target = Path(tempfile.mkdtemp(prefix=".dev-memory-install-", dir=parent))
-    temp_target.rmdir()
-    try:
-        _copy_release(temp_target)
-        if install_path.exists():
-            old = install_path.with_name(install_path.name + ".old-" + store.new_id()[:8])
-            install_path.rename(old)
-            try:
+        installed_version = _release_version(install_path)
+        if version and installed_version and installed_version > version:
+            raise store.MemoryError("source_older", "Installer source is older than the installed Skill; fetch the current source instead of downgrading.")
+        same = all((install_path / name).is_file() and (PACKAGE_ROOT / name).is_file()
+                   and (install_path / name).read_bytes() == (PACKAGE_ROOT / name).read_bytes()
+                   for name in SKILL_FILES)
+        action = "reused" if same and not upgrade else "updated"
+    cleanup = "not_needed"
+    if action != "reused":
+        temp_target = Path(tempfile.mkdtemp(prefix=".dev-memory-install-", dir=install_path.parent))
+        temp_target.rmdir()
+        try:
+            _copy_release(temp_target)
+            if install_path.exists():
+                old = install_path.with_name(install_path.name + ".old-" + store.new_id()[:8])
+                install_path.rename(old)
+                try:
+                    temp_target.rename(install_path)
+                except OSError:
+                    old.rename(install_path)
+                    raise
+                try:
+                    shutil.rmtree(old)
+                    cleanup = "removed"
+                except OSError:
+                    cleanup = "pending:" + old.name
+            else:
                 temp_target.rename(install_path)
-            except OSError:
-                old.rename(install_path)
-                raise
-            shutil.rmtree(old)
-        else:
-            temp_target.rename(install_path)
-    except Exception:
-        shutil.rmtree(temp_target, ignore_errors=True)
-        raise
+        except Exception:
+            shutil.rmtree(temp_target, ignore_errors=True)
+            raise
     if with_hooks:
         try:
             hook_status = _merge_hook_config(install_path)
@@ -399,14 +439,17 @@ def install(target: Path | None, with_hooks: bool, upgrade: bool, agent: str = "
     else:
         hook_status = {"status": "not_requested"}
     return {"status": "installed", "path": str(install_path), "data_preserved": True, "hooks": hook_status,
-            "program_permissions": "inherited_windows_acl" if sys.platform == "win32" else "private_posix_modes",
+            "program_action": action, "program_version": ".".join(map(str, version)) if version else None,
+            "old_program_cleanup": cleanup,
+            "program_permissions": "unchanged" if action == "reused" else ("inherited_windows_acl" if sys.platform == "win32" else "private_posix_modes"),
             "sandbox_access_verified": False}
 
 def uninstall(target: Path | None, agent: str = "codex") -> dict[str, Any]:
     install_path = _install_path(target, agent)
-    _check_managed_install(install_path)
-    hooks = _remove_hook_config(install_path)
-    shutil.rmtree(install_path)
+    with _installation_lock(install_path):
+        _check_managed_install(install_path)
+        hooks = _remove_hook_config(install_path)
+        shutil.rmtree(install_path)
     return {"status": "uninstalled", "path": str(install_path), "memory_data_preserved": True, "hooks": hooks}
 
 def _scope_arg(args: argparse.Namespace) -> tuple[str, Path | None]:

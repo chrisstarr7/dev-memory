@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -170,7 +171,7 @@ $rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.
         self.assertEqual(result.returncode, 2)
         self.assertFalse((self.home / '.agents').exists())
 
-    def test_existing_install_requires_upgrade_and_preserves_memory(self) -> None:
+    def test_existing_install_reuses_or_updates_and_preserves_memory(self) -> None:
         self.assertEqual(self.run_installer('codex').returncode, 0)
         store.init_global(self.home / '.dev-memory')
         database = store.global_paths(self.home / '.dev-memory')[1]
@@ -181,14 +182,135 @@ $rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.
         hooks.parent.mkdir()
         hooks.write_text('{"hooks":{"UnrelatedEvent":[]},"custom":true}', encoding="utf-8")
         hooks_before = hooks.read_bytes()
-        result = self.run_installer('codex')
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('--upgrade', result.stderr)
+        result = self.run_installer('codex', '--json')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['program_action'], 'reused')
         result = self.run_installer('codex', '--upgrade', '--json')
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['program_action'], 'updated')
         self.assertEqual(before, hashlib.sha256(database.read_bytes()).digest())
         self.assertEqual(config.read_bytes(), config_before)
         self.assertEqual(hooks.read_bytes(), hooks_before)
+
+    def test_shared_install_updates_changed_files_without_upgrade_flag(self):
+        target = self.home / 'managed'
+        dev_memory.install(target, False, False)
+        changed = target / 'references/protocol.md'
+        changed.write_text('synthetic outdated program', encoding='utf-8')
+        result = dev_memory.install(target, False, False)
+        self.assertEqual(result['program_action'], 'updated')
+        self.assertEqual(changed.read_bytes(), (dev_memory.PACKAGE_ROOT / 'references/protocol.md').read_bytes())
+
+    def test_reuse_does_not_rename_or_copy_public_files(self):
+        target = self.home / 'managed'
+        dev_memory.install(target, False, False)
+        with patch.object(dev_memory, '_copy_release', side_effect=AssertionError('reuse must not copy')), \
+                patch.object(Path, 'rename', side_effect=AssertionError('reuse must not rename')):
+            result = dev_memory.install(target, False, False)
+        self.assertEqual(result['program_action'], 'reused')
+        self.assertEqual(result['program_permissions'], 'unchanged')
+
+    def test_existing_unmanaged_directory_is_never_replaced_by_repeat(self):
+        target = self.home / 'unmanaged'
+        target.mkdir()
+        note = target / 'user.txt'; note.write_text('keep', encoding='utf-8')
+        with self.assertRaises(store.MemoryError) as exc:
+            dev_memory.install(target, False, False)
+        self.assertEqual(exc.exception.code, 'unmanaged_install')
+        self.assertEqual(note.read_text(encoding='utf-8'), 'keep')
+
+    def test_install_and_uninstall_share_one_nonblocking_target_lock(self):
+        target = self.home / 'managed'
+        dev_memory.install(target, False, False)
+        with dev_memory._installation_lock(target):
+            for action in (lambda: dev_memory.install(target, False, True), lambda: dev_memory.uninstall(target)):
+                with self.assertRaises(store.MemoryError) as exc:
+                    action()
+                self.assertEqual(exc.exception.code, 'installation_busy')
+            self.assertTrue((target / 'SKILL.md').exists())
+        self.assertEqual(dev_memory.install(target, False, False)['program_action'], 'reused')
+
+    def test_cached_older_source_cannot_silently_downgrade_shared_program(self):
+        target = self.home / 'managed'
+        dev_memory.install(target, False, False)
+        skill = target / 'SKILL.md'
+        current = dev_memory._release_version(target)
+        skill.write_text(skill.read_text(encoding='utf-8').replace('"' + '.'.join(map(str, current)) + '"', '"999.0.0"'), encoding='utf-8')
+        before = skill.read_bytes()
+        for force in (False, True):
+            with self.assertRaises(store.MemoryError) as exc:
+                dev_memory.install(target, False, force)
+            self.assertEqual(exc.exception.code, 'source_older')
+            self.assertEqual(skill.read_bytes(), before)
+
+    def test_failed_replacement_rolls_back_original_program_and_releases_lock(self):
+        target = self.home / 'managed'
+        dev_memory.install(target, False, False)
+        before = (target / 'SKILL.md').read_bytes()
+        original = Path.rename
+        def fail_staged(path, destination):
+            if path.name.startswith('.dev-memory-install-'):
+                raise PermissionError('synthetic destination denied')
+            return original(path, destination)
+        with patch.object(Path, 'rename', fail_staged), self.assertRaises(PermissionError):
+            dev_memory.install(target, False, True)
+        self.assertEqual((target / 'SKILL.md').read_bytes(), before)
+        self.assertEqual(dev_memory.install(target, False, False)['program_action'], 'reused')
+
+    def test_old_program_cleanup_failure_reports_effective_install_truthfully(self):
+        target = self.home / 'managed'
+        dev_memory.install(target, False, False)
+        with patch.object(dev_memory.shutil, 'rmtree', side_effect=PermissionError('synthetic open old file')):
+            result = dev_memory.install(target, False, True)
+        self.assertEqual(result['status'], 'installed')
+        self.assertTrue(result['old_program_cleanup'].startswith('pending:'))
+        self.assertTrue((target.parent / result['old_program_cleanup'].split(':', 1)[1]).exists())
+        self.assertEqual((target / 'SKILL.md').read_bytes(), (dev_memory.PACKAGE_ROOT / 'SKILL.md').read_bytes())
+
+    def test_bad_project_b_manifest_fails_before_touching_shared_program(self):
+        project = self.home / 'project B'; project.mkdir()
+        self.assertEqual(self.run_installer('codex', '--json').returncode, 0)
+        manifest = project / '.dev-memory/activation.json'
+        manifest.parent.mkdir()
+        manifest.write_text('{"schema_version":1,"project_root":"wrong","bindings":{}}', encoding='utf-8')
+        public = self.home / '.agents/skills/dev-memory/references/protocol.md'
+        public.write_text('keep existing shared program until project preflight succeeds', encoding='utf-8')
+        before = public.read_bytes()
+        result = self.run_installer('codex', '--project', str(project), '--json')
+        self.assertEqual(json.loads(result.stdout)['error'], 'activation_conflict')
+        self.assertEqual(public.read_bytes(), before)
+        self.assertFalse((project / 'AGENTS.md').exists())
+
+    def test_denied_program_access_has_a_permission_receipt_not_already_exists(self):
+        stdout = io.StringIO()
+        with patch.dict(os.environ, self.env), patch.object(dev_memory, 'install', side_effect=PermissionError('synthetic denied')), \
+                contextlib.redirect_stdout(stdout):
+            code = installer.main(['codex', '--json'])
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(stdout.getvalue())['error'], 'permission_denied')
+        self.assertFalse((self.home / '.agents').exists())
+
+    @unittest.skipUnless(sys.platform == 'win32', 'Native Windows junction boundary')
+    def test_windows_junctions_cannot_redirect_program_or_activation_outside_scope(self):
+        import dev_memory_setup
+        outside = self.home / 'outside'; outside.mkdir()
+        target = self.home / 'managed'
+        dev_memory.install(target, False, False)
+        shutil.rmtree(target / 'scripts')
+        subprocess.run(['cmd', '/c', 'mklink', '/J', str(target / 'scripts'), str(outside)],
+                       check=True, capture_output=True, text=True, timeout=10)
+        for action in (lambda: dev_memory.install(target, False, False), lambda: dev_memory.uninstall(target)):
+            with self.assertRaises(store.MemoryError) as exc:
+                action()
+            self.assertEqual(exc.exception.code, 'path_escape')
+        self.assertEqual(list(outside.iterdir()), [])
+        project = self.home / 'project'; project.mkdir()
+        subprocess.run(['cmd', '/c', 'mklink', '/J', str(project / '.cursor'), str(outside)],
+                       check=True, capture_output=True, text=True, timeout=10)
+        with self.assertRaises(store.MemoryError) as exc:
+            dev_memory_setup.guide_path(project, 'cursor')
+        self.assertEqual(exc.exception.code, 'path_escape')
+        self.assertEqual(list(outside.iterdir()), [])
 
     def test_unknown_extra_files_block_upgrade(self) -> None:
         self.assertEqual(self.run_installer('codex').returncode, 0)
