@@ -92,7 +92,7 @@ npx -y chrisstarr7/dev-memory codex --target ./tools/dev-memory
 npx -y --prefer-online chrisstarr7/dev-memory#main codex
 ```
 
-无需清空整个 npm 缓存、删除公共 Skill 或使用管理员终端。未知文件或非受管理目录仍会拒绝覆盖；它们需要检查，不能作为重复安装自动删除。多个安装/卸载同时操作同一目录时返回 `installation_busy`，结束后重试一次；进程中断留下的锁须确认没有活动进程再删除该锁文件。
+无需清空整个 npm 缓存、删除公共 Skill 或使用管理员终端。缓存相关选项见 [npm 官方说明](https://docs.npmjs.com/cli/v11/commands/npm-exec/#a-note-on-caching)。未知文件或非受管理目录仍会拒绝覆盖；它们需要检查，不能作为重复安装自动删除。多个安装/卸载同时操作同一目录时返回 `installation_busy`，结束后重试一次；进程中断留下的锁须确认没有活动进程再删除该锁文件。
 
 已有安装且不方便联网时，可直接使用本地副本（Codex 默认路径）：
 

@@ -301,3 +301,13 @@ Real public unqualified npx transport with one temporary cache across 0.5.2 → 
 ## 0.5.4 — post-initialization Git protection
 
 Late forced Git tracking, removed exclusion and unavailable Git protection now block database/view/backup writes. Independent global writes still succeed, and read-only retrieval adds no Git write check. The current path is checked by bounded metadata commands; no full library or code scan is added. Native/public final rerun pending at this feature commit.
+
+
+### 0.5.4 final results
+
+- Local: 180 tests, passed in 32.454 seconds, two native Windows skips; format and whitespace checks passed.
+- [Native CI 38272839308](https://github.com/chrisstarr7/dev-memory/actions/runs/38272839308), commit `0db4021bab2dd7ce744c9f1c025744b85ef6931c`: all six Ubuntu/macOS/Windows × Python 3.10/3.14 jobs passed tests and 65-entry release build. Windows A/B initialization, ACL and junction regressions passed; only POSIX Bash skipped. Unix/macOS skip the two Windows checks.
+- Public unqualified npx command, same temporary cache across 0.5.3 → 0.5.4: B update/init, A reuse, B reuse passed; A data/evidence/controls retained, B empty and isolated while confirmed global preference recalled. Installed 14 runtime files match the tested source.
+- TLS-verified public source ZIP at that commit: version 0.5.4 and 64 manifest files verified.
+- Program-only scale evaluation: 1,000/10,000 synthetic records, ten repetitions; bounded reads/maintenance and overflow flags passed. Metrics and hashes in [review](multi-project-review.md); this is not AI timing.
+- No new real model, Windows Codex App, trusted hooks or matched end-to-end latency run. The earlier failed Windows test cleanup is retained above.

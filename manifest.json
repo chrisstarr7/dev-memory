@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "28549edcfb6f8496ae3d1a59ed1dffe19dbd71d5a84834113d24922134508315"
+      "sha256": "284f680a5c4ce57e2a8d7d5bf119fb033dd9efe4c0dca97f9f5546335fdee1a5"
     },
     {
       "path": "LICENSE",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "f4c873cd9b4d276f9d20a5fdfccae3cbb2451b3f6a79a2ac92abbdca90c7e72d"
+      "sha256": "62963c9898a116ae9b8616cd87ea8ce3115503cb90c991709189eb01d9be6b1f"
     },
     {
       "path": "docs/ecosystem.md",
@@ -102,15 +102,15 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "4476cdf2cbdf373c19e7f3c712d86b1d9b26ab6368974c6578c96fb3cacd6138"
+      "sha256": "46f575897aeea84c0cef6c5d3faad7f9b78304b2a037dcaecd1b8342e85717c0"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "42644f40d32c0fcbd2396dc089553fa45db312860f6b9800e872d24bbdad8c3e"
+      "sha256": "89c62b8707ce622652a173e7bab6e721f86a25a2f121a37968a080105f4d078f"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "185f8c53e849a2bd88ec682519f44036838f92e5a6ddb1c9ff2faa81e0497d3c"
+      "sha256": "dbf7686032e65280ceabded330b42f114fbeee67a31ebc330aeb5c30145d8e25"
     },
     {
       "path": "tests/test_dev_memory.py",
@@ -170,7 +170,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "24a51369bebc1cafa45418b0097816b034c1acb4d58727a6cc389099f2e319f9"
+      "sha256": "401ceefd8dec7b94e14c6eb42c1f8d00703d86c6c896514289fa8979dfcc31f6"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -254,7 +254,7 @@
     },
     {
       "path": "reports/multi-project-review.md",
-      "sha256": "f90884aca4e4b8d1fa97476838aa730c113209713cdd205586256749ecc4c2a3"
+      "sha256": "a0285fcbe2c851ea9fb9d858299ffcf5b86e37abc04ee4d05565aedac084e1a5"
     }
   ],
   "license_status": "MIT",

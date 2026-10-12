@@ -66,4 +66,97 @@ The initial public unqualified npx command, using one temporary cache across 0.5
 
 Further privacy regression: force-tracking memory after initialization or removing its Git exclusion could bypass the initial check. 0.5.4 checks only the current project's memory path before writable database connections, views and backups. It refuses unknown Git protection or tracked data, preserves independent global results, and does not edit Git history. Read-only operations do not add these write checks. Git projects require two bounded Git metadata commands on a write; no full code/history scan, new AI tool call or external model is added. No end-to-end latency claim follows from this.
 
-Final 0.5.4 local suite, native CI and repeated public transport checks pending at this hardening commit. One initial local installer run exposed a missing closing parenthesis in new human output; corrected before publication and rerun. Historical evaluation reports retain their own version/hash identities.
+Final 0.5.4 local suite: **180 tests**, passed in **32.454 seconds**, two native Windows checks skipped on macOS. Native [six-job CI](https://github.com/chrisstarr7/dev-memory/actions/runs/38272839308) at `0db4021bab2dd7ce744c9f1c025744b85ef6931c` passed Ubuntu/macOS/Windows × Python 3.10/3.14, Node 22, test suite and 65-entry release build. Windows runs the native ACL and junction checks and skips only the POSIX Bash test; Ubuntu/macOS skip only the two native Windows checks. A → B → A assertions passed on both Windows jobs. Format and whitespace checks passed.
+
+A second public unqualified npx test retained one temporary cache across 0.5.3 → 0.5.4. B updated the shared runtime and initialized independently; A and B subsequently reused identical program files. A's saved rule, conditions, evidence, revision, pause and team guide survived; B's empty store excluded A business while read-only recall returned the confirmed global preference. The 14 installed runtime hashes matched the tested source. Installation timings below include transport; they are **not AI workflow timing**.
+
+The final program-only scale evaluation used 1,000 and 10,000 synthetic active records with ten repetitions. At 10,000 records, narrow read median was 22.181 ms, saturated read 41.362 ms with incomplete/candidate-overflow flags, pending maintenance 72.987 ms with eight records. These numbers exclude AI/model orchestration and cannot establish negligible workflow overhead.
+
+### Reproduce deterministic checks
+
+```sh
+python -m unittest discover -s tests -v
+python evals/check_lifecycle.py --program-only --output /outside/source/program-check.json
+python build_release.py /outside/source/dev-memory.zip
+```
+
+The public transport experiment ran the short command in temporary A/B projects with a temporary HOME/cache: prepare A on the old published source; save synthetic project/global rules; pause A; publish the named new source; run the same unqualified command in B, A, B; compare rows, evidence, configuration and installed file hashes; use read-only `context` in B. No real user store, installed Skill, administrator privilege or model call was used.
+
+### Recorded public transport and source-package evidence
+ One initial local installer run exposed a missing closing parenthesis in new human output; corrected before publication and rerun. Historical evaluation reports retain their own version/hash identities.
+
+```json
+{
+  "public_transport": {
+    "status": "passed",
+    "runtime_version": "0.5.4",
+    "host_platform": "darwin",
+    "tested_commit": "0db4021bab2dd7ce744c9f1c025744b85ef6931c",
+    "command": "npx -y chrisstarr7/dev-memory codex",
+    "same_unqualified_spec_cache_across_upgrade": true,
+    "source_version": "0.5.3",
+    "observations": [
+      {
+        "project": "B",
+        "program_action": "updated",
+        "program_version": "0.5.4",
+        "elapsed_seconds": 28.509
+      },
+      {
+        "project": "A",
+        "program_action": "reused",
+        "program_version": "0.5.4",
+        "elapsed_seconds": 9.223
+      },
+      {
+        "project": "B",
+        "program_action": "reused",
+        "program_version": "0.5.4",
+        "elapsed_seconds": 8.491
+      }
+    ],
+    "a_saved_rule_conditions_evidence_revision_preserved": true,
+    "a_pause_and_team_guide_preserved": true,
+    "b_independent_empty_store": true,
+    "b_recall_excludes_a_business_and_includes_global_preference": true,
+    "runtime_sha256": {
+      "SKILL.md": "3cec7d447fe54a11de8ee46b3ff9b71d62ba6401de07a7f3d65ffb28d821696e",
+      "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+      ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+      "agents/openai.yaml": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e",
+      "assets/config.example.json": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe",
+      "references/protocol.md": "88cfa26d2135eb12657c5ee02038f20f69f339ba3da374c073e54d9a89a1d47c",
+      "references/codex-hooks.md": "fccbc5c0ad2f6eb45296c2b6719f72e9bb5f9c65b86d9e739e4bd66f34fd74ff",
+      "references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+      "references/setup.md": "702c598c51bcbaebb18da5c1dbd173bb981956ce7c28050fc4baceec1af098b8",
+      "scripts/dev_memory.py": "e7c33d43c0a8f24c62901a25460020b38623197993d7a7fae844305d16e34fee",
+      "scripts/dev_memory_store.py": "3935858f327ef4ea66f08a3ae322b0544b873ed3c2b16557b858c8ebcce803ad",
+      "scripts/dev_memory_setup.py": "31f5b8f027f961f3eaa649040caf2288a10a028ad4ff5597b84958692730a549",
+      "scripts/codex_hook.py": "bab255c139a1bbc0707868ede09dc7349c975d8d9f27eeded00889c04b95d807",
+      "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+    },
+    "models_called": 0,
+    "windows_codex_app_e2e": "not_run",
+    "real_user_stores_modified": false,
+    "timing_kind": "installation_transport_only_not_AI_workflow"
+  },
+  "source_package": {
+    "status": "passed",
+    "commit": "0db4021bab2dd7ce744c9f1c025744b85ef6931c",
+    "version": "0.5.4",
+    "manifest_files_verified": 64,
+    "transport": "TLS verified public source ZIP",
+    "sha256": "506abfc7a70470bcc0029c7db84a20fb74143c5777dbef5b56259453b018af10"
+  }
+}
+```
+
+## Completion gate
+
+- [x] Traceable contract: shared program and independent project initialization, physical/privacy boundaries, truthful receipts.
+- [x] Each ground truth has a regression or explicit verification boundary.
+- [x] Inversion/partial-failure stress cases checked; failed attempts preserved.
+- [x] Shared root fixes and standard-library primitives; no additional runtime dependencies, model calls, daemon or full-library scans.
+- [x] Nontrivial diff reviewed for unnecessary abstraction; the installer wrapper delegates reuse/update to the existing shared module, and the Git guard is reused at writable boundaries.
+
+Actual Windows Codex App sessions, new semantic model evaluations and matched AI on/off latency remain not run. Other historical reports remain attached to their recorded versions.

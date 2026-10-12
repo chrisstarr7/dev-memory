@@ -132,7 +132,7 @@ Runtime files live in `skills/dev-memory/`; installation entry points are `bin/i
 | Read-only mode | Recall existing records without initialization or writes. |
 | Unavailable | Missing permissions or inaccessible storage are reported honestly. |
 
-Program tests and packaging CI passed on Ubuntu/macOS with Python 3.10/3.14. Six installation targets passed isolated GitHub installation and repeat-install checks; successful installation does not prove automatic behavior on every host. Real Codex CLI evidence, host versions, semantic checks, and outstanding S01–S48 scenarios are listed in the [verification report](reports/verification.md). DSH has program installation and published-provider checks; a full DeepSeek model session remains unverified. See [DSH results](reports/deepseek.json).
+Program tests and packaging CI passed on Ubuntu, macOS, and Windows with Python 3.10/3.14. Seven installation targets have isolated installation and repeat-install checks; successful installation does not prove automatic behavior on every host. Real Codex CLI evidence, host versions, semantic checks, and outstanding S01–S48 scenarios are listed in the [verification report](reports/verification.md). DSH has program installation and published-provider checks; a full DeepSeek model session remains unverified. See [DSH results](reports/deepseek.json).
 
 **Performance remains a measured limitation.** The latest full workflow comparison is a partial 0.4.0 sample: about 52–53 seconds with memory off versus 86–89 seconds on. Version 0.5.0 reduces startup/repeated reads, but its new matched comparison was blocked by host credits. No claim of negligible delay is made. See the [lifecycle review](reports/lifecycle-review.md).
 
@@ -145,7 +145,7 @@ Program tests and packaging CI passed on Ubuntu/macOS with Python 3.10/3.14. Six
 - Historical memory cannot override current instructions or safety rules. Local stores have no default application encryption.
 - Forget removes tool-managed data; it cannot clean host chats, external copies, or system snapshots and does not promise secure erasure.
 
-See [SECURITY.md](SECURITY.md) and the [adversarial review](reports/adversarial-review.md).
+See [SECURITY.md](SECURITY.md), the [adversarial review](reports/adversarial-review.md), and the [multi-project review](reports/multi-project-review.md).
 
 ## Contributing and support
 
