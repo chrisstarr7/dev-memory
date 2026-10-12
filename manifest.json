@@ -70,7 +70,7 @@
     },
     {
       "path": "install.py",
-      "sha256": "970df3dd47cbf9814de5b081b7d82bbd353c244364466618bd4cc5e30b7ad7f0"
+      "sha256": "bd8362ba079b279131564404ecd9222969081441baf451ec55dfd2dd08700d95"
     },
     {
       "path": "package.json",
@@ -130,7 +130,7 @@
     },
     {
       "path": "tests/test_installer.py",
-      "sha256": "f25b2436545f960955b53ec8627243b2ab7d518408c8cc65d28c4cf9f2aa2a8b"
+      "sha256": "59e65e8b86aeed457bd0a8c7d721c630850ca1f2a4f1dee9306b1b337ac43577"
     },
     {
       "path": "tests/test_setup.py",
@@ -170,7 +170,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "ccc9bb26b16357d93fc036d120189a83c7103dbf082965b9c86d1590e663f54e"
+      "sha256": "6bebe3f65e1545a69259ce3c884113aeb8c72f7b0acfa646f62bc2b7a013247c"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -250,7 +250,7 @@
     },
     {
       "path": "reports/windows-access.json",
-      "sha256": "de3e7b88a018a7e6df97c20f58c44c43bd24b2a9280b947baa952bb3e6dd9943"
+      "sha256": "fb1b5d8f0be95bc97347da9e2ba4c8b1dac77aeae2f5fdcdea6fe4d63e037d56"
     }
   ],
   "license_status": "MIT",

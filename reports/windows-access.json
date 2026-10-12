@@ -1,6 +1,6 @@
 {
   "runtime_version": "0.5.2",
-  "status": "windows_retry_pending_after_encoding_and_fixture_repairs",
+  "status": "native_windows_acl_retry_pending",
   "user_environment": "Windows Codex desktop App; exact version and denied path not supplied",
   "confirmed_installer_defect": "Public program directories used mode 0700, which Windows Python maps to current-user/admin-only access controls.",
   "specific_user_failure_root_cause": "not_confirmed_without_denied_path_error_and_app_version",
@@ -9,7 +9,7 @@
     "status": "passed",
     "count": 163,
     "skipped": 1,
-    "elapsed_seconds": 24.734,
+    "elapsed_seconds": 25.02,
     "skip_reason": "Native Windows ACL test requires Windows"
   },
   "native_windows_ci": "pending",
@@ -32,6 +32,17 @@
       "Test fixture text reads/writes used a platform-dependent codec.",
       "Some test fixtures assumed POSIX command lookup/path rendering/ZIP name normalization.",
       "Native ACL post-upgrade assertion failed; diagnostic now records exact numeric rules without assuming inherited flags survive rename."
+    ]
+  },
+  "second_ci_attempt": {
+    "run_url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38265555280",
+    "status": "failed",
+    "ubuntu_macos_jobs": "4 passed",
+    "windows_jobs": "2 failed; 2 failures each, 1 POSIX-only skip",
+    "findings": [
+      "Unicode installation/runtime and fixture failures cleared.",
+      "ACL reader yielded null/empty data even for its parent; this is not valid ACL evidence. It now uses native .NET APIs and stops on errors.",
+      "Windows zipfile normalized raw backslashes during reading; validation now rejects names differing from orig_filename."
     ]
   }
 }

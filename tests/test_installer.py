@@ -100,12 +100,15 @@ class InstallerTests(unittest.TestCase):
             dev_memory._copy_release(target)  # Reproduce the former Windows 0700 ACL.
         store.init_global(parent / 'private-memory')
         def read_acl(path):
-            script = '''$a=Get-Acl -LiteralPath $env:DM_ACL_TEST_PATH;
-$rules=@($a.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]) | ForEach-Object {[pscustomobject]@{sid=$_.IdentityReference.Value;inherited=$_.IsInherited;allow=$_.AccessControlType.ToString();rights=[int64]$_.FileSystemRights}});
+            script = '''$ErrorActionPreference='Stop';
+$p=[Environment]::GetEnvironmentVariable('DM_ACL_TEST_PATH');
+if([System.IO.Directory]::Exists($p)){$a=[System.IO.Directory]::GetAccessControl($p)}else{$a=[System.IO.File]::GetAccessControl($p)};
+$rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier])){[pscustomobject]@{sid=$r.IdentityReference.Value;inherited=$r.IsInherited;allow=$r.AccessControlType.ToString();rights=[int64]$r.FileSystemRights}});
 [pscustomobject]@{protected=$a.AreAccessRulesProtected;rules=$rules} | ConvertTo-Json -Depth 5 -Compress'''
             result = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', script],
                                     env={**os.environ, 'DM_ACL_TEST_PATH': str(path)},
-                                    capture_output=True, text=True, check=True, timeout=15)
+                                    capture_output=True, text=True, errors='replace', timeout=15)
+            self.assertEqual(result.returncode, 0, result.stderr)
             return json.loads(result.stdout)
         def readable(acl):
             return any(r['sid'] == 'S-1-5-32-545' and r['allow'] == 'Allow' and r['rights'] & 131241 == 131241

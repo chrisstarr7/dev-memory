@@ -200,6 +200,10 @@ def unpack_snapshot(data: bytes, destination: Path) -> dict:
         entries = {}
         roots = set()
         for info in infos:
+            # zipfile normalizes Windows separators and strips NULs. Validate
+            # the original name before using the normalized lookup name.
+            if info.orig_filename != info.filename:
+                raise ValueError("在线安装包包含被规范化的不安全路径。")
             parts = safe_path(info.filename)
             roots.add(parts[0])
             if info.filename in entries or info.file_size > 1024 * 1024:
