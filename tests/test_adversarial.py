@@ -254,7 +254,7 @@ class AdversarialTests(MemoryTestCase):
         target = self.home / "installed"
         dev_memory.install(target, False, False)
         extra = target / "private.sqlite3"
-        extra.write_text("synthetic private data")
+        extra.write_text("synthetic private data", encoding="utf-8")
         with self.assertRaises(store.MemoryError):
             dev_memory.install(target, False, True)
         with self.assertRaises(store.MemoryError):
@@ -278,16 +278,16 @@ class AdversarialTests(MemoryTestCase):
             {"type": "command", "command": "echo " + script},
             {"type": "command", "command": dev_memory._hook_command(target)}]}]}}
         hooks = codex_home / "hooks.json"
-        hooks.write_text(json.dumps(data))
+        hooks.write_text(json.dumps(data), encoding="utf-8")
         with patch.dict(os.environ, {"CODEX_HOME": str(codex_home)}):
             result = dev_memory._remove_hook_config(target)
-        after = json.loads(hooks.read_text())
+        after = json.loads(hooks.read_text(encoding="utf-8"))
         self.assertEqual(result["handlers_removed"], 1)
         self.assertEqual(after["hooks"]["Future"], data["hooks"]["Future"])
         self.assertIn("echo ", json.dumps(after))
 
     def test_published_apply_example_actually_executes(self):
-        protocol = (ROOT / "skills/dev-memory/references/protocol.md").read_text()
+        protocol = (ROOT / "skills/dev-memory/references/protocol.md").read_text(encoding="utf-8")
         payload = json.loads(protocol.split("```json\n", 1)[1].split("```", 1)[0])
         result = store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)
         self.assertEqual(result["status"], "saved", result)

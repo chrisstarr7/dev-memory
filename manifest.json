@@ -38,7 +38,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "138ccacec71cc4ca7115589e12e2e6680caaa673a4c089cfd5b6a3bf7ddc4754"
+      "sha256": "dab3c55eb5d5092d956c83039fb433e1ece0a61169575a3ba64b4844807d1d5c"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
@@ -70,7 +70,7 @@
     },
     {
       "path": "install.py",
-      "sha256": "8208a2acf0b045283cf812bee9cca99d53368a5c6fa3fe53da025948b5ed213e"
+      "sha256": "970df3dd47cbf9814de5b081b7d82bbd353c244364466618bd4cc5e30b7ad7f0"
     },
     {
       "path": "package.json",
@@ -114,39 +114,39 @@
     },
     {
       "path": "tests/test_dev_memory.py",
-      "sha256": "b9e54d439d7b78e260c4efbccb51f887561690b005d22baeba31ddb3236b0ccb"
+      "sha256": "b80786d7475ffde4dd0e40474a2b880874c498d2d1063a78ac33efb88494b494"
     },
     {
       "path": "tests/test_maintenance.py",
-      "sha256": "b42739df5282be228dde1e4419bee014ac293cc49fa5b49c83469d9363d37ab5"
+      "sha256": "6abecb53a51af88d7958b82f3ddd6861260f1e127d22beb7928458555c4a1aac"
     },
     {
       "path": "tests/test_lifecycle.py",
-      "sha256": "2478f1e3fc57bab85132cfc719a4d799e317e04c08c70be56ae44307274b95c8"
+      "sha256": "753498aa77d7ca5578f0e6c6f7b5f7d4441e5cbb24cefbb1a8a7c52addfb6d73"
     },
     {
       "path": "tests/test_adversarial.py",
-      "sha256": "e74ffd54de64ef2ad4431fccd68ed4902c04b7ea0e44e8f9f496a9879ddba4b9"
+      "sha256": "876144ddf7d27a66d5fa0190324d1f0b902c3216a310648a19eb5c2b20ef1ebd"
     },
     {
       "path": "tests/test_installer.py",
-      "sha256": "fad30076b0cf69f98a75307db6832e4062b743c568254b110182ab314995ae9a"
+      "sha256": "f25b2436545f960955b53ec8627243b2ab7d518408c8cc65d28c4cf9f2aa2a8b"
     },
     {
       "path": "tests/test_setup.py",
-      "sha256": "8e5f4432e8095e7e368d90a83d0179eeae89403eacc1ff2e92640724c19fdc5f"
+      "sha256": "38e86b030ea2534635bb885f4ab5dcedd77bea9ed0bc7bb3fd186959c3794646"
     },
     {
       "path": "tests/test_online_installer.py",
-      "sha256": "9c3b27491ef93d95bb563101ae294723574e7bd077339f6eeddf29ade68507a8"
+      "sha256": "7e0b48f9e58b3f3e0e4c4405a95cb86045463e53c9f8787100f14d8c2d321efb"
     },
     {
       "path": "tests/test_npx_installer.py",
-      "sha256": "d304f840bc59eece4fd5ef9704e3f912254f01ac58e277a5e6d5aabe26b17c33"
+      "sha256": "4aa95898ea77cb3f89c7598d5c2a6f45eb567e505b9ee01f17cc30e03f2f3e23"
     },
     {
       "path": "tests/install_smoke.py",
-      "sha256": "ff8c203b3a6dc90ebf564b084a3e99f957a2c28f8c3810d29a059a280dbe7ab7"
+      "sha256": "f39aa05982f87dedf352f317108f72abcd64bbf9a732ec00c76603cd33bb53c3"
     },
     {
       "path": "evals/scenarios.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "1b10b5666a4b0ef9c7eb5fc85934712f740d244756fd647a726df6a92494bd6e"
+      "sha256": "ccc9bb26b16357d93fc036d120189a83c7103dbf082965b9c86d1590e663f54e"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -250,7 +250,7 @@
     },
     {
       "path": "reports/windows-access.json",
-      "sha256": "cc7100c9d00a3879a6067d1db3788a9acdd1050f119d86a673dfe2d4a5048f69"
+      "sha256": "de3e7b88a018a7e6df97c20f58c44c43bd24b2a9280b947baa952bb3e6dd9943"
     }
   ],
   "license_status": "MIT",

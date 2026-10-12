@@ -205,11 +205,11 @@ class MaintenanceTests(MemoryTestCase):
     def test_pause_readonly_and_disable_maintenance_respected(self):
         first = self.add_project_rule()
         config_path = self.project_a/'.dev-memory/config.json'
-        config = json.loads(config_path.read_text())
-        config['maintenance_enabled']=False; config_path.write_text(json.dumps(config))
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config['maintenance_enabled']=False; config_path.write_text(json.dumps(config), encoding="utf-8")
         self.assertEqual(store.maintenance_prepare('project',project_root=self.project_a,force=True)['status'],'disabled')
         self.assertEqual(self.maintain('COMPACT',[first],content='Short.')['status'],'failed')
-        config.update(capture_enabled=False,maintenance_enabled=True);config_path.write_text(json.dumps(config))
+        config.update(capture_enabled=False,maintenance_enabled=True);config_path.write_text(json.dumps(config), encoding="utf-8")
         self.assertEqual(store.maintenance_prepare('project',project_root=self.project_a,force=True)['status'],'skipped_private')
         self.assertEqual(self.maintain('COMPACT',[first],content='Short.',turn='paused')['status'],'skipped_private')
 

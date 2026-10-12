@@ -33,7 +33,7 @@ class InstallerTests(unittest.TestCase):
 
     def run_installer(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run([sys.executable, '-B', str(ROOT / 'install.py'), *args],
-                              cwd=self.home, env=self.env, text=True, capture_output=True, timeout=15)
+                              cwd=self.home, env=self.env, text=True, encoding="utf-8", capture_output=True, timeout=15)
 
     def test_all_short_names_check_runtime_and_keep_empty_data(self) -> None:
         for agent, relative in dev_memory.AGENT_DIRS.items():
@@ -76,6 +76,18 @@ class InstallerTests(unittest.TestCase):
             self.assertTrue(all(mode == expected for mode in modes), modes)
             self.assertEqual((target / 'SKILL.md').read_bytes(), (ROOT / 'skills/dev-memory/SKILL.md').read_bytes())
 
+    def test_legacy_pipe_encoding_preserves_unicode_project_binding(self) -> None:
+        self.env['PYTHONIOENCODING'] = 'cp1252'
+        project = self.home / 'project'
+        project.mkdir()
+        result = self.run_installer('codex', '--project', str(project), '--json')
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['status'], 'installed')
+        self.assertEqual(payload['project_setup']['project_root'], str(project))
+        config = json.loads((project / '.dev-memory/config.json').read_text(encoding='utf-8'))
+        self.assertEqual(config['project_root'], str(project))
+
     @unittest.skipUnless(sys.platform == 'win32', 'Actual Windows ACL regression')
     def test_windows_upgrade_inherits_public_acl_but_preserves_private_store_acl(self) -> None:
         parent = self.home / 'acl-parent'
@@ -87,22 +99,25 @@ class InstallerTests(unittest.TestCase):
         with patch.object(dev_memory.sys, 'platform', 'old-policy'):
             dev_memory._copy_release(target)  # Reproduce the former Windows 0700 ACL.
         store.init_global(parent / 'private-memory')
-        def inherited_read(path):
+        def read_acl(path):
             script = '''$a=Get-Acl -LiteralPath $env:DM_ACL_TEST_PATH;
-$rules=$a.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]);
-$found=@($rules | Where-Object {$_.IdentityReference.Value -eq 'S-1-5-32-545' -and $_.IsInherited -and $_.AccessControlType -eq 'Allow' -and ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::ReadAndExecute) -eq [System.Security.AccessControl.FileSystemRights]::ReadAndExecute});
-if($found.Count -gt 0){'true'}else{'false'}'''
+$rules=@($a.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]) | ForEach-Object {[pscustomobject]@{sid=$_.IdentityReference.Value;inherited=$_.IsInherited;allow=$_.AccessControlType.ToString();rights=[int64]$_.FileSystemRights}});
+[pscustomobject]@{protected=$a.AreAccessRulesProtected;rules=$rules} | ConvertTo-Json -Depth 5 -Compress'''
             result = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', script],
                                     env={**os.environ, 'DM_ACL_TEST_PATH': str(path)},
                                     capture_output=True, text=True, check=True, timeout=15)
-            return result.stdout.strip() == 'true'
-        self.assertFalse(inherited_read(target))
+            return json.loads(result.stdout)
+        def readable(acl):
+            return any(r['sid'] == 'S-1-5-32-545' and r['allow'] == 'Allow' and r['rights'] & 131241 == 131241
+                       for r in acl['rules'])
+        self.assertTrue(readable(read_acl(parent)), read_acl(parent))
+        self.assertFalse(readable(read_acl(target)), read_acl(target))
         result = dev_memory.install(target, with_hooks=False, upgrade=True)
         self.assertEqual(result['program_permissions'], 'inherited_windows_acl')
         self.assertFalse(result['sandbox_access_verified'])
         for path in (target, target / 'scripts', target / 'scripts/dev_memory.py', target / 'SKILL.md'):
-            self.assertTrue(inherited_read(path), str(path))
-        self.assertFalse(inherited_read(parent / 'private-memory/global'))
+            self.assertTrue(readable(read_acl(path)), read_acl(path))
+        self.assertFalse(readable(read_acl(parent / 'private-memory/global')))
 
     def test_interactive_selection_installs_requested_host_and_prints_next_step(self) -> None:
         stdout = io.StringIO()
@@ -153,7 +168,7 @@ if($found.Count -gt 0){'true'}else{'false'}'''
         config_before = config.read_bytes()
         hooks = self.home / '.codex/hooks.json'
         hooks.parent.mkdir()
-        hooks.write_text('{"hooks":{"UnrelatedEvent":[]},"custom":true}')
+        hooks.write_text('{"hooks":{"UnrelatedEvent":[]},"custom":true}', encoding="utf-8")
         hooks_before = hooks.read_bytes()
         result = self.run_installer('codex')
         self.assertEqual(result.returncode, 1)
@@ -167,11 +182,11 @@ if($found.Count -gt 0){'true'}else{'false'}'''
     def test_unknown_extra_files_block_upgrade(self) -> None:
         self.assertEqual(self.run_installer('codex').returncode, 0)
         extra = self.home / '.agents/skills/dev-memory/user-notes.md'
-        extra.write_text('synthetic user file')
+        extra.write_text('synthetic user file', encoding="utf-8")
         result = self.run_installer('codex', '--upgrade', '--json')
         self.assertEqual(result.returncode, 1)
         self.assertEqual(json.loads(result.stdout)['error'], 'unmanaged_files')
-        self.assertEqual(extra.read_text(), 'synthetic user file')
+        self.assertEqual(extra.read_text(encoding="utf-8"), 'synthetic user file')
 
     def test_failed_runtime_check_does_not_claim_success(self) -> None:
         for index, value in enumerate(('{}', '[]', 'not-json', '{"status":"ok","base_mode":"available"}')):

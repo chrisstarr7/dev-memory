@@ -81,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
                                     args.upgrade or bool(args.project and target.exists()), agent)
         installed_cli = Path(result["path"]) / "scripts/dev_memory.py"
         check = subprocess.run([sys.executable, "-B", str(installed_cli), "doctor"],
-                               capture_output=True, text=True, timeout=10)
+                               capture_output=True, text=True, encoding="utf-8", timeout=10)
         diagnostic = json.loads(check.stdout) if check.returncode == 0 else {}
         if (not isinstance(diagnostic, dict) or diagnostic.get("status") != "ok"
                 or diagnostic.get("base_mode") != "available"
@@ -109,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def report(result: dict, args: argparse.Namespace, agent: str) -> None:
     if args.json:
-        print(json.dumps(result, ensure_ascii=False))
+        print(json.dumps(result, ensure_ascii=True))
     elif result["status"] == "failed":
         print("安装未完成：" + str(result.get("message", result.get("error", "安装检查失败。"))), file=sys.stderr)
         if result.get("path"):
@@ -279,7 +279,7 @@ def online_main(argv: list[str] | None = None) -> int:
                 command.append("--upgrade")
             if args.with_codex_hooks:
                 command.append("--with-codex-hooks")
-            child = subprocess.run(command, capture_output=True, text=True, timeout=60)
+            child = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=60)
             result = json.loads(child.stdout)
             if not isinstance(result, dict):
                 raise ValueError("安装程序返回了无效回执。")
@@ -316,4 +316,7 @@ def online_main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     raise SystemExit(online_main() if globals().get("__file__", "<stdin>") == "<stdin>" else main())

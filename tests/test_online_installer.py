@@ -39,7 +39,10 @@ def snapshot(changes=None, extra=None, manifest_change=None):
         for name, content in contents.items():
             archive.writestr('dev-memory-main/' + name, content)
         for name, content in extra or []:
-            archive.writestr(name, content)
+            entry = name if isinstance(name, zipfile.ZipInfo) else zipfile.ZipInfo(name)
+            if isinstance(name, str):
+                entry.filename = name  # Preserve deliberate malformed separators on Windows.
+            archive.writestr(entry, content)
     return out.getvalue()
 
 
@@ -81,7 +84,7 @@ class OnlineTests(unittest.TestCase):
                 self.assertEqual(result['online']['verified_files'], len(dev_memory.RELEASE_FILES))
                 self.assertEqual(result['hooks']['status'], 'not_requested')
                 self.assertTrue(Path(result['path']).is_relative_to(self.home))
-        binding = json.loads((self.project / '.dev-memory/activation.json').read_text())
+        binding = json.loads((self.project / '.dev-memory/activation.json').read_text(encoding="utf-8"))
         self.assertEqual(set(binding['bindings']), set(dev_memory.AGENT_DIRS))
         self.assertNotIn('dev-memory-source-', json.dumps(binding))
         self.assertFalse((self.home / '.codex/hooks.json').exists())
@@ -107,9 +110,9 @@ class OnlineTests(unittest.TestCase):
                     project_root=self.project, global_root=self.home / '.dev-memory')
         self.assertEqual(saved['status'], 'saved', saved)
         config = self.project / '.dev-memory/config.json' 
-        state = json.loads(config.read_text())
+        state = json.loads(config.read_text(encoding="utf-8"))
         state.update(capture_enabled=False, recall_enabled=False)
-        config.write_text(json.dumps(state))
+        config.write_text(json.dumps(state), encoding="utf-8")
         before = config.read_bytes()
         database = self.project / '.dev-memory/memory.sqlite3'
         import sqlite3
@@ -120,12 +123,12 @@ class OnlineTests(unittest.TestCase):
         rows = stored_rows()
         self.assertEqual(len(rows[0]), 1)
         guide = self.project / 'AGENTS.md'
-        guide.write_text('User instructions remain.\n' + guide.read_text())
+        guide.write_text('User instructions remain.\n' + guide.read_text(encoding="utf-8"), encoding="utf-8")
         self.assertEqual(self.run_online('codex')[0], 0)
         self.assertEqual(config.read_bytes(), before)
         self.assertEqual(stored_rows(), rows)
-        self.assertTrue(guide.read_text().startswith('User instructions remain.\n'))
-        self.assertEqual(guide.read_text().count('<!-- dev-memory:managed:start -->'), 1)
+        self.assertTrue(guide.read_text(encoding="utf-8").startswith('User instructions remain.\n'))
+        self.assertEqual(guide.read_text(encoding="utf-8").count('<!-- dev-memory:managed:start -->'), 1)
 
     def test_explicit_project_and_target_are_preserved(self):
         other = self.base / 'explicit project'
@@ -274,19 +277,20 @@ class OnlineTests(unittest.TestCase):
                 if custom:
                     create.return_value.load_verify_locations.assert_not_called()
                 else:
-                    create.return_value.load_verify_locations.assert_called_once_with(cafile='/etc/ssl/cert.pem')
+                    create.return_value.load_verify_locations.assert_called_once_with(cafile=str(Path('/etc/ssl/cert.pem')))
 
+    @unittest.skipIf(os.name == 'nt', 'This documented Bash pipeline is for macOS/Linux')
     def test_recommended_shell_propagates_upstream_fetch_failure(self):
         import shlex
         import subprocess
-        line = next(x for x in (ROOT/'docs/installation.md').read_text().splitlines() if x.startswith('bash -o pipefail '))
+        line = next(x for x in (ROOT/'docs/installation.md').read_text(encoding="utf-8").splitlines() if x.startswith('bash -o pipefail '))
         command = shlex.split(line)
         fake = self.base / 'bin'
         fake.mkdir()
         curl = fake / 'curl'
-        curl.write_text('#!/bin/sh\nexit 7\n')
+        curl.write_text('#!/bin/sh\nexit 7\n', encoding="utf-8")
         curl.chmod(0o700)
-        result = subprocess.run(command, cwd=self.project, capture_output=True, text=True,
+        result = subprocess.run(command, cwd=self.project, capture_output=True, text=True, encoding="utf-8",
                                 env={**self.env, 'PATH': str(fake)+os.pathsep+os.environ['PATH']}, timeout=10)
         self.assertEqual(result.returncode, 7)
         self.assertNotIn('安装成功', result.stdout)
@@ -294,7 +298,7 @@ class OnlineTests(unittest.TestCase):
         self.assertFalse((self.project/'.dev-memory').exists())
 
     def test_exec_entry_without_file_routes_to_online(self):
-        source = (ROOT / 'install.py').read_text()
+        source = (ROOT / 'install.py').read_text(encoding="utf-8")
         # Stop at the selected entry to avoid a real network call in this test.
         replacement = 'raise SystemExit("online" if globals().get("__file__", "<stdin>") == "<stdin>" else "local")'
         source = source[:source.rindex('    raise SystemExit(')] + '    ' + replacement

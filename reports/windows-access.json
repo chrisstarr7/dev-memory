@@ -1,16 +1,16 @@
 {
   "runtime_version": "0.5.2",
-  "status": "local_program_checks_passed_windows_ci_pending",
+  "status": "windows_retry_pending_after_encoding_and_fixture_repairs",
   "user_environment": "Windows Codex desktop App; exact version and denied path not supplied",
   "confirmed_installer_defect": "Public program directories used mode 0700, which Windows Python maps to current-user/admin-only access controls.",
   "specific_user_failure_root_cause": "not_confirmed_without_denied_path_error_and_app_version",
   "fix": "Use inherited parent ACL for Windows public program directories; managed upgrades recreate directories and nested runtime files. POSIX/private memory creation remains unchanged.",
   "local_tests": {
     "status": "passed",
-    "count": 162,
+    "count": 163,
     "skipped": 1,
-    "skip_reason": "Native Windows ACL test requires Windows",
-    "elapsed_seconds": 25.093
+    "elapsed_seconds": 24.734,
+    "skip_reason": "Native Windows ACL test requires Windows"
   },
   "native_windows_ci": "pending",
   "actual_windows_codex_app_e2e": "not_run",
@@ -21,5 +21,17 @@
     "Private memory ACLs and physical scope boundaries are not relaxed or relocated.",
     "A host initialization UAC requirement is distinct from giving the AI administrator rights.",
     "Normal installer execution is not evidence of sandbox process access."
-  ]
+  ],
+  "first_ci_attempt": {
+    "run_url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38263958384",
+    "status": "failed",
+    "ubuntu_macos_jobs": "4 passed",
+    "windows_jobs": "2 failed",
+    "findings": [
+      "Non-UTF-8 pipe encoding broke Unicode installer receipts and paths.",
+      "Test fixture text reads/writes used a platform-dependent codec.",
+      "Some test fixtures assumed POSIX command lookup/path rendering/ZIP name normalization.",
+      "Native ACL post-upgrade assertion failed; diagnostic now records exact numeric rules without assuming inherited flags survive rename."
+    ]
+  }
 }

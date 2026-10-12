@@ -551,20 +551,20 @@ class IntegrationTests(MemoryTestCase):
         env = {**os.environ, "DEV_MEMORY_HOME": str(self.global_root)}
         event = {"hook_event_name": "Stop", "cwd": str(self.project_a), "session_id": "s1", "turn_id": "t1",
                  "stop_hook_active": False}
-        missing = subprocess.run([sys.executable, str(script)], input=json.dumps(event), text=True,
+        missing = subprocess.run([sys.executable, str(script)], input=json.dumps(event), text=True, encoding="utf-8",
                                  capture_output=True, env=env, cwd=self.project_a, check=True)
         self.assertEqual(json.loads(missing.stdout)["decision"], "block")
         event["stop_hook_active"] = True
-        limited = subprocess.run([sys.executable, str(script)], input=json.dumps(event), text=True,
+        limited = subprocess.run([sys.executable, str(script)], input=json.dumps(event), text=True, encoding="utf-8",
                                  capture_output=True, env=env, cwd=self.project_a, check=True)
         self.assertEqual(limited.stdout, "")
         prompt = {"hook_event_name": "UserPromptSubmit", "cwd": str(self.project_a), "session_id": "s1",
                   "turn_id": "t-private", "prompt": "本轮不记任何内容"}
-        skipped = subprocess.run([sys.executable, str(script)], input=json.dumps(prompt), text=True,
+        skipped = subprocess.run([sys.executable, str(script)], input=json.dumps(prompt), text=True, encoding="utf-8",
                                  capture_output=True, env=env, cwd=self.project_a, check=True)
         self.assertIn("marked private", json.loads(skipped.stdout)["hookSpecificOutput"]["additionalContext"])
         event.update({"turn_id": "t-private", "stop_hook_active": False})
-        no_recovery = subprocess.run([sys.executable, str(script)], input=json.dumps(event), text=True,
+        no_recovery = subprocess.run([sys.executable, str(script)], input=json.dumps(event), text=True, encoding="utf-8",
                                      capture_output=True, env=env, cwd=self.project_a, check=True)
         self.assertEqual(no_recovery.stdout, "")
 
@@ -602,8 +602,11 @@ class IntegrationTests(MemoryTestCase):
 
     def test_cli_runs_without_third_party_dependencies(self) -> None:
         env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.home), "PYTHONNOUSERSITE": "1"}
+        if os.name == 'nt':
+            env['SYSTEMROOT'] = os.environ['SYSTEMROOT']
+            env['USERPROFILE'] = str(self.home)
         result = subprocess.run([sys.executable, str(SCRIPTS / "dev_memory.py"), "--help"], cwd=self.home,
-                                env=env, capture_output=True, text=True)
+                                env=env, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("dev-memory", result.stdout)
 

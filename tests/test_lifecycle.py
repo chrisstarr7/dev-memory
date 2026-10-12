@@ -12,7 +12,7 @@ from test_dev_memory import MemoryTestCase, store, dev_memory
 class LifecycleTests(MemoryTestCase):
     def config(self, kind='project', **updates):
         path=store.config_path_for(kind, root=self.project_a, global_root=self.global_root)
-        value=json.loads(path.read_text());value.update(updates);path.write_text(json.dumps(value))
+        value=json.loads(path.read_text(encoding="utf-8"));value.update(updates);path.write_text(json.dumps(value), encoding="utf-8")
 
     def test_global_preferences_cannot_starve_project_contract(self):
         for n in range(5):
@@ -129,10 +129,10 @@ class LifecycleTests(MemoryTestCase):
         from pathlib import Path
         cli=Path(dev_memory.__file__)
         args=[sys.executable,str(cli),'--global-root',str(self.global_root)]
-        context=subprocess.run([*args,'context','--project-root',str(self.project_a),'--query','refund','--readonly'],capture_output=True,text=True)
+        context=subprocess.run([*args,'context','--project-root',str(self.project_a),'--query','refund','--readonly'],capture_output=True,text=True, encoding="utf-8")
         self.assertEqual(context.returncode,0,context.stdout+context.stderr)
         self.assertIn('maintenance',json.loads(context.stdout)['stores'][1])
-        shown=subprocess.run([*args,'show','--scope','project','--project-root',str(self.project_a),'--ids',mid,'--current'],capture_output=True,text=True)
+        shown=subprocess.run([*args,'show','--scope','project','--project-root',str(self.project_a),'--ids',mid,'--current'],capture_output=True,text=True, encoding="utf-8")
         self.assertEqual(shown.returncode,0,shown.stdout+shown.stderr)
         self.assertEqual(json.loads(shown.stdout)['records'][0]['id'],mid)
 

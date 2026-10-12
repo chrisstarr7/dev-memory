@@ -42,20 +42,20 @@ class SetupTests(unittest.TestCase):
             result = json.loads(run.stdout)
             self.assertEqual(result['project_setup']['activation'], 'configured')
             self.assertEqual(result['runtime_check']['status'], 'passed')
-        self.assertEqual((self.project / 'AGENTS.md').read_text().count(setup.BEGIN), 1)
+        self.assertEqual((self.project / 'AGENTS.md').read_text(encoding="utf-8").count(setup.BEGIN), 1)
         for db in (store.project_paths(self.project)[1], store.global_paths(self.global_root)[1]):
             with contextlib.closing(sqlite3.connect(db)) as conn:
                 self.assertEqual(conn.execute('select count(*) from memories').fetchone()[0], 0)
 
     def test_existing_instructions_and_override_are_preserved(self):
-        (self.project / 'AGENTS.md').write_text('Team instructions\n')
+        (self.project / 'AGENTS.md').write_text('Team instructions\n', encoding="utf-8")
         override = self.project / 'AGENTS.override.md'
         original = b'# Local requirements\nNo deployment.\n'
         override.write_bytes(original)
         self.activate()
         first = override.read_bytes()
         self.assertTrue(first.endswith(original))
-        self.assertEqual((self.project / 'AGENTS.md').read_text(), 'Team instructions\n')
+        self.assertEqual((self.project / 'AGENTS.md').read_text(encoding="utf-8"), 'Team instructions\n')
         self.activate()
         self.assertEqual(override.read_bytes(), first)
         self.assertEqual(setup.status(self.project)['status'], 'configured')
@@ -65,44 +65,44 @@ class SetupTests(unittest.TestCase):
             with self.subTest(agent=agent):
                 result = self.activate(agent)
                 self.assertEqual(result['status'], 'initialized')
-                guide = Path(result['guide']).read_text()
+                guide = Path(result['guide']).read_text(encoding="utf-8")
                 self.assertIn(setup.BEGIN, guide)
                 if agent == 'cursor':
                     self.assertIn('alwaysApply: true', guide)
-        activation = json.loads((self.project / '.dev-memory/activation.json').read_text())
+        activation = json.loads((self.project / '.dev-memory/activation.json').read_text(encoding="utf-8"))
         self.assertEqual(set(activation['bindings']), set(setup.GUIDES))
         self.assertEqual(activation['bindings']['codex']['global_root'], str(self.global_root))
 
     def test_empty_override_does_not_hide_existing_team_instructions(self):
-        (self.project / 'AGENTS.md').write_text('Team instructions must remain visible.\n')
-        (self.project / 'AGENTS.override.md').write_text('  \n')
+        (self.project / 'AGENTS.md').write_text('Team instructions must remain visible.\n', encoding="utf-8")
+        (self.project / 'AGENTS.override.md').write_text('  \n', encoding="utf-8")
         result = self.activate()
         self.assertEqual(Path(result['guide']).name, 'AGENTS.md')
-        self.assertIn('Team instructions must remain visible.', Path(result['guide']).read_text())
-        self.assertEqual((self.project / 'AGENTS.override.md').read_text(), '  \n')
+        self.assertIn('Team instructions must remain visible.', Path(result['guide']).read_text(encoding="utf-8"))
+        self.assertEqual((self.project / 'AGENTS.override.md').read_text(encoding="utf-8"), '  \n')
 
     def test_disabled_cursor_rule_is_not_claimed_automatic(self):
         result = self.activate('cursor')
         guide = Path(result['guide'])
-        guide.write_text(guide.read_text().replace('alwaysApply: true', 'alwaysApply: false'))
+        guide.write_text(guide.read_text(encoding="utf-8").replace('alwaysApply: true', 'alwaysApply: false'), encoding="utf-8")
         self.assertEqual(setup.status(self.project)['status'], 'not_configured')
         with self.assertRaises(store.MemoryError):
             self.activate('cursor')
 
     def test_unsafe_symlinks_and_malformed_markers_fail_before_init(self):
         target = self.home / 'untouched.txt'
-        target.write_text('untouched')
+        target.write_text('untouched', encoding="utf-8")
         guide = self.project / 'AGENTS.md'
         guide.symlink_to(target)
         with self.assertRaises(store.MemoryError):
             self.activate()
         guide.unlink()
         for content in (setup.BEGIN, setup.END + setup.BEGIN, setup.BEGIN + setup.BEGIN + setup.END):
-            guide.write_text(content)
+            guide.write_text(content, encoding="utf-8")
             with self.assertRaises(store.MemoryError):
                 self.activate()
-            self.assertEqual(guide.read_text(), content)
-        self.assertEqual(target.read_text(), 'untouched')
+            self.assertEqual(guide.read_text(encoding="utf-8"), content)
+        self.assertEqual(target.read_text(encoding="utf-8"), 'untouched')
         self.assertFalse((self.project / '.dev-memory').exists())
         self.assertFalse(self.global_root.exists())
 
@@ -115,19 +115,19 @@ class SetupTests(unittest.TestCase):
         (self.project / '.cursor').unlink()
         rule = self.project / '.cursor/rules/dev-memory.mdc'
         rule.parent.mkdir(parents=True)
-        rule.write_text('User owned rule')
+        rule.write_text('User owned rule', encoding="utf-8")
         with self.assertRaises(store.MemoryError):
             self.activate('cursor')
-        self.assertEqual(rule.read_text(), 'User owned rule')
+        self.assertEqual(rule.read_text(encoding="utf-8"), 'User owned rule')
         self.assertFalse(self.global_root.exists())
 
     def test_repeat_setup_preserves_paused_or_disabled_capture(self):
         self.activate()
         for scope, config in [('project', self.project / '.dev-memory/config.json'),
                               ('global', self.global_root / 'global/config.json')]:
-            value = json.loads(config.read_text())
+            value = json.loads(config.read_text(encoding="utf-8"))
             value.update(capture_enabled=False, recall_enabled=False)
-            config.write_text(json.dumps(value))
+            config.write_text(json.dumps(value), encoding="utf-8")
             before = config.read_bytes()
             self.activate()
             self.assertEqual(config.read_bytes(), before, scope)
@@ -168,7 +168,7 @@ class SetupTests(unittest.TestCase):
         subprocess.run(['git', 'init', '-q', str(self.project)], check=True)
         data = self.project / '.dev-memory'
         data.mkdir()
-        (data / 'keep.txt').write_text('synthetic')
+        (data / 'keep.txt').write_text('synthetic', encoding="utf-8")
         subprocess.run(['git', '-C', str(self.project), 'add', '-f', '.dev-memory/keep.txt'], check=True)
         result = self.activate()
         self.assertEqual(result['status'], 'failed')
@@ -177,14 +177,14 @@ class SetupTests(unittest.TestCase):
     def test_manifest_identity_budget_and_unavailable_runtime_are_honest(self):
         self.activate()
         manifest = self.project / '.dev-memory/activation.json'
-        value = json.loads(manifest.read_text())
+        value = json.loads(manifest.read_text(encoding="utf-8"))
         value['project_root'] = '/wrong/project'
-        manifest.write_text(json.dumps(value))
+        manifest.write_text(json.dumps(value), encoding="utf-8")
         with self.assertRaises(store.MemoryError):
             self.activate()
         self.assertEqual(setup.status(self.project)['status'], 'failed')
         manifest.unlink()
-        (self.project / 'AGENTS.md').write_text('x' * 25 * 1024)
+        (self.project / 'AGENTS.md').write_text('x' * 25 * 1024, encoding="utf-8")
         with self.assertRaises(store.MemoryError):
             self.activate()
         (self.project / 'AGENTS.md').unlink()
@@ -194,7 +194,7 @@ class SetupTests(unittest.TestCase):
     def test_existing_setup_lock_is_bounded_and_preserved(self):
         self.activate()
         lock = self.project / '.dev-memory/activation.lock'
-        lock.write_text('synthetic lock')
+        lock.write_text('synthetic lock', encoding="utf-8")
         with self.assertRaises(store.MemoryError) as exc:
             self.activate()
         self.assertEqual(exc.exception.code, 'setup_busy')

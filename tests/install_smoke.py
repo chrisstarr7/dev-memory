@@ -25,7 +25,7 @@ def run(output: Path) -> dict:
         env = {**os.environ, 'HOME': str(home), 'USERPROFILE': str(home), 'CODEX_HOME': str(home / '.codex'),
                'XDG_CONFIG_HOME': str(home / '.config'), 'NPM_CONFIG_CACHE': str(base / 'npm-cache'),
                'NPM_CONFIG_USERCONFIG': str(base / 'npmrc'), 'DISABLE_TELEMETRY': '1', 'DO_NOT_TRACK': '1'}
-        (base / 'npmrc').write_text('')
+        (base / 'npmrc').write_text('', encoding="utf-8")
         commands = []
         def command(args, action):
             started = time.monotonic()
@@ -77,7 +77,7 @@ def run(output: Path) -> dict:
                   'remote_github_install': 'not run: repository not yet published',
                   'host_invocation': 'not established by copying files or doctor', 'commands': commands}
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
+    output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding="utf-8")
     return report
 
 if __name__ == '__main__':
