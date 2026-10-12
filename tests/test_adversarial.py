@@ -11,12 +11,52 @@ from test_dev_memory import MemoryTestCase, ROOT, store, dev_memory
 
 
 class AdversarialTests(MemoryTestCase):
+    def test_late_git_tracking_blocks_private_writes_views_and_backups_but_keeps_global_independent(self):
+        subprocess.run(['git', 'init', '-q', str(self.project_a)], check=True)
+        store.init_project(self.project_a)
+        self.add_project_rule()
+        subprocess.run(['git', '-C', str(self.project_a), 'add', '-f', '.dev-memory/memory.sqlite3'], check=True)
+        db = store.project_paths(self.project_a)[1]; before = db.read_bytes()
+        result = self.apply(scope='both', turn='late-tracked', operations=[
+            {'op':'NOOP', 'scope':'global', 'reason':'checked'},
+            {'op':'ADD', 'scope':'project', 'record':self.record(content='Do not store this addition')}])
+        self.assertEqual(result['status'], 'partial_success')
+        self.assertEqual(result['stores'][1]['error'], 'tracked_memory_path')
+        self.assertEqual(db.read_bytes(), before)
+        for action in (lambda: store.export_views('project', project_root=self.project_a),
+                       lambda: store.backup_store('project', project_root=self.project_a)):
+            with self.assertRaises(store.MemoryError) as exc:
+                action()
+            self.assertEqual(exc.exception.code, 'tracked_memory_path')
+
+    def test_removed_git_exclusion_and_unknown_git_state_fail_closed_before_write(self):
+        subprocess.run(['git', 'init', '-q', str(self.project_a)], check=True)
+        store.init_project(self.project_a)
+        exclude = store._git_info(self.project_a)[1]
+        exclude.write_text('', encoding='utf-8')
+        op = {'op':'ADD', 'scope':'project', 'record':self.record()}
+        result = self.apply(scope='project', operations=[op])
+        self.assertEqual(result['stores'][0]['error'], 'git_exclude_failed')
+        store.init_project(self.project_a)
+        with patch.object(store, '_run_git', return_value=None):
+            result = self.apply(scope='project', turn='git-unknown', operations=[op])
+        self.assertEqual(result['stores'][0]['error'], 'git_protection_unavailable')
+        self.assertEqual(store.list_records('project', project_root=self.project_a)['records'], [])
+
     def test_global_guard_rejects_windows_drive_paths_with_either_separator(self):
         for index, path in enumerate(('C:/Projects/asset-library/spec.md', r'C:\Projects\asset-library\spec.md', r'\\server\share\business\spec.md')):
             record = self.record(scope='global', kind='preference', content='Generic preference', source_refs=[path])
             result = self.apply(scope='global', turn=f'windows-global-{index}', operations=[{'op':'ADD', 'scope':'global', 'record':record}])
             self.assertEqual(result['stores'][0]['error'], 'scope_error', result)
         self.assertEqual(store.list_records('global', global_root=self.global_root)['records'], [])
+
+    def test_windows_path_guard_does_not_mistake_code_escape_for_unc_share(self):
+        record = self.record(scope='global', kind='preference', title='JSON line breaks',
+            content=r'Use \n escapes in JSON strings.', conditions='Across development projects.',
+            exceptions='', do='Use valid JSON.', dont='Never insert unescaped control characters.',
+            verification_steps='Parse JSON.')
+        result = self.apply(scope='global', operations=[{'op':'ADD', 'scope':'global', 'record':record}])
+        self.assertEqual(result['status'], 'saved', result)
 
     def test_apply_returns_committed_revision_without_a_postcommit_database_reopen(self):
         with patch.object(store, 'data_revision', side_effect=store.MemoryError('storage_unavailable', 'synthetic postcommit read failure')):

@@ -40,7 +40,8 @@ SECRET_PATTERNS = [
     re.compile(r"[?&](?:X-Amz-Signature|Signature|sig)=([^&\s]{12,})", re.I),
 ]
 PROJECT_MARKERS = [
-    re.compile(r"(?:^|[\s\"'])(?:/Users/|/home/|[A-Za-z]:[\\/]|\\\\)[^\s\"']+", re.I),
+    re.compile(r"(?:^|[\s\"'])(?:/Users/|/home/|[A-Za-z]:[\\/])[^\s\"']+", re.I),
+    re.compile(r"(?:^|[\s\"'])\\{2,}[^\\/\s\"']+[\\/]+[^\\/\s\"']+", re.I),
     re.compile(r"(?:^|[\s\"'])\.dev-memory(?:/|\\|$)", re.I),
     re.compile(r"\b(?:project_id|workspace_id|task_id|customer_id|tenant_id)\s*[:=]", re.I),
     re.compile(r"\b(?:ORD|ORDER|CUS|TENANT|PROJ|WS)-[A-Z0-9]{4,}\b", re.I),
@@ -333,6 +334,22 @@ CREATE TABLE IF NOT EXISTS forgotten(
 );
 """
 
+def _check_project_git_write(db_path: Path) -> None:
+    if db_path.parent.name != PROJECT_DIR_NAME:
+        return  # Global and project data retain independent boundaries.
+    root = db_path.parent.parent
+    tracked = _run_git(root, ["--literal-pathspecs", "ls-files", "--", PROJECT_DIR_NAME])
+    if not tracked or tracked.returncode:
+        if any((parent / ".git").exists() for parent in (root, *root.parents)):
+            raise MemoryError("git_protection_unavailable", "Project Git protection could not be checked; no private write was attempted.")
+        return  # Non-Git projects need no Git exclude.
+    if tracked.stdout.strip():
+        raise MemoryError("tracked_memory_path", "Project memory is tracked by Git; refusing further private writes.")
+    ignored = _run_git(root, ["check-ignore", "-q", "--", PROJECT_DIR_NAME + "/"])
+    if not ignored or ignored.returncode:
+        raise MemoryError("git_exclude_failed", "Project memory exclusion is missing or unavailable; initialize this project again before writing.")
+
+
 def _connect(db_path: Path, readonly: bool = False) -> sqlite3.Connection:
     if db_path.is_symlink():
         raise MemoryError("path_escape", "Database files cannot be symlinks.")
@@ -341,6 +358,7 @@ def _connect(db_path: Path, readonly: bool = False) -> sqlite3.Connection:
             raise MemoryError("not_initialized", "Storage is not initialized.")
         conn = sqlite3.connect(f"file:{quote(str(db_path.resolve()), safe='/')}?mode=ro", uri=True, timeout=2)
     else:
+        _check_project_git_write(db_path)
         conn = sqlite3.connect(db_path, timeout=3)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=FULL")
@@ -1783,11 +1801,13 @@ def refresh_views(base: Path, db_path: Path, config: dict[str, Any], changed_ids
 
 def export_views(kind: str, *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
     base, db, config = _config_for(kind, project_root, global_root)
+    _check_project_git_write(db)
     refresh_views(base, db, config, None)
     return {"status": "exported", "scope": kind, "views": str(base / "views")}
 
 def backup_store(kind: str, *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
     base, db_path, _ = _config_for(kind, project_root, global_root)
+    _check_project_git_write(db_path)
     directory = base / "backups"
     if directory.is_symlink():
         raise MemoryError("path_escape", "Backup directory cannot be a symlink.")

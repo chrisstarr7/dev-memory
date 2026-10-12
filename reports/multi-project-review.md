@@ -28,7 +28,7 @@ A → B → A using the same installer must share one managed runtime, initializ
 ## Stress test / completion gate
 Test an unknown existing directory, extra files, concurrent setup, stale cached source, interrupted rename rollback, malformed B activation, paused A, mixed host bindings, UTF-8 paths, Windows forward-slash global contamination, duplicate/correction/forget lifecycle. Rebuild only whitelisted public sources. Traceability, ground-truth coverage and phase completeness were checked against the changes and regression cases below. Actual Codex App / semantic / latency evaluations are not inferred from program CI.
 
-## Repository-wide adversarial coverage — 0.5.3
+## Repository-wide adversarial coverage — 0.5.4
 
 | Boundary | Confirmed correction or regression coverage | Evidence boundary |
 | --- | --- | --- |
@@ -41,7 +41,7 @@ Test an unknown existing directory, extra files, concurrent setup, stale cached 
 | Recall / continuation | Bounded global/current-project/task reads, budgets reserved, overflow/deferred visible, fresh/resume/compaction forced, workspace and data revision invalidation | Lifecycle regressions; metadata fingerprint is not a complete content snapshot |
 | Duplicate / maintenance | Exact dedupe, case/condition/task/version boundaries, merge alias invalidation, 5 changed records or 1200-character long body, <=8/12000 pack, NOOP and opt-out suppression | Program tests; prose preservation still reviewed by current AI |
 | Delete / backup / restore | Same-store backup identity, connected derived/alias delete preview, forgotten suppression on restore, partial cleanup reported | No secure erasure or cleanup of external/host copies |
-| Privacy / distribution | Secret patterns, global scope guards, Git tracking/exclude checks, isolated synthetic data, npm/release allowlists | No claim to detect all sensitive prose; no data encrypted by default |
+| Privacy / distribution | Secret patterns, global scope guards, Git tracking/exclude checks before database/view/backup writes, isolated synthetic data, npm/release allowlists | No claim to detect all sensitive prose; no data encrypted by default |
 | Host / speed | Project guidance and optional hooks retain honest capability flags; no extra model/daemon/runtime dependency | No new desktop session, hook chain, semantic model evaluation or matched AI latency run |
 
 ### Strong counterexamples checked
@@ -60,4 +60,10 @@ Existing public Skill + empty B; paused A revisited; two installs/uninstall targ
 
 ## Verification
 
-Local suite: 177 tests passed in 27.499 seconds; two skipped on macOS (native Windows ACL and junction tests). Skill format validation and git diff whitespace check passed. Native-platform CI and public npx A/B transport checks are pending at this feature commit. One initial local installer run exposed a missing closing parenthesis in new human output; corrected before publication and rerun. Historical evaluation reports retain their own version/hash identities.
+Initial 0.5.3 local suite: 177 tests passed in 27.499 seconds (two native Windows skips). Native CI [38271569317](https://github.com/chrisstarr7/dev-memory/actions/runs/38271569317) passed five jobs; Windows Python 3.14 failed only temporary cleanup in the new A/B test because its SQLite fixture did not close connections explicitly. Changed the fixture to `contextlib.closing`; installation assertions, native ACL and junction tests passed. The failed run is retained as failure, not counted as full success.
+
+The initial public unqualified npx command, using one temporary cache across 0.5.2 → 0.5.3, passed B → A → B. A's corrected rule/conditions/evidence/revision, pause and team instruction survived; B had an independent empty store and recalled the confirmed global preference without A's business. Tested commit: `45e46f4fb69ffacd8d1e2008a2a640d811deb072`. This was macOS program/transport evidence, zero model calls.
+
+Further privacy regression: force-tracking memory after initialization or removing its Git exclusion could bypass the initial check. 0.5.4 checks only the current project's memory path before writable database connections, views and backups. It refuses unknown Git protection or tracked data, preserves independent global results, and does not edit Git history. Read-only operations do not add these write checks. Git projects require two bounded Git metadata commands on a write; no full code/history scan, new AI tool call or external model is added. No end-to-end latency claim follows from this.
+
+Final 0.5.4 local suite, native CI and repeated public transport checks pending at this hardening commit. One initial local installer run exposed a missing closing parenthesis in new human output; corrected before publication and rerun. Historical evaluation reports retain their own version/hash identities.

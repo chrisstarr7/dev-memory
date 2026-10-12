@@ -33,14 +33,14 @@ try {
  const definition=await provider.get(candidate,{cwd:process.argv[2]});
  assert(definition.content.includes('Default activation'));
  assert(definition.content.includes('Capture and correction'));
- assert.equal(definition.metadata.version,'0.5.3');
+ assert.equal(definition.metadata.version,'0.5.4');
  assert.equal(warnings.length,0);
  console.log(JSON.stringify({status:'passed',package:'@deepseek-ai/dsh-skill-filesystem',version:'0.2.0-rc.2',native_discovery:'user-dsh',native_yaml_parser:true,model_invocable:true,full_body_loaded:true,watchers_disabled:true,model_calls:0}));
 } finally {await provider.dispose();controller.abort();}
 ''')
  result=subprocess.run(['node',str(script),str(project)],env=env,text=True,capture_output=True,timeout=20)
  assert result.returncode==0,result.stdout+result.stderr
- report=json.loads(result.stdout);report.update(runtime_version='0.5.3',synthetic_only=True,real_user_stores_modified=False,actual_dsh_model_e2e='not_run')
+ report=json.loads(result.stdout);report.update(runtime_version='0.5.4',synthetic_only=True,real_user_stores_modified=False,actual_dsh_model_e2e='not_run')
 output.parent.mkdir(parents=True,exist_ok=True)
 output.write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps(report))

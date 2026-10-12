@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import closing
 import os
 from pathlib import Path
 import shutil
@@ -105,7 +106,7 @@ class NpxTests(unittest.TestCase):
         self.assertFalse(configs[0]['capture_enabled'])
         self.assertTrue(configs[1]['capture_enabled'])
         for project in (a, b):
-            with sqlite3.connect(project / '.dev-memory/memory.sqlite3') as conn:
+            with closing(sqlite3.connect(project / '.dev-memory/memory.sqlite3')) as conn:
                 self.assertEqual(conn.execute('SELECT COUNT(*) FROM memories').fetchone()[0], 0)
             binding = json.loads((project / '.dev-memory/activation.json').read_text(encoding='utf-8'))['bindings']['codex']
             self.assertEqual(binding['cli'], str(public / 'scripts/dev_memory.py'))

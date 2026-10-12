@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "21a2a4dd6bbc7490b6100fbadf20bfbecde3f0bd93812bab79c099758024268a"
+      "sha256": "3cec7d447fe54a11de8ee46b3ff9b71d62ba6401de07a7f3d65ffb28d821696e"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -42,7 +42,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "162697ab1f9e1062f0af0bb77c28ac0fa1692371bf97c6f840212abbefcb71ae"
+      "sha256": "3935858f327ef4ea66f08a3ae322b0544b873ed3c2b16557b858c8ebcce803ad"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -74,7 +74,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "cf6858cf3b4221e2017d639a1a8c4469e9c85706a6c9610cb8da975fddbbfd9f"
+      "sha256": "79b796516cd5e57572674ce2d71d18ef0945c506eb327d92caf0087e65a9cd9b"
     },
     {
       "path": "bin/install.cjs",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "dab585b33cf4048d1c21b07454cf78f3369a67c6660fddce167097377562a434"
+      "sha256": "f4c873cd9b4d276f9d20a5fdfccae3cbb2451b3f6a79a2ac92abbdca90c7e72d"
     },
     {
       "path": "docs/ecosystem.md",
@@ -126,7 +126,7 @@
     },
     {
       "path": "tests/test_adversarial.py",
-      "sha256": "e152673e929632a6f6bb64282abda4190ca7674d3e6b9a0d504f56d87ceb023c"
+      "sha256": "86da449e86d68f8928e197dc76a0deb2bc2e3b1ae09bfa72ee55e15330c31f74"
     },
     {
       "path": "tests/test_installer.py",
@@ -142,7 +142,7 @@
     },
     {
       "path": "tests/test_npx_installer.py",
-      "sha256": "dcbe2aee0f0f6e47fb572718069cc91cbf51c6a61a7aa52cb180ce24848a2b2f"
+      "sha256": "3fb45e4cf32ed8e0a742e738f934829e1ee2c067b03eac650bf553348c42f9f8"
     },
     {
       "path": "tests/install_smoke.py",
@@ -154,7 +154,7 @@
     },
     {
       "path": "evals/bench_compare.py",
-      "sha256": "6ee2c669ffd69bda70631d33b7152408dd959717bba162f70dd5f94cbaf73190"
+      "sha256": "5dcdc73b087d4488d3da2d912cc9aa84ea3952f00a92dd28fd93fac3162c5ba7"
     },
     {
       "path": "evals/check_automatic.py",
@@ -162,15 +162,15 @@
     },
     {
       "path": "evals/check_maintenance.py",
-      "sha256": "0d39d576eeb47c756f114a9da9dcdc486a2b0491d0c95dfffd02f9f57a878510"
+      "sha256": "8e658fe4ff4a841ffc2d5884e23df8a0d010c1f9507664870737a909f2228421"
     },
     {
       "path": "evals/check_lifecycle.py",
-      "sha256": "4817a6a6c37d6f8462a822dd878ab88f71b1b352c1a7a0257d9ae3d170108fcf"
+      "sha256": "50832997cdd6b482e201ae8611360a77d33571dc8310a9fc5e5f538f4c974005"
     },
     {
       "path": "reports/verification.md",
-      "sha256": "1d3b6b505932823da1b1258c3d566c35b9d3c159e6595eeec8f6f416eeea147f"
+      "sha256": "24a51369bebc1cafa45418b0097816b034c1acb4d58727a6cc389099f2e319f9"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -202,7 +202,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "89ccf7f9d8927c3cdac5b97101df655cb9dcfcd468d1beea9d2d7e796c22e76f"
+      "sha256": "a03d5c7e2638ee4482728d44319c8c5dfd022b05e80e856b08a5da4d714f2a1f"
     },
     {
       "path": "reports/online-installation.json",
@@ -238,11 +238,11 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "40d621d81bb656ad587d72eebdba600119890ed5c69b887126a42eb002400f01"
+      "sha256": "b6c73e70d59076559f10f65284ec0112576b04dfa2d8f4059e20f63aeb818baf"
     },
     {
       "path": "evals/check_deepseek.py",
-      "sha256": "6235df500fcecd4141a0f7cd7cd28faae56bed0ab9ac5fb786f0996c56b6aeee"
+      "sha256": "cb9cd2f3f8d1d0c047d80828604f5a82cc89cbab55014ac4ddc6af30adcf77d2"
     },
     {
       "path": "reports/deepseek.json",
@@ -254,10 +254,10 @@
     },
     {
       "path": "reports/multi-project-review.md",
-      "sha256": "fc7d89adecdc2d170163bbb1f95b79eb2afc1274291eba4c13723927022f5663"
+      "sha256": "f90884aca4e4b8d1fa97476838aa730c113209713cdd205586256749ecc4c2a3"
     }
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.5.3"
+  "version": "0.5.4"
 }

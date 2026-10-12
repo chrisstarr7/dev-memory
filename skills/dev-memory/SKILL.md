@@ -3,7 +3,7 @@ name: dev-memory
 description: Private local development memory. Use at task start/resume, project or module changes, user corrections, decisions, and task checkpoints (研发记忆、纠错、继续任务). Check each development turn for a small increment; do not record unrelated conversations.
 license: MIT
 metadata:
-  version: "0.5.3"
+  version: "0.5.4"
   requires: "Python 3.10+ with sqlite3 and local file/process access; Git optional."
 ---
 

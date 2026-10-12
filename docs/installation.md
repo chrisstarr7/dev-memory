@@ -181,3 +181,10 @@ python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py uninstall --agent code
 项目引导无需 hooks。额外需要事件回执检查时，从安装副本运行 `scripts/dev_memory.py hooks configure`。它只合并 `$CODEX_HOME/hooks.json` 的自有处理器，保留无关配置，不开启特性、不授予脚本信任。真实事件、宿主权限和 `/hooks` 信任须单独验证；配置成功不是自动端到端成功。
 
 改变路径或通过外部管理器卸载前，从原副本运行 `hooks remove`。Python 受管理卸载会清理属于自己的 hook 命令。详见 [适配器说明](../skills/dev-memory/references/codex-hooks.md)。
+
+
+## 项目 Git 保护失效
+
+数据库、Markdown 视图和备份写入前检查当前项目的 `.dev-memory` 路径；不扫描其他项目。若初始化后被 `git add -f` 强制跟踪，返回 `tracked_memory_path`，停止新增私有写入，不修改 Git 历史。检查后由用户处理已跟踪文件；仅重新执行初始化无法抹去已提交内容。
+
+若本地排除规则被移除，返回 `git_exclude_failed`，重新执行本页初始化命令恢复该项目的排除。无法检查 Git 状态时返回 `git_protection_unavailable`，修复 Git 环境后重试。项目失败不会把内容转写全局，独立全局结果仍单独报告。只读召回不增加这些写入检查。

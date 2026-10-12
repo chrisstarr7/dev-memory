@@ -290,3 +290,14 @@ The public source ZIP passed 63 manifest hashes. An actual public macOS 0.5.1 �
 ## 0.5.3 — shared program and independent project initialization
 
 Local: 177 tests passed (two native Windows checks skipped on macOS), Skill format and whitespace checks passed. Added A → B → A initialization, managed reuse/update/repair/downgrade, shared install/removal lock, rename rollback, pending old-directory cleanup, manifest preflight, Windows path/junction guards, permission receipts, committed revision and independent recall tests. Public npx/native CI evidence will be recorded separately after execution; no new model, desktop App, hook or matched latency evaluation is claimed. See [review](multi-project-review.md).
+
+
+### 0.5.3 first native CI / public transport
+
+Native run [38271569317](https://github.com/chrisstarr7/dev-memory/actions/runs/38271569317): five jobs passed, Windows 3.14 failed temporary cleanup of the new A/B fixture (SQLite connection left open by `with sqlite3.connect`, which does not close it). Fixture corrected with `contextlib.closing`. Native install, ACL and junction assertions passed; the aggregate run remains failed.
+
+Real public unqualified npx transport with one temporary cache across 0.5.2 → 0.5.3 passed B → A → B at `45e46f4fb69ffacd8d1e2008a2a640d811deb072`; A data/evidence/controls retained, B isolated and global preference available. No actual Windows App or model call.
+
+## 0.5.4 — post-initialization Git protection
+
+Late forced Git tracking, removed exclusion and unavailable Git protection now block database/view/backup writes. Independent global writes still succeed, and read-only retrieval adds no Git write check. The current path is checked by bounded metadata commands; no full library or code scan is added. Native/public final rerun pending at this feature commit.
