@@ -114,13 +114,21 @@ $rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.
             return any(r['sid'] == 'S-1-5-32-545' and r['allow'] == 'Allow' and r['rights'] & 131241 == 131241
                        for r in acl['rules'])
         self.assertTrue(readable(read_acl(parent)), read_acl(parent))
-        self.assertFalse(readable(read_acl(target)), read_acl(target))
+        legacy_restricted = not readable(read_acl(target))
+        if sys.version_info >= (3, 13):
+            self.assertTrue(legacy_restricted, read_acl(target))
+        # Older Windows Python builds ignored 0700; preserve the actual private
+        # baseline rather than claiming they implement modern restrictive ACLs.
+        private_before = read_acl(parent / 'private-memory/global')
         result = dev_memory.install(target, with_hooks=False, upgrade=True)
         self.assertEqual(result['program_permissions'], 'inherited_windows_acl')
         self.assertFalse(result['sandbox_access_verified'])
         for path in (target, target / 'scripts', target / 'scripts/dev_memory.py', target / 'SKILL.md'):
             self.assertTrue(readable(read_acl(path)), read_acl(path))
-        self.assertFalse(readable(read_acl(parent / 'private-memory/global')))
+        private_after = read_acl(parent / 'private-memory/global')
+        self.assertEqual(private_after, private_before)
+        if legacy_restricted:
+            self.assertFalse(readable(private_after))
 
     def test_interactive_selection_installs_requested_host_and_prints_next_step(self) -> None:
         stdout = io.StringIO()

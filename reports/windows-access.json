@@ -1,6 +1,6 @@
 {
   "runtime_version": "0.5.2",
-  "status": "native_windows_acl_retry_pending",
+  "status": "final_windows_version_aware_retry_pending",
   "user_environment": "Windows Codex desktop App; exact version and denied path not supplied",
   "confirmed_installer_defect": "Public program directories used mode 0700, which Windows Python maps to current-user/admin-only access controls.",
   "specific_user_failure_root_cause": "not_confirmed_without_denied_path_error_and_app_version",
@@ -44,5 +44,11 @@
       "ACL reader yielded null/empty data even for its parent; this is not valid ACL evidence. It now uses native .NET APIs and stops on errors.",
       "Windows zipfile normalized raw backslashes during reading; validation now rejects names differing from orig_filename."
     ]
+  },
+  "third_ci_attempt": {
+    "run_url": "https://github.com/chrisstarr7/dev-memory/actions/runs/38266512774",
+    "windows_python_3_14": "native ACL test passed; all program tests passed",
+    "windows_python_3_10": "one fixture failure: 3.10.11 ignores mode 0700 and its legacy public directory was already readable",
+    "refinement": "Modern Python must reproduce the restrictive old ACL. Every version must preserve its private ACL baseline exactly and provide readable upgraded public programs."
   }
 }
