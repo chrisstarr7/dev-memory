@@ -160,3 +160,13 @@ The public transport experiment ran the short command in temporary A/B projects 
 - [x] Nontrivial diff reviewed for unnecessary abstraction; the installer wrapper delegates reuse/update to the existing shared module, and the Git guard is reused at writable boundaries.
 
 Actual Windows Codex App sessions, new semantic model evaluations and matched AI on/off latency remain not run. Other historical reports remain attached to their recorded versions.
+
+## 0.5.5 maintenance candidate and obsolescence review
+
+Long-record related search used alphabetical term truncation and raw hit counts. That could spend the bounded candidate window on generic/common terms and omit a rare topic marker. It now queries only indexed terms, favors rarer terms and ranks with inverse-frequency weighting. A synthetic long-topic regression fails under the previous selection behavior and passes with the weighted ranking.
+
+Maintenance instructions now explicitly use `REVISE` for a user-confirmed correction and `ARCHIVE` for a contradiction or an explicitly elapsed expiry. Age alone never proves expiry. These records leave default recall while audit history remains; only explicit forget deletes the managed record/history. No new AI call, daemon or unbounded library scan was introduced.
+
+The 0.5.5 maintenance protocol version triggers a one-time requeue of active records in the store being used. The next apply can expose one bounded review pack, including when the current turn is an ordinary checked NOOP. This avoids relying on fresh writes to rediscover an older unrevised backlog; other project stores remain unopened.
+
+Program tests confirm search ranking and correction/archive transitions. They do not establish semantic equivalence quality or automatic maintenance execution across host AI products; no real model evaluation, host E2E or matched latency run was performed for 0.5.5.

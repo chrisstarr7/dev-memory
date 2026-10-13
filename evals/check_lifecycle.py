@@ -169,12 +169,12 @@ def main():
     if output.is_relative_to(ROOT):p.error('Keep synthetic transcripts outside the repository.')
     output.parent.mkdir(parents=True,exist_ok=True)
     if a.program_only:
-        report={'status':'passed','runtime_version':'0.5.4','runtime_source_sha256':source_hashes(),'program_scale':program_scale_probe()}
+        report={'status':'passed','runtime_version':'0.5.5','runtime_source_sha256':source_hashes(),'program_scale':program_scale_probe()}
         output.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report));return 0
     if not a.model or not a.reasoning:p.error('--model and --reasoning are required for real-host evaluation.')
     codex=shutil.which('codex');assert codex and shutil.which('node'),'Codex and Node required for explicit evaluation.'
     frozen=source_hashes()
-    report={'status':'running','runtime_version':'0.5.4','host':subprocess.check_output([codex,'--version'],text=True).strip(),
+    report={'status':'running','runtime_version':'0.5.5','host':subprocess.check_output([codex,'--version'],text=True).strip(),
             'model':a.model,'reasoning':a.reasoning,'runtime_source_sha256':frozen,'synthetic_only':True,'hooks_configured':False,
             'ordinary_prompts_without_skill_invocation':True,'runs':[],'checks':{},'limitations':[
             'One synthetic project cycle over fresh Codex CLI sessions; not exhaustive semantic validation or other-host enforcement.',

@@ -311,3 +311,12 @@ Late forced Git tracking, removed exclusion and unavailable Git protection now b
 - TLS-verified public source ZIP at that commit: version 0.5.4 and 64 manifest files verified.
 - Program-only scale evaluation: 1,000/10,000 synthetic records, ten repetitions; bounded reads/maintenance and overflow flags passed. Metrics and hashes in [review](multi-project-review.md); this is not AI timing.
 - No new real model, Windows Codex App, trusted hooks or matched end-to-end latency run. The earlier failed Windows test cleanup is retained above.
+
+## 0.5.5 — memory maintenance candidate quality and retirement rules
+
+- Maintenance candidate selection now ignores terms absent from the store, prefers rarer indexed terms, and scores overlapping records with an inverse-frequency weighted query. Long records no longer lose their topic-specific terms merely because alphabetical truncation favored common prefixes.
+- Maintenance instructions now distinguish equivalent rules, confirmed corrections, and explicit expiration. A confirmed correction revises the current record; a contradicted/explicitly expired record can be archived from default recall. Age alone never expires a rule. Superseded/archived audit history remains available; permanent deletion remains user-controlled.
+- Regression coverage exercises long multilingual-topic candidate ranking, confirmed correction replacement, archival from default listing, and prior merge/compact protections.
+- Local: 183 tests passed in 30.223 seconds; two native Windows checks skipped on macOS.
+- This release did not run a real AI model semantic evaluation, Codex App end-to-end session, Windows host run, or matched AI workflow latency test. Program-side search quality and state transitions are synthetic tests, not proof that every host will invoke maintenance automatically.
+- A one-time maintenance protocol marker requeues the existing store's active records on upgrade and ensures the first subsequent apply can return a bounded review pack, even if the interaction itself has no new memory. Historical rows and other project databases are not scanned or changed.

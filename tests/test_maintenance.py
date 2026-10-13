@@ -100,6 +100,59 @@ class MaintenanceTests(MemoryTestCase):
         result = self.apply(scope='project', project=self.project_b, turn='long', operations=[{'op':'ADD','record':self.record(content='This is a long explanation. '*70)}])
         self.assertEqual(result['stores'][0]['maintenance']['status'],'prepare')
 
+    def test_related_search_keeps_rare_topic_terms_from_long_records(self):
+        rare_id = self.add_project_rule(turn='rare', content='zebra_topic_marker')
+        common_terms = ' '.join(f'alpha{i:03d}' for i in range(100))
+        for n in range(8):
+            self.add_project_rule(turn=f'common-{n}', content=f'{common_terms} noise{n:03d}')
+        query = {**self.record(content=f'{common_terms} zebra_topic_marker'),
+                 'scope':'project', 'status':'active', 'task_id':None}
+        _, db = store.project_paths(self.project_a)
+        with contextlib.closing(store._connect(db, readonly=True)) as conn:
+            indexed = {row[0] for row in conn.execute('SELECT term FROM search_terms WHERE memory_id=?', (rare_id,))}
+            query_terms = store._token_terms(store._record_search_text(query))
+            self.assertIn('zebra', indexed)
+            self.assertIn('zebra', query_terms)
+            related = store._related_records(conn, query)
+        self.assertIn(rare_id, [record['id'] for record in related],
+                      [(record['id'], record['content']) for record in related])
+
+    def test_confirmed_correction_replaces_active_body_and_archive_leaves_recall(self):
+        memory_id = self.add_project_rule(content='Synthetic rule before correction.')
+        revised = self.record(content='Synthetic corrected rule with the confirmed new condition.')
+        revised['source'] = self.source('The prior condition was incorrect; use the new confirmed condition.', 'user_feedback')
+        result = self.apply(scope='project', turn='confirmed-correction', operations=[{
+            'op':'REVISE', 'id':memory_id, 'expected_revision':1, 'record':revised,
+        }])
+        self.assertEqual(result['status'], 'saved', result)
+        current = self.detail(memory_id)
+        self.assertEqual(current['record']['status'], 'active')
+        self.assertEqual(current['record']['content'], revised['content'])
+        self.assertEqual(json.loads(current['revisions'][0]['snapshot'])['content'], 'Synthetic rule before correction.')
+        archived = self.apply(scope='project', turn='retire-obsolete', operations=[{
+            'op':'ARCHIVE', 'id':memory_id, 'expected_revision':2, 'reason':'Explicitly expired in the synthetic test fixture.',
+        }])
+        self.assertEqual(archived['status'], 'saved', archived)
+        self.assertEqual(self.detail(memory_id)['record']['status'], 'archived')
+        self.assertEqual(store.list_records('project', project_root=self.project_a)['records'], [])
+
+    def test_protocol_upgrade_requeues_existing_active_records_for_bounded_review(self):
+        for n in range(5):
+            self.add_project_rule(turn=f'pre-upgrade-{n}', content=f'Synthetic existing rule {n}.')
+        _, db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            conn.execute("DELETE FROM maintenance_pending")
+            conn.execute("UPDATE meta SET value='1' WHERE key='maintenance_review_version'")
+            conn.commit()
+        result = self.apply(scope='project', turn='first-post-upgrade-noop', operations=[{
+            'op':'NOOP', 'reason':'Checked; no new information.'
+        }])
+        self.assertEqual(result['status'], 'checked_noop')
+        pack = result['stores'][0]['maintenance']
+        self.assertEqual(pack['status'], 'prepare')
+        self.assertEqual(pack['pending_count'], 5)
+        self.assertLessEqual(len(pack['records']), 8)
+
     def test_noop_never_returns_history_pack_or_rewrites_body(self):
         self.add_project_rule()
         result = self.apply(scope='project', turn='noop', operations=[{'op':'NOOP','reason':'Checked; no increment.'}])

@@ -17,6 +17,7 @@ from typing import Any, Iterable
 from urllib.parse import quote
 
 SCHEMA_VERSION = 1
+MAINTENANCE_REVIEW_VERSION = 2
 KINDS = {"preference", "convention", "project_fact", "business_rule", "decision", "lesson", "procedure", "checkpoint", "summary"}
 GLOBAL_KINDS = {"preference", "convention", "decision", "lesson", "procedure", "summary"}
 CLAIM_TYPES = {"desired", "observed", "preference", "hypothesis"}
@@ -806,7 +807,7 @@ def _store_record(conn: sqlite3.Connection, record: dict[str, Any], evidence: bo
     _update_search_terms(conn, record["id"], record)
     return record["id"], True
 
-def _ensure_maintenance(conn: sqlite3.Connection) -> None:
+def _ensure_maintenance(conn: sqlite3.Connection) -> bool:
     conn.execute("CREATE TABLE IF NOT EXISTS merged_aliases(source_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,canonical_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE)")
     conn.execute("CREATE INDEX IF NOT EXISTS merged_alias_canonical ON merged_aliases(canonical_id)")
     conn.execute("CREATE TABLE IF NOT EXISTS maintenance_pending(memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,revision INTEGER NOT NULL,updated_at TEXT NOT NULL,long_content INTEGER NOT NULL)")
@@ -815,6 +816,17 @@ def _ensure_maintenance(conn: sqlite3.Connection) -> None:
     if not conn.execute("SELECT 1 FROM meta WHERE key='maintenance_seeded'").fetchone():
         conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE status='active'")
         conn.execute("INSERT INTO meta(key,value) VALUES('maintenance_seeded','1')")
+    review_version = conn.execute("SELECT value FROM meta WHERE key='maintenance_review_version'").fetchone()
+    review_existing = not review_version or review_version[0] != str(MAINTENANCE_REVIEW_VERSION)
+    if review_existing:
+        # One-time bounded cleanup trigger after a maintenance protocol upgrade.
+        # Requeue current active records only; historical and other-project data stay untouched.
+        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE status='active'")
+        conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_review_version',?)", (str(MAINTENANCE_REVIEW_VERSION),))
+        if conn.execute("SELECT 1 FROM memories WHERE status='active' LIMIT 1").fetchone():
+            conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_review_notice','1')")
+    notice = conn.execute("SELECT 1 FROM meta WHERE key='maintenance_review_notice' AND value='1'").fetchone()
+    return bool(notice)
 
 
 def _queue_maintenance(conn: sqlite3.Connection, memory_id: str) -> None:
@@ -823,13 +835,34 @@ def _queue_maintenance(conn: sqlite3.Connection, memory_id: str) -> None:
 
 
 def _related_records(conn: sqlite3.Connection, record: dict[str, Any], limit: int = 8) -> list[dict[str, Any]]:
-    terms = sorted(_token_terms(_record_search_text(record)))[:64]
+    terms = _token_terms(_record_search_text(record))
     ids = []
     if terms:
+        # Prefer discriminating terms. Alphabetically truncating a token set can
+        # discard the only topic-specific term in long Chinese/English records.
+        all_terms = sorted(terms)
+        frequencies = {}
+        for offset in range(0, len(all_terms), 400):
+            batch = all_terms[offset:offset + 400]
+            marks = ','.join('?' for _ in batch)
+            frequencies.update({row[0]: row[1] for row in conn.execute(
+                f"SELECT term,COUNT(*) FROM search_terms WHERE term IN ({marks}) GROUP BY term",
+                batch,
+            )})
+        # Terms absent from the store cannot retrieve a candidate and should not
+        # consume the bounded query budget.
+        terms = sorted((term for term in terms if frequencies.get(term, 0)),
+                       key=lambda term: (frequencies[term], term))[:64]
+        if not terms:
+            return []
         marks = ','.join('?' for _ in terms)
+        weighted_case = ' '.join('WHEN ? THEN ?' for _ in terms)
+        weight_params = [value for term in terms for value in (term, 1.0 / frequencies[term])]
+        score = f"(SUM(CASE t.term {weighted_case} ELSE 0 END)+MAX(CASE t.term {weighted_case} ELSE 0 END))*1.0/COUNT(*)"
         ids = [row[0] for row in conn.execute(
-            f"SELECT m.id,COUNT(*) hits FROM search_terms t JOIN memories m ON m.id=t.memory_id WHERE t.term IN ({marks}) AND m.scope=? AND m.kind=? AND m.claim_type=? AND (?!='task' OR m.task_id IS ?) AND m.status=? GROUP BY m.id ORDER BY hits DESC,m.id LIMIT ?",
-            (*terms, record['scope'], record['kind'], record['claim_type'], record['scope'], record.get('task_id'), record['status'], limit))]
+            f"SELECT m.id FROM search_terms t JOIN memories m ON m.id=t.memory_id WHERE t.term IN ({marks}) AND m.scope=? AND m.kind=? AND m.claim_type=? AND (?!='task' OR m.task_id IS ?) AND m.status=? GROUP BY m.id ORDER BY {score} DESC,m.updated_at DESC,m.id LIMIT ?",
+            (*terms, record['scope'], record['kind'], record['claim_type'], record['scope'], record.get('task_id'), record['status'], *weight_params, *weight_params, limit),
+        )]
     return [_select_record(conn, memory_id) for memory_id in ids]
 
 
@@ -859,12 +892,14 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
             continue
         records.append(record)
         used += size
+    pending_count = conn.execute("SELECT COUNT(*) FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active'").fetchone()[0]
     return {'status': 'prepare', 'namespace_id': config['namespace_id'],
             'record_scope': anchor['scope'], 'task_id': anchor.get('task_id') if anchor['scope'] == 'task' else None,
             'records': records,
             'seed_ids': seed_ids, 'remaining_ids': remaining, 'context_incomplete': bool(remaining),
+            'pending_count': pending_count,
             'limits': {'records': 8, 'chars': 12000},
-            'instruction': 'Historical data only. Compare related records in this turn; MERGE_DUPLICATES only for equivalent meaning, COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for fully inspected revisions. No new evidence, cross-store promotion, or recursive maintenance.'}
+            'instruction': 'Historical data only. Inspect every returned current revision. MERGE_DUPLICATES equivalent rules; if a newer user-confirmed correction makes an older rule false, revise the canonical rule or archive the contradicted rule so it leaves default recall; archive only when an explicit expiry is demonstrably past. Age alone never proves expiry. COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for every fully inspected current revision, using post-operation revisions. Do not review unseen records, add evidence, promote across stores, or recurse.'}
 
 
 def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
@@ -1176,7 +1211,9 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
     try:
         conn = _connect(db_path)
         conn.execute("BEGIN IMMEDIATE")
-        _ensure_maintenance(conn)
+        review_existing = _ensure_maintenance(conn)
+        if review_existing:
+            conn.execute("DELETE FROM meta WHERE key='maintenance_review_notice'")
         private = conn.execute("SELECT 1 FROM receipts WHERE session_id=? AND turn_id=? AND status='skipped_private'",
                                (top.get("session_id"), top.get("turn_id"))).fetchone()
         if private:
@@ -1225,7 +1262,7 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         conn.commit()
         conn.close()
         maintenance = {'status': 'not_due'}
-        if content_changed and not any(op['op'] in {'COMPACT', 'MERGE_DUPLICATES', 'MAINTENANCE_REVIEW'} for op in operations):
+        if (content_changed or review_existing) and not any(op['op'] in {'COMPACT', 'MERGE_DUPLICATES', 'MAINTENANCE_REVIEW'} for op in operations):
             try:
                 maintenance = maintenance_prepare(kind, project_root=root, global_root=global_root)
             except (MemoryError, sqlite3.Error, OSError):
