@@ -337,3 +337,9 @@ Late forced Git tracking, removed exclusion and unavailable Git protection now b
 ### 0.6.0 public transport and final malformed-input check
 
 Real public npx installation at `4defe59f0065208bc9fa493eee29467f92eaaa15` passed pinned 0.5.5 A install → 0.6.0 B update/init → A reuse with one temporary npm cache. A data, evidence, revisions, namespace and paused capture survived; B remained empty/isolated, unrelated guidance survived, and all fourteen runtime files matched the commit. A subsequent adversarial check reproduced an invalid scalar-COMPACT ID exception; the final guard returns a transactional validation error. The final 195-test suite and ten-repetition scale probe include the guard; real model maintenance was not repeated for this malformed-input-only change.
+
+### 0.6.0 final native CI and public source
+
+[GitHub Actions 38489141510](https://github.com/chrisstarr7/dev-memory/actions/runs/38489141510), tested commit `8b52f645fcd064973912d81489d548db075bbaa9`: all six Ubuntu/macOS/Windows × Python 3.10/3.14 jobs passed the 195-test suite and 66-entry release build with Node.js 22. Windows includes native ACL/junction regressions (only POSIX Bash skips); macOS/Ubuntu skip the two native Windows checks. The earlier feature run [38488902978](https://github.com/chrisstarr7/dev-memory/actions/runs/38488902978) also passed all six jobs.
+
+At the final tested commit, TLS-verified public source ZIP validation passed all 65 manifest files, and a fresh unqualified public npx install matched all 14 runtime files. The initial Python transport lacked a local CA bundle; the check used TLS-verified curl without disabling verification. No actual Windows Codex App/model session or new successful matched latency comparison is inferred from these results. Subsequent publication changes only this evidence documentation and manifest; runtime/test sources retain the tested bytes.
