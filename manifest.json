@@ -14,7 +14,7 @@
     },
     {
       "path": "skills/dev-memory/agents/openai.yaml",
-      "sha256": "9a8922dacaac48fd36dc0b77fd30b4cb5444ad402c5ef2f73cc5567b4264287e"
+      "sha256": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30"
     },
     {
       "path": "skills/dev-memory/assets/config.example.json",
@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "fa440759e908662bfc096369f901f12682df213300d8b1e473f6d11ca13b98db"
+      "sha256": "1e3e7780000a00934ca7f6bd660f36366a58cb13821e9b1d4c77924264999890"
     },
     {
       "path": "LICENSE",
@@ -74,7 +74,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "5d601d016bcc75759805a06d08bffe1905c109f45f8ab188217fbb16c1f23c88"
+      "sha256": "e2de4bb9d6d258a3bb4dc41b691407b1fcdd4bcbf9b86921e86eaa5a183e4ad9"
     },
     {
       "path": "bin/install.cjs",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "2fb2168681ee2be7ff2e4857fccc50dfb38bae1f2a815ba55ac928019f74f0e8"
+      "sha256": "bfa46c7c7472ff427e4cab54bc8188a46e3dd533a9fb22cfd626bfbfb2d47dd8"
     },
     {
       "path": "docs/ecosystem.md",
@@ -102,15 +102,15 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "1965338ffa888251d5c6b7bbc1470fbbf52c1445f85bc69cff19846d08a67eff"
+      "sha256": "e83c203464d04eacd25ffa90eebfdae5849247618d7e2bfb1a9eba7173acbbce"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "3a90f93bf84932b2c989e3630c1a275992df1c5fac00681771fefc87af709092"
+      "sha256": "050337b445bf8b1fbc851f47a9077d40a3edc84f527af50f99a2e7db303bc7e6"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "6b0460c5b3527f1eca4e25dda19614d4197cd5240f59ab9e2929567cdd94b2c8"
+      "sha256": "ba52adad4ee3827c83d1f56008d597b22a97089bbc1493c35d2653e688d1ddc8"
     },
     {
       "path": "tests/test_dev_memory.py",
@@ -242,7 +242,7 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "c3833ef9cd8f58a4baaeb5165914f616ccf66f577f94c54635bc62692f0b3863"
+      "sha256": "1bc06a5778c999af5606ee7f61cd54811c6a4c16740cbe2c491d9ff78c1250f2"
     },
     {
       "path": "evals/check_deepseek.py",

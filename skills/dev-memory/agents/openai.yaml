@@ -1,4 +1,4 @@
 interface:
   display_name: "Dev Memory"
-  short_description: "Private local memory for development work"
-  default_prompt: "Use $dev-memory to recall relevant constraints and record confirmed changes."
+  short_description: "Local developer habits for AI coding assistants"
+  default_prompt: "Use $dev-memory to recall and apply relevant developer habits, and update them from supported user feedback."

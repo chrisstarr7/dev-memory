@@ -1,7 +1,7 @@
 {
   "name": "dev-memory",
   "version": "0.7.0",
-  "description": "Private local development memory for AI coding assistants.",
+  "description": "Developer-centered local memory of coding habits and reasoning preferences for AI assistants.",
   "license": "MIT",
   "repository": {
     "type": "git",
