@@ -38,7 +38,8 @@ class MaintenanceTests(MemoryTestCase):
             'expected_revisions':{first:1},'reason':'Old snapshot.'}])
         self.assertEqual(response['stores'][0]['error'], 'revision_conflict')
         self.assertEqual(response['stores'][0]['transaction'], 'rolled_back')
-        for n, fields in enumerate([{'expected_revision':True}, {'expected_revision':2,'expected_revisions':{first:1}}]):
+        for n, fields in enumerate([{'expected_revision':True}, {'expected_revision':2,'expected_revisions':{first:1}},
+                                   {'id':[], 'expected_revision':2}]):
             response = self.apply(scope='project',turn=f'invalid-compact-{n}',operations=[{
                 'op':'COMPACT','id':first,'content':'Short.','meaning_preserved':True,'reason':'Reviewed.',**fields}])
             self.assertEqual(response['stores'][0]['error'], 'validation_error')

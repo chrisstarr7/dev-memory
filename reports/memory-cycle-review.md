@@ -43,7 +43,7 @@ All evaluations use synthetic temporary homes/projects. No installed personal Sk
 
 ### Program and adversarial checks
 
-The local suite passed 194 tests in 31.810 seconds, with two native Windows checks skipped on macOS. A later benchmark-inspection regression is included in the final release suite recorded in [verification.md](verification.md). New behavior checks cover:
+The final local suite passed **195 tests in 32.531 seconds**, with two native Windows checks skipped on macOS. It includes the benchmark-inspection regression and malformed-ID guard; the earlier 194-test iteration also passed. See [verification.md](verification.md). New behavior checks cover:
 
 | Counterexample | Result |
 | --- | --- |
@@ -72,9 +72,9 @@ The real lifecycle run passed requirement capture → schema/API artifacts → c
 
 Independent checks passed integer cents/status, idempotent replay, tenant-isolated keys, conflicting-key rejection, every eligibility/exclusion and the 14-day boundary, no cross-tenant order leak, and actual frontend/backend loopback HTTP. An injected 15-day eligibility bug failed independently before the AI fixed it; the same checks passed afterward. A retained only one active business rule and one current checkpoint; B recalled the confirmed global preference without A's business rule. Two phases reported concrete rule use; code checks, not those reports, established the tested behavior. Actual tool-result observations were recorded; structured verification metadata count was **zero** and is not claimed as implemented model output.
 
-**Source boundary:** this successful lifecycle used an earlier 0.6.0 candidate. Later changes minimized USE receipts, improved error messages, added the maintenance revision resolver, invalidated old recall-cache formats, and refined instructions. The final maintenance evaluation below and final program suite cover those changes; the entire lifecycle was not repeated on the final bytes. Runtime hashes for both snapshots are included in the local evaluation artifact; this distinction must not be collapsed into a claim of exhaustive final-source end-to-end verification.
+**Source boundary:** this successful lifecycle used an earlier 0.6.0 candidate. Later changes minimized USE receipts, improved error messages, added the maintenance revision resolver, invalidated old recall-cache formats, and refined instructions. The maintenance evaluation below and final program suite cover those changes; the entire lifecycle was not repeated on the final bytes. Runtime hashes for both snapshots are included in the local evaluation artifact; this distinction must not be collapsed into a claim of exhaustive final-source end-to-end verification.
 
-### Real automatic maintenance on final runtime
+### Real automatic maintenance
 
 | Fresh session | Task time (s) | Tool calls | Input tokens | Cached input subset | Output tokens | Observed successful operations |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
@@ -83,7 +83,7 @@ Independent checks passed integer cents/status, idempotent replay, tenant-isolat
 
 The first session merged three equivalent normal policies, compacted a separate damaged-item policy and preserved its 7-day window, ReturnPolicyV2 limit and prose-only `manual_review` / `supervisor_override` exception. Structured protected fields and original evidence survived unchanged. The second session reused the canonical rule without duplicate insertion. Scope isolation and no business-code edits passed. The maintenance runner does **not** sample first effective action, so no value is inferred here. These are total task times, not incremental memory overhead.
 
-Final runtime SHA-256 checkpoints:
+Maintenance-evaluated runtime SHA-256 checkpoints:
 
 | File under `skills/dev-memory/` | SHA-256 |
 | --- | --- |
@@ -108,16 +108,24 @@ Attempted eight shuffled trials: two repetitions of memory on/off × empty/histo
 
 No valid key-constraint omission rate or improvement claim follows from this run. Historical 0.4.0 timing remains in [lifecycle-review.md](lifecycle-review.md), and cannot be extrapolated to 0.6.0. A future matched run needs available host quota; the corrected harness is supplied. CLI process startup and ephemeral-host initialization also differ from a warm desktop conversation. Faster SQL and fewer mandatory protocol reads do not establish negligible whole-task delay.
 
-### Program-only scale probe on final runtime
+### Program-only scale probe
 
 Ten repetitions per cell; synthetic data only, no AI invocation. Medians:
 
 | Active records | Narrow recall | Saturated recall | Maintenance preparation |
 | ---: | ---: | ---: | ---: |
-| 1,000 | 22.381 ms | 22.071 ms | 10.254 ms |
-| 10,000 | 23.567 ms | 43.168 ms | 119.541 ms |
+| 1,000 | 22.679 ms | 25.355 ms | 11.455 ms |
+| 10,000 | 25.327 ms | 54.487 ms | 127.303 ms |
 
 Saturated retrieval reports incomplete/candidate overflow and preserves its bounded output. Preparation returns at most eight related records. These measurements include the local program path, and exclude AI inference, semantic review and host tool latency.
+
+A final adversarial extension reproduced an unhashable-ID exception for scalar COMPACT input (`id:[]`). A two-line ID guard now returns a transactional validation error; the final suite covers it. This guard was added after the successful real maintenance sessions; they were not repeated for the malformed-input-only change. Source hashes distinguish the snapshots.
+
+The final program-only probe includes that guard; its store-script SHA-256 is `8a6db928ac2d2ebfe2f5b066ddc6f195484f00994043e6c545ac86d984de69ca`.
+
+### Public update command
+
+A real public npx check at feature commit `4defe59f0065208bc9fa493eee29467f92eaaa15` passed a pinned 0.5.5 A install → unqualified 0.6.0 B update/init → A reuse using one temporary npm cache. A retained body, conditions, exceptions, evidence, revisions, namespace and paused capture; B started empty with a separate namespace; unrelated team guidance survived; all fourteen installed runtime files matched that commit. The final malformed-ID guard does not change installation. This is transport/upgrade evidence, not another AI session.
 
 ## Remaining limits and review conclusion
 

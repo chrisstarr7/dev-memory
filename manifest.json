@@ -42,7 +42,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "3c4b4acc4e1c8155ec13452fb4c3a1868274b923b5ca3d5d9458f325ab1336f9"
+      "sha256": "8a6db928ac2d2ebfe2f5b066ddc6f195484f00994043e6c545ac86d984de69ca"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -118,7 +118,7 @@
     },
     {
       "path": "tests/test_maintenance.py",
-      "sha256": "b1ff83a5a62d0a10e1cf4fb355a073b299912a28091634a034489160ad1f3b20"
+      "sha256": "57e827afe85dc90ca5738c5c8f5fac2647927483b38c2180c805bab9e54bd99d"
     },
     {
       "path": "tests/test_lifecycle.py",
@@ -170,7 +170,7 @@
     },
     {
       "path": "reports/verification.md",
-      "sha256": "61f8eafe464f8788e3d54e47c922e9c79e00636895567fd33b4fb6041fad4997"
+      "sha256": "338c7a0b92a6aac0820986a1677b30133f4d04a06bf80d00b4b622703d234b9c"
     },
     {
       "path": "reports/adversarial-review.md",
@@ -258,7 +258,7 @@
     },
     {
       "path": "reports/memory-cycle-review.md",
-      "sha256": "8e8248aa9f4bd8cd1b86d922970e1567bec2df7f6384eed251f1b00de3671a4a"
+      "sha256": "49764b56760b09a0d4531d8e5176523ca6817a2ef5c03ad152d2cb65f3441b8b"
     }
   ],
   "license_status": "MIT",

@@ -1073,6 +1073,8 @@ def _resolve_maintenance_revisions(conn: sqlite3.Connection, op: dict[str, Any],
         return op, False
     if op['op'] == 'COMPACT' and 'expected_revision' in op:
         revision = op['expected_revision']
+        if not _valid_local_id(op.get('id')):
+            raise MemoryError('validation_error', 'COMPACT requires a valid local record ID.')
         if type(revision) is not int:
             raise MemoryError('validation_error', 'COMPACT expected_revision must be an integer.')
         supplied = op.get('expected_revisions')
