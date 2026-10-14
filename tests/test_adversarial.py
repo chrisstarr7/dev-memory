@@ -2,6 +2,7 @@
 import json
 import os
 import shutil
+import sys
 import subprocess
 import unittest
 from pathlib import Path
@@ -115,6 +116,15 @@ class AdversarialTests(MemoryTestCase):
         conn = store._connect(foreign, readonly=True)
         self.assertEqual(conn.execute("SELECT content FROM memories WHERE id='same-id'").fetchone()[0], "B business")
         conn.close()
+
+    def test_benchmark_inspects_full_records_instead_of_summary_fields(self):
+        import bench_compare
+        self.add_project_rule(title='Confirmed refund eligibility',tags=['refund'])
+        self.assertNotIn('claim_type',store.list_records('project',project_root=self.project_a)['records'][0])
+        for mode in ('on','off'):
+            result=bench_compare._memory_state(self.project_a,history=True,mode=mode)
+            self.assertEqual(result['active_refund_rules'],1)
+            self.assertEqual(result['historical_duplicates_retired'],True if mode=='on' else None)
 
     def test_global_init_refuses_orphaned_private_data(self):
         base = self.home / "orphan/global"
@@ -357,6 +367,21 @@ class AdversarialTests(MemoryTestCase):
         payload = json.loads(protocol.split("```json\n", 1)[1].split("```", 1)[0])
         result = store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)
         self.assertEqual(result["status"], "saved", result)
+
+    def test_skill_quick_checkpoint_contract_is_a_valid_nested_record(self):
+        skill = (ROOT / 'skills/dev-memory/SKILL.md').read_text(encoding='utf-8')
+        payload = json.loads(skill.split('```json\n', 1)[1].split('```', 1)[0])
+        result = store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)
+        self.assertEqual(result['status'], 'saved', result)
+        active = store.list_records('project', project_root=self.project_a)['records']
+        self.assertEqual({r['kind'] for r in active}, {'business_rule','checkpoint'})
+
+    def test_empty_apply_input_explains_input_contract_and_writes_nothing(self):
+        result = subprocess.run([sys.executable, str(ROOT/'skills/dev-memory/scripts/dev_memory.py'),
+                                 'apply', '--project-root', str(self.project_a)], input='', capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--input', json.loads(result.stdout)['message'])
+        self.assertEqual(store.list_records('project',project_root=self.project_a)['records'], [])
 
 
 if __name__ == "__main__":

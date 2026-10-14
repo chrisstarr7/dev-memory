@@ -17,7 +17,8 @@ from typing import Any, Iterable
 from urllib.parse import quote
 
 SCHEMA_VERSION = 1
-MAINTENANCE_REVIEW_VERSION = 2
+MAINTENANCE_REVIEW_VERSION = 3
+MAINTENANCE_OPS = {'COMPACT', 'MERGE_DUPLICATES', 'MAINTENANCE_REVIEW'}
 KINDS = {"preference", "convention", "project_fact", "business_rule", "decision", "lesson", "procedure", "checkpoint", "summary"}
 GLOBAL_KINDS = {"preference", "convention", "decision", "lesson", "procedure", "summary"}
 CLAIM_TYPES = {"desired", "observed", "preference", "hypothesis"}
@@ -601,12 +602,12 @@ def _valid_local_id(value: Any) -> bool:
 
 def _validate_record(record: Any, scope: str, task_id: str | None, namespace_id: str) -> dict[str, Any]:
     if not isinstance(record, dict):
-        raise MemoryError("validation_error", "Record must be a JSON object.")
+        raise MemoryError("validation_error", "Record must be a nested JSON object under the operation's record key.")
     _ensure_not_sensitive(record)
     if any(not isinstance(record.get(key), str) or not record[key].strip() for key in ("kind", "title", "content")):
         raise MemoryError("validation_error", "Record requires non-empty kind, title, and content.")
     if record["kind"] not in KINDS:
-        raise MemoryError("validation_error", "Unsupported memory kind.")
+        raise MemoryError("validation_error", 'Unsupported memory kind; choose: ' + ', '.join(sorted(KINDS)) + '.')
     claim_type = record.get("claim_type", "hypothesis")
     status = record.get("status", "active")
     strength = record.get("strength", "informational")
@@ -825,6 +826,7 @@ def _ensure_maintenance(conn: sqlite3.Connection) -> bool:
         conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_review_version',?)", (str(MAINTENANCE_REVIEW_VERSION),))
         if conn.execute("SELECT 1 FROM memories WHERE status='active' LIMIT 1").fetchone():
             conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_review_notice','1')")
+            conn.execute("INSERT OR IGNORE INTO meta(key,value) VALUES('maintenance_cycle_active','1')")
     notice = conn.execute("SELECT 1 FROM meta WHERE key='maintenance_review_notice' AND value='1'").fetchone()
     return bool(notice)
 
@@ -832,6 +834,34 @@ def _ensure_maintenance(conn: sqlite3.Connection) -> bool:
 def _queue_maintenance(conn: sqlite3.Connection, memory_id: str) -> None:
     conn.execute("INSERT INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE id=? AND status='active' ON CONFLICT(memory_id) DO UPDATE SET revision=excluded.revision,updated_at=excluded.updated_at,long_content=excluded.long_content", (memory_id,))
     conn.execute("DELETE FROM maintenance_pending WHERE memory_id=? AND NOT EXISTS(SELECT 1 FROM memories WHERE id=? AND status='active')", (memory_id, memory_id))
+
+
+def _refresh_maintenance_cycle(conn: sqlite3.Connection) -> bool:
+    pending = conn.execute("SELECT q.long_content FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active' LIMIT 5").fetchall()
+    if not pending:
+        conn.execute("DELETE FROM meta WHERE key='maintenance_cycle_active'")
+        return False
+    if len(pending) == 5 or conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status='active' LIMIT 1").fetchone():
+        conn.execute("INSERT OR IGNORE INTO meta(key,value) VALUES('maintenance_cycle_active','1')")
+    return bool(conn.execute("SELECT 1 FROM meta WHERE key='maintenance_cycle_active' AND value='1'").fetchone())
+
+
+def _maintained_this_turn(conn: sqlite3.Connection, top: dict[str, Any]) -> bool:
+    if not top.get('session_id') or not top.get('turn_id'):
+        return False
+    rows = conn.execute("SELECT result_json FROM receipts WHERE session_id=? AND turn_id=? LIMIT 33",
+                        (top['session_id'], top['turn_id'])).fetchall()
+    if len(rows) > 32:
+        return True  # Defer automatic work rather than inspect an unbounded turn history.
+    for (result_json,) in rows:
+        try:
+            operations = json.loads(result_json)
+        except ValueError:
+            return True
+        if isinstance(operations, list) and any(isinstance(op, dict) and
+                (op.get('reviewed_ids') or op.get('merged_ids') or op.get('compacted') is True) for op in operations):
+            return True
+    return False
 
 
 def _related_records(conn: sqlite3.Connection, record: dict[str, Any], limit: int = 8) -> list[dict[str, Any]]:
@@ -873,7 +903,8 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
     long_row = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status='active' ORDER BY q.updated_at,q.memory_id LIMIT 1").fetchone()
     if not seeds:
         return {'status': 'idle'}
-    if len(seeds) < 5 and not long_row and not force:
+    draining = bool(conn.execute("SELECT 1 FROM meta WHERE key='maintenance_cycle_active' AND value='1'").fetchone())
+    if len(seeds) < 5 and not long_row and not force and not draining:
         return {'status': 'waiting', 'pending_up_to_threshold': len(seeds), 'threshold': 5}
     seed_ids = [row[0] for row in seeds]
     anchor_id = long_row[0] if long_row else seed_ids[0]
@@ -894,6 +925,7 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
         used += size
     pending_count = conn.execute("SELECT COUNT(*) FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active'").fetchone()[0]
     return {'status': 'prepare', 'namespace_id': config['namespace_id'],
+            'trigger': 'long_record' if long_row else ('threshold' if len(seeds) == 5 else ('drain' if draining else 'forced_boundary')),
             'record_scope': anchor['scope'], 'task_id': anchor.get('task_id') if anchor['scope'] == 'task' else None,
             'records': records,
             'seed_ids': seed_ids, 'remaining_ids': remaining, 'context_incomplete': bool(remaining),
@@ -903,7 +935,7 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
 
 
 def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
-                        force: bool = False) -> dict[str, Any]:
+                        force: bool = False, session_id: str | None = None, turn_id: str | None = None) -> dict[str, Any]:
     _, db, config = _config_for(kind, project_root, global_root)
     if not config.get('capture_enabled', True) or not config.get('recall_enabled', True) or config.get('excluded'):
         return {'scope': kind, 'status': 'skipped_private'}
@@ -913,6 +945,12 @@ def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_r
             return {'scope': kind, 'status': 'upgrade_required'}
         deadline = time.monotonic() + 0.5
         conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+        if session_id and turn_id:
+            private = conn.execute("SELECT 1 FROM receipts WHERE session_id=? AND turn_id=? AND status='skipped_private' LIMIT 1", (session_id, turn_id)).fetchone()
+            if private:
+                return {'scope':kind, 'status':'skipped_private'}
+            if _maintained_this_turn(conn, {'session_id':session_id, 'turn_id':turn_id}):
+                return {'scope':kind, 'status':'pending_next_turn'}
         return {'scope': kind, **_maintenance_plan(conn, config, force)}
     except sqlite3.OperationalError:
         return {'scope': kind, 'status': 'deferred', 'reason': 'query_budget_or_storage_failure'}
@@ -979,7 +1017,7 @@ def _maintenance_apply(conn: sqlite3.Connection, config: dict[str, Any], scope: 
     if action == 'MAINTENANCE_REVIEW':
         for memory_id, revision in expected.items():
             conn.execute('DELETE FROM maintenance_pending WHERE memory_id=? AND revision<=?', (memory_id, revision))
-        return {'status': 'checked_noop', 'reviewed_ids': list(records)}, False
+        return {'status': 'checked_noop', 'reviewed_ids': list(records), 'reviewed_revisions': expected}, False
     if op.get('meaning_preserved') is not True:
         raise MemoryError('validation_error', 'AI must review meaning preservation before maintenance.')
     target = records.get(op.get('id'))
@@ -1029,9 +1067,34 @@ def _maintenance_apply(conn: sqlite3.Connection, config: dict[str, Any], scope: 
             'semantic_review': 'ai_claim_not_program_verified', 'evidence_added': False}, True
 
 
+def _resolve_maintenance_revisions(conn: sqlite3.Connection, op: dict[str, Any], base: dict[str, int]) -> tuple[dict[str, Any], bool]:
+    """Translate a validated batch snapshot, never an externally stale revision."""
+    if op.get('op') not in MAINTENANCE_OPS:
+        return op, False
+    if op['op'] == 'COMPACT' and 'expected_revision' in op:
+        revision = op['expected_revision']
+        if type(revision) is not int:
+            raise MemoryError('validation_error', 'COMPACT expected_revision must be an integer.')
+        supplied = op.get('expected_revisions')
+        if supplied is not None and (not isinstance(supplied, dict) or supplied != {op.get('id'):revision}):
+            raise MemoryError('validation_error', 'COMPACT revision forms conflict; supply one consistent record revision.')
+        op = {**op, 'expected_revisions':{op.get('id'):revision}}
+    expected = op.get('expected_revisions')
+    if not isinstance(expected, dict) or not 1 <= len(expected) <= 8:
+        return op, False
+    resolved = dict(expected)
+    for memory_id, revision in expected.items():
+        current = _select_record(conn, memory_id) if _valid_local_id(memory_id) else None
+        if current:
+            base.setdefault(memory_id, current['revision'])
+            if type(revision) is int and revision == base[memory_id]:
+                resolved[memory_id] = current['revision']
+    return {**op, 'expected_revisions':resolved}, resolved != expected
+
+
 def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op: dict[str, Any], top: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     action = op.get("op")
-    if action in {"COMPACT", "MERGE_DUPLICATES", "MAINTENANCE_REVIEW"}:
+    if action in MAINTENANCE_OPS:
         if config.get('maintenance_enabled', True) is False:
             raise MemoryError('capture_disabled', 'Automatic maintenance is disabled for this store.')
         return _maintenance_apply(conn, config, scope, op)
@@ -1039,9 +1102,27 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
         if not isinstance(op.get("reason"), str) or not op["reason"].strip():
             raise MemoryError("validation_error", "A checked NOOP requires a short reason.")
         return {"status": "checked_noop"}, False
+    if action == 'USE':
+        allowed = {'op', 'scope', 'id', 'expected_revision', 'reason', 'action_ref'}
+        if set(op) - allowed:
+            raise MemoryError('validation_error', 'USE reports an action only; it cannot supply content, evidence or verification.')
+        current = _select_record(conn, op.get('id')) if _valid_local_id(op.get('id')) else None
+        if not current or current['scope'] != scope or current['status'] != 'active':
+            raise MemoryError('scope_error', 'USE needs an active rule in this scope.')
+        if scope == 'task' and current['task_id'] != top.get('task_id'):
+            raise MemoryError('scope_error', 'USE cannot report another task rule.')
+        if type(op.get('expected_revision')) is not int or op['expected_revision'] != current['revision']:
+            raise MemoryError('revision_conflict', 'The used rule changed; inspect the current revision.')
+        if any(not isinstance(op.get(key), str) or not op[key].strip() or len(op[key]) > 500 for key in ('reason', 'action_ref')):
+            raise MemoryError('validation_error', 'USE needs a short concrete reason and action_ref.')
+        if scope == 'global' and _project_marker(json.dumps(op, ensure_ascii=False)):
+            raise MemoryError('scope_error', 'Global USE receipts cannot contain project markers.')
+        return {'status':'checked_noop', 'used_id':current['id'], 'revision':current['revision'],
+                'reason':op['reason'], 'action_ref':op['action_ref'],
+                'usage':'ai_reported_not_behavior_verified', 'evidence_added':False}, False
     if action in {"ADD", "CHECKPOINT"}:
         if not isinstance(op.get("record"), dict):
-            raise MemoryError("validation_error", "Record must be a JSON object.")
+            raise MemoryError("validation_error", f'{action} requires a nested record JSON object; do not flatten its fields onto the operation.')
         record = dict(op["record"])
         if action == "CHECKPOINT":
             record["kind"] = "checkpoint"
@@ -1212,6 +1293,8 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         conn = _connect(db_path)
         conn.execute("BEGIN IMMEDIATE")
         review_existing = _ensure_maintenance(conn)
+        _refresh_maintenance_cycle(conn)
+        maintained_this_turn = _maintained_this_turn(conn, top)
         if review_existing:
             conn.execute("DELETE FROM meta WHERE key='maintenance_review_notice'")
         private = conn.execute("SELECT 1 FROM receipts WHERE session_id=? AND turn_id=? AND status='skipped_private'",
@@ -1231,19 +1314,23 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
             return {"scope": target_scope, "status": replay[0], "idempotent_replay": True, "operations": json.loads(replay[1])}
         content_changed = False
         has_noop = False
+        batch_revisions: dict[str, int] = {}
         for op in operations:
+            op, revisions_resolved = _resolve_maintenance_revisions(conn, op, batch_revisions)
             op_scope = op.get("scope", target_scope)
             if op.get("op") == "CHECKPOINT":
                 op_scope = "task"
             if target_scope == "global" and op_scope != "global":
                 raise MemoryError("scope_error", "A project or task operation reached the global store.")
             result, changed = _apply_one(conn, config, op_scope, op, top)
+            if revisions_resolved:
+                result['revision_resolution'] = 'within_batch'
             results.append(result)
             content_changed |= changed
             has_noop |= result["status"] == "checked_noop"
             if changed and result.get("id"):
                 changed_ids.add(result["id"])
-                if op.get('op') not in {'COMPACT', 'MERGE_DUPLICATES'}:
+                if op.get('op') not in MAINTENANCE_OPS:
                     _queue_maintenance(conn, result['id'])
         if kind == "project" and top.get("session_id") and top.get("task_id"):
             conn.execute(
@@ -1251,9 +1338,13 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
                 (top["session_id"], top["task_id"], config.get("workspace_id"), top.get("branch"), top.get("commit_id"), utc_now()),
             )
         status = "saved" if content_changed else ("checked_noop" if has_noop else "saved")
+        draining = _refresh_maintenance_cycle(conn)
         if content_changed:
             conn.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='data_revision'")
-        result_blob = json.dumps(results, ensure_ascii=False, sort_keys=True)
+        # Keep usage identity/revision, not another copy of project prose in receipts.
+        receipt_results = [{k:v for k,v in result.items() if k not in {'reason','action_ref'}}
+                           if result.get('usage') == 'ai_reported_not_behavior_verified' else result for result in results]
+        result_blob = json.dumps(receipt_results, ensure_ascii=False, sort_keys=True)
         conn.execute(
             "INSERT INTO receipts(idempotency_key,session_id,turn_id,status,checked_at,result_json,payload_hash) VALUES(?,?,?,?,?,?,?)",
             (idem, top.get("session_id"), top.get("turn_id"), status, utc_now(), result_blob, digest),
@@ -1262,7 +1353,10 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         conn.commit()
         conn.close()
         maintenance = {'status': 'not_due'}
-        if (content_changed or review_existing) and not any(op['op'] in {'COMPACT', 'MERGE_DUPLICATES', 'MAINTENANCE_REVIEW'} for op in operations):
+        maintained_this_turn |= any(op['op'] in MAINTENANCE_OPS for op in operations)
+        if maintained_this_turn and draining:
+            maintenance = {'status':'pending_next_turn'}
+        elif (content_changed or review_existing or draining) and not maintained_this_turn:
             try:
                 maintenance = maintenance_prepare(kind, project_root=root, global_root=global_root)
             except (MemoryError, sqlite3.Error, OSError):
@@ -1275,7 +1369,7 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         if conn is not None:
             conn.rollback()
             conn.close()
-        return {"scope": target_scope, "status": "failed", "error": exc.code, "message": exc.message}
+        return {"scope": target_scope, "status": "failed", "error": exc.code, "message": exc.message, "transaction":"rolled_back"}
     except sqlite3.IntegrityError:
         conn.rollback()
         conn.close()
@@ -1322,7 +1416,7 @@ def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, 
         else:
             raise MemoryError("scope_error", "Unsupported operation scope.")
     if scope == "global" and groups["project"] or scope in {"project", "task"} and groups["global"]:
-        raise MemoryError("scope_error", "An operation cannot escape the selected storage scope.")
+        raise MemoryError("scope_error", 'An operation cannot escape the selected storage scope; mixed global/project/task writes need envelope scope both and explicit scope on each operation.')
     results = []
     for kind, group in groups.items():
         if group:
@@ -1420,6 +1514,7 @@ def _context_record(record: dict[str, Any]) -> dict[str, Any]:
         "id", "scope", "kind", "claim_type", "status", "strength", "title", "content",
         "conditions", "exceptions", "do", "dont", "verification_steps", "tags", "task_id",
         "branch", "commit_id", "verification", "verification_status", "last_verified_at", "revision", "derived_from",
+        "source_refs", "code_refs",
     )}
 
 def _verification_status(record: dict[str, Any], root: Path | None, current_head: str | None,
@@ -1476,6 +1571,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         except sqlite3.Error:
             active_task = task_id
     cache_value = {
+        "retrieval_format": 2,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
         "revision": current_revision, "task": active_task, "module": module, "resume": resume,
         "query_terms": sorted(_token_terms(query[:10000]))[:128],
@@ -1572,11 +1668,13 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         records.sort(key=lambda record: (record["updated_at"], record["id"]), reverse=True)
         records.sort(key=lambda record: (
             0 if record["kind"] == "checkpoint" and (record.get("task_id") == active_task or resume) else 1,
+            0 if record['_score'] > 0 else 1,
             0 if record["strength"] == "hard" else 1,
             -record["_score"],
         ))
         overflow_ids = [r["id"] for r in records[max_candidates:]]
         candidate_count = len(records)
+        all_candidates = records
         records = records[:max_candidates]
         details: list[dict[str, Any]] = []
         remaining: list[str] = overflow_ids
@@ -1589,11 +1687,25 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             else:
                 details.append(shaped)
                 used += size
+        unloaded = []
+        index_chars = 0
+        for record in all_candidates:
+            if record['id'] not in remaining:
+                continue
+            descriptor = {key:record.get(key) for key in ('id','kind','claim_type','status','strength','task_id','revision')}
+            descriptor.update(title=record['title'][:120], tags=record['tags'][:8],
+                              query_match=record['_score'] > 0, content_loaded=False)
+            size = len(json.dumps(descriptor, ensure_ascii=False))
+            if len(unloaded) == 8 or index_chars + size > 2000:
+                break
+            unloaded.append(descriptor)
+            index_chars += size
         if session_id and not readonly and not remaining and can_cache:
             _claim_context(kind, db_path, config, session_id, cache_key, True)
         return {
             "scope": kind, "status": "ok", "records": details, "candidate_count": candidate_count,
             "context_incomplete": bool(remaining), "remaining_ids": remaining,
+            "unloaded_candidates": unloaded,
             "candidate_limit_reached": candidate_limit_reached or bool(overflow_ids),
             "task_id": active_task, "namespace_id": config["namespace_id"], "data_revision": current_revision,
         }

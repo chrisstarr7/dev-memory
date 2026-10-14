@@ -15,6 +15,7 @@ import statistics
 import subprocess
 import sys
 import tempfile
+from check_maintenance import observed_usage, observed_maintenance
 import time
 from pathlib import Path
 from typing import Any
@@ -105,6 +106,16 @@ def _token_usage(event: dict[str, Any]) -> dict[str, int] | None:
     walk(event)
     return found[-1] if found else None
 
+def _memory_state(project: Path, *, history: bool, mode: str) -> dict[str, Any]:
+    import dev_memory_store as store
+    records = [store.show_record('project',r['id'],project_root=project)['record']
+               for r in store.list_records('project',project_root=project)['records']]
+    rules = [r for r in records if r['kind'] in {'business_rule','decision'} and r['claim_type']=='desired'
+             and ('refund' in r['tags'] or 'refund' in r['title'].casefold())]
+    return {'active_refund_rules':len(rules),
+            'historical_duplicates_retired':len(rules)==1 if history and mode=='on' else None,
+            'state_count_not_semantic_proof':True}
+
 def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: str, history: bool,
                repetition: int, scratch: Path, scenario: str = "recovery") -> dict[str, Any]:
     project = scratch / "project"
@@ -152,12 +163,14 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
     protocol_reads = 0
     tool_events = 0
     token_usage = None
+    reported_use_ids = set()
+    maintenance_observed = {'COMPACT':False,'MERGE_DUPLICATES':False,'MAINTENANCE_REVIEW':False}
     event_lines = 0
     host_errors = []
     timed_out = False
     error_file = scratch / "stderr.log"
     error_stream = error_file.open("w", encoding="utf-8")
-    process = subprocess.Popen(argv, cwd=project, env=env, stdout=subprocess.PIPE, stderr=error_stream,
+    process = subprocess.Popen(argv, cwd=project, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=error_stream,
                               text=True, encoding="utf-8", errors="replace", bufsize=1, start_new_session=True)
     assert process.stdout is not None
     selector = selectors.DefaultSelector()
@@ -191,6 +204,9 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
             if isinstance(event, dict) and event.get('type') in {'error', 'turn.failed'}:
                 host_errors.append(event)
             token_usage = _token_usage(event) or token_usage
+            reported_use_ids.update(observed_usage([event]))
+            for operation, observed in observed_maintenance([event]).items():
+                maintenance_observed[operation] |= observed
             item = event.get("item") if isinstance(event, dict) else None
             event_type = event.get("type") if isinstance(event, dict) else None
             item_type = item.get("type") if isinstance(item, dict) else None
@@ -248,6 +264,9 @@ assert all(refunds.refund_eligible(order)==expected for order,expected in cases)
         independent_behavior = checked.returncode == 0
     policy_match = (independent_behavior if scenario == "automatic-maintenance" else all(constraints.values())) if expected == "implement_rule" else None
     tests_passed = (test_result.get("exit_code") == 0 and test_count > 0) if test_result else None
+    memory_state = None
+    if scenario == 'automatic-maintenance':
+        memory_state = _memory_state(project,history=history,mode=mode)
     criterion = (bool(policy_match) and tests_passed) if expected == "implement_rule" and test_result else (
         None if expected == "implement_rule" else (not changed and asks)
     )
@@ -258,6 +277,8 @@ assert all(refunds.refund_eligible(order)==expected for order,expected in cases)
         "first_business_edit_seconds": round(first_business_edit, 3) if first_business_edit is not None else None,
         "memory_tool_events": memory_events, "protocol_read_events": protocol_reads,
         "tool_event_count": tool_events, "token_usage": token_usage, "jsonl_event_count": event_lines,
+        "memory_use_reported_ids": sorted(reported_use_ids),
+        "maintenance_operations_observed": maintenance_observed, "memory_state_after": memory_state,
         "expected_behavior": expected, "automated_criterion_match": criterion,
         "policy_constraint_match": policy_match,
         "constraint_presence": constraints if expected == "implement_rule" else None,
@@ -348,7 +369,7 @@ def main() -> int:
         "benchmark": "dev-memory A/B synthetic refund-rule coding task", "scenario": args.scenario,
         "runtime_source_sha256": frozen,
         "history_stores_identically_seeded_on_and_off": args.scenario == "automatic-maintenance",
-        "runtime_version": "0.5.5", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
+        "runtime_version": "0.6.0", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
         "model": args.model, "reasoning": args.reasoning, "codex_cli": _version(codex),
         "repetitions_per_cell": args.repetitions, "condition_order_seed": args.seed,
         "same_task_text": True, "same_starting_code": True,

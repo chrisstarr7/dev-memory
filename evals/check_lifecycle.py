@@ -23,6 +23,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'skills/dev-memory/scripts'))
 from dev_memory import SKILL_FILES
 import dev_memory_store as store
+from check_maintenance import observed_usage
 
 DESIGN='''Create a synthetic refund approval project. This turn finish requirements, SQLite schema and an API draft only; do not implement the application yet.
 Confirmed policy: delivered and unopened orders within 30 days after delivery, excluding gift and final-sale orders. Refund the full paid amount only; no partial refunds. Amounts are integer cents, never floats/dollars. Enforce integer/nonnegative amounts in SQLite.
@@ -46,7 +47,7 @@ def run_model(codex, model, reasoning, project, home, env, label, prompt, output
     print('Starting '+label,flush=True)
     started=time.monotonic();first=None;events=[];timed_out=False
     with (output.parent/f'lifecycle-{label}.stderr').open('w') as stderr:
-        process=subprocess.Popen(argv,cwd=project,env=env,stdout=subprocess.PIPE,stderr=stderr,text=True,start_new_session=True)
+        process=subprocess.Popen(argv,cwd=project,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=stderr,text=True,start_new_session=True)
         selector=selectors.DefaultSelector();selector.register(process.stdout,selectors.EVENT_READ)
         lines=[]
         while selector.get_map():
@@ -68,6 +69,7 @@ def run_model(codex, model, reasoning, project, home, env, label, prompt, output
             'first_tool_action_seconds':first,'command_calls':len(commands),
             'tool_calls':sum(e.get('type')=='item.started' and e.get('item',{}).get('type') in {'command_execution','mcp_tool_call','file_change'} for e in events),
             'usage':next((e['usage'] for e in reversed(events) if e.get('usage')),None),
+            'memory_use_reported_ids':observed_usage(events),
             'host_errors':[e for e in events if e.get('type') in {'error','turn.failed'}]}
     print(json.dumps(result),flush=True)
     return result,commands
@@ -165,16 +167,17 @@ def program_scale_probe():
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--model');p.add_argument('--reasoning');p.add_argument('--program-only',action='store_true');p.add_argument('--timeout-seconds',type=int,default=360)
+    p.add_argument('--design-only',action='store_true',help='Fail fast on first-turn requirement/global preference/checkpoint capture')
     a=p.parse_args();output=a.output.expanduser().resolve()
     if output.is_relative_to(ROOT):p.error('Keep synthetic transcripts outside the repository.')
     output.parent.mkdir(parents=True,exist_ok=True)
     if a.program_only:
-        report={'status':'passed','runtime_version':'0.5.5','runtime_source_sha256':source_hashes(),'program_scale':program_scale_probe()}
+        report={'status':'passed','runtime_version':'0.6.0','runtime_source_sha256':source_hashes(),'program_scale':program_scale_probe()}
         output.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report));return 0
     if not a.model or not a.reasoning:p.error('--model and --reasoning are required for real-host evaluation.')
     codex=shutil.which('codex');assert codex and shutil.which('node'),'Codex and Node required for explicit evaluation.'
     frozen=source_hashes()
-    report={'status':'running','runtime_version':'0.5.5','host':subprocess.check_output([codex,'--version'],text=True).strip(),
+    report={'status':'running','runtime_version':'0.6.0','host':subprocess.check_output([codex,'--version'],text=True).strip(),
             'model':a.model,'reasoning':a.reasoning,'runtime_source_sha256':frozen,'synthetic_only':True,'hooks_configured':False,
             'ordinary_prompts_without_skill_invocation':True,'runs':[],'checks':{},'limitations':[
             'One synthetic project cycle over fresh Codex CLI sessions; not exhaustive semantic validation or other-host enforcement.',
@@ -201,6 +204,20 @@ def main():
             for name in ['SPEC.md','schema.sql','api.md']:assert (project/name).is_file(),name
             assert not (project/'backend.py').exists(),'Implemented before authorization.'
             report['checks']['requirements_schema_api_artifacts']=True
+            first_records=store.list_records('project',project_root=project,status='active',limit=100)['records']
+            first_history=[store.show_record('project',r['id'],project_root=project) for r in first_records]
+            first_details=[detail['record'] for detail in first_history]
+            user_sourced={detail['record']['id'] for detail in first_history if any(e['source_type'] in {'user_statement','user_confirmation','user_feedback'} for e in detail['evidence'])}
+            assert any(r['kind'] in {'business_rule','decision'} and r['claim_type']=='desired' and '30' in json.dumps(r,ensure_ascii=False)
+                       and r['id'] in user_sourced for r in first_details), 'Initial business requirement was not captured as a sourced desired rule.'
+            assert any(r['kind']=='checkpoint' and r['task_id'] for r in first_details), 'Initial task checkpoint missing.'
+            assert store.list_records('global',global_root=home/'.dev-memory')['records'], 'Explicit cross-project preference missing.'
+            report['checks']['first_turn_requirement_preference_checkpoint_captured']=True
+            if a.design_only:
+                report['status']='passed'
+                output.write_text(json.dumps(report,indent=2)+'\n')
+                print(json.dumps({'status':report['status'],'checks':report['checks']}),flush=True)
+                return 0
             run('correction-code-frontend-integration',project,IMPLEMENT)
             report['checks']['independent_before_bug']=independent_integration(project,home)
             backend=project/'backend.py';tree=ast.parse(backend.read_text());changed=0
@@ -218,15 +235,16 @@ def main():
             run('testing-regression-bugfix',project,FIX)
             report['checks']['independent_after_fix']=independent_integration(project,home)
             active=store.list_records('project',project_root=project,status='active',limit=100)['records']
-            details=[store.show_record('project',r['id'],project_root=project)['record'] for r in active]
-            rules=[r for r in details if r['kind']=='business_rule']
+            history=[store.show_record('project',r['id'],project_root=project) for r in active]
+            details=[detail['record'] for detail in history]
+            rules=[r for r in details if r['kind'] in {'business_rule','decision'} and r['claim_type']=='desired']
             assert rules,'No business constraints captured.'
             assert any('14' in json.dumps(r,ensure_ascii=False) for r in rules),'Correction missing.'
             assert not any('30 days' in r['conditions'] or '30-day' in r['conditions'] for r in rules),'Old operative condition remained active.'
             report['checks']['semantic_review_note']='Historical superseded-rule annotations may remain in current prose; manually distinguish them from operative conditions.'
             checkpoints=[r for r in details if r['kind']=='checkpoint'];assert checkpoints,'No real checkpoint.'
             assert len({r['task_id'] for r in checkpoints})==len(checkpoints),'Repeated active checkpoints for a task.'
-            assert any(r.get('source',{}).get('type')=='tool_result' and r['claim_type']=='observed' for r in details),'No actual tool-result observation captured.'
+            assert any(detail['record']['claim_type']=='observed' and any(e['source_type']=='tool_result' for e in detail['evidence']) for detail in history),'No actual tool-result observation captured.'
             report['checks']['structured_verification_records']=sum(bool(r.get('verification')) for r in details)
             report['checks']['actual_tool_result_observation_captured']=True
             report['checks']['corrected_policy_and_current_checkpoints']=True

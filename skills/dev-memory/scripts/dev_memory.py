@@ -35,7 +35,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
-    ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json", "reports/multi-project-review.md",
+    ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json", "reports/multi-project-review.md", "reports/memory-cycle-review.md",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
               "gemini-cli": ".gemini/skills", "github-copilot": ".copilot/skills", "opencode": ".config/opencode/skills",
@@ -168,6 +168,7 @@ def doctor(project_root: Path | None, global_root: Path | None) -> dict[str, Any
 
 def context(query: str = '', *, project_root: Path | None = None, global_root: Path | None = None,
             task_id: str | None = None, session_id: str | None = None, module: str | None = None,
+            turn_id: str | None = None,
             max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
             force: bool = False, readonly: bool = False, resume: bool = False) -> dict[str, Any]:
     """One normal startup call: bounded recall and pending check, no host probes/init."""
@@ -181,7 +182,8 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
             bucket['maintenance'] = {'status': 'not_requested_unavailable'}
         else:
             try:
-                bucket['maintenance'] = store.maintenance_prepare(bucket['scope'], project_root=project_root, global_root=global_root)
+                bucket['maintenance'] = store.maintenance_prepare(bucket['scope'], project_root=project_root, global_root=global_root,
+                                                                  session_id=session_id, turn_id=turn_id)
             except (store.MemoryError, sqlite3.Error, OSError):
                 bucket['maintenance'] = {'status': 'deferred', 'reason': 'storage_unavailable'}
     project_activation = activation.status(project_root)
@@ -465,6 +467,8 @@ def _read_payload() -> dict[str, Any]:
     raw = sys.stdin.read(1_000_001)
     if len(raw) > 1_000_000:
         raise store.MemoryError("validation_error", "Structured apply input exceeds the 1 MB limit.")
+    if not raw.strip():
+        raise store.MemoryError('validation_error', 'Supply structured JSON on stdin using a quoted heredoc, or use --input with a scope-local JSON file; no input was submitted.')
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -492,6 +496,8 @@ def _parser() -> argparse.ArgumentParser:
         p.add_argument("--project-root", type=Path)
         p.add_argument("--task-id")
         p.add_argument("--session-id")
+        if name == 'context':
+            p.add_argument("--turn-id", help="Suppress repeated maintenance packs and honor a turn opt-out")
         p.add_argument("--module")
         p.add_argument("--max-candidates", type=int, default=20)
         p.add_argument("--max-details", type=int, default=5)
@@ -521,6 +527,8 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--scope", choices=("global", "project", "both"), default="both")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--force", action="store_true", help="Review pending records below the threshold at a task boundary")
+    p.add_argument("--session-id")
+    p.add_argument("--turn-id")
     p = sub.add_parser("skip")
     p.add_argument("--scope", choices=("global", "project", "both"), default="project")
     p.add_argument("--project-root", type=Path)
@@ -593,6 +601,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.query, project_root=root, global_root=global_root, task_id=args.task_id,
                 session_id=args.session_id, module=args.module if args.module is not None else _module_label(root), max_candidates=args.max_candidates,
                 max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, resume=args.resume,
+                **({'turn_id':args.turn_id} if command == 'context' else {}),
             ))
         elif command == "show":
             scope, root = _scope_arg(args)
@@ -631,7 +640,8 @@ def main(argv: list[str] | None = None) -> int:
             for kind in kinds:
                 try:
                     results.append(store.maintenance_prepare(kind, project_root=root if kind == "project" else None,
-                                                            global_root=global_root, force=args.force))
+                                                            global_root=global_root, force=args.force,
+                                                            session_id=args.session_id, turn_id=args.turn_id))
                 except (store.MemoryError, sqlite3.Error, OSError) as exc:
                     results.append({"scope": kind, "status": "failed", "error": getattr(exc, "code", "storage_unavailable")})
             failures = sum(r["status"] == "failed" for r in results)

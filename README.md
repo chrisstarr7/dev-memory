@@ -82,6 +82,8 @@ Examples are fictional and are never imported automatically. No hand-written JSO
 3. **Organize:** compare related records, retire equivalent duplicates, and compact long bodies while retaining conditions, exceptions, negation, version boundaries, and sources.
 4. **Continue:** preserve one current checkpoint per task and keep older checkpoints as history. Source edits/deletion invalidate dependent summaries.
 
+The AI connects applicable remembered conditions to design/code decisions and regression checks before editing. Relevant rules receive priority; a small candidate directory supports selective follow-up. Optional use receipts name a concrete action informed by a rule and add no user evidence. Task correctness is evaluated separately from reported use.
+
 ### Maintenance defaults
 
 | Trigger or limit | Default |
@@ -89,10 +91,12 @@ Examples are fictional and are never imported automatically. No hand-written JSO
 | Distinct changed records pending in one store | **5 records** |
 | A pending record's body length | **1,200 characters** |
 | A related batch in each store | Up to **8 records / 12,000 characters** |
-| Each development turn | At most **one batch**, within the current AI turn |
+| Each development turn | At most **one batch per store**, within the current AI turn |
 | Recall and maintenance SQL budget | **500 ms**; report deferred work on timeout |
 
 Thresholds are separate for global and project stores. NOOPs and repeated checks do not accumulate changes. Session/task boundaries can check unfinished topics once; startup work is not repeated. No pending change means no maintenance. Pause, read-only, and turn opt-out suppress it. There is no background timer, per-tool summary, or full-library sweep.
+
+Once a threshold starts a cleanup cycle, later normal interactions process the remaining queue, including a final one-to-four-record tail. A turn that has already organized memory receives no second pack. An idle queue returns no memory bodies.
 
 Reuse valid memory and the loaded protocol. Context compaction, memory revision, and workspace changes invalidate reuse. Recall reserves capacity for project constraints; overflow is reported as incomplete and critical missing constraints require follow-up. Stores commit separately and report success or failure independently.
 
@@ -134,7 +138,7 @@ Runtime files live in `skills/dev-memory/`; installation entry points are `bin/i
 
 Program tests and packaging CI passed on Ubuntu, macOS, and Windows with Python 3.10/3.14. Seven installation targets have isolated installation and repeat-install checks; successful installation does not prove automatic behavior on every host. Real Codex CLI evidence, host versions, semantic checks, and outstanding S01–S48 scenarios are listed in the [verification report](reports/verification.md). DSH has program installation and published-provider checks; a full DeepSeek model session remains unverified. See [DSH results](reports/deepseek.json).
 
-**Performance remains a measured limitation.** The latest full workflow comparison is a partial 0.4.0 sample: about 52–53 seconds with memory off versus 86–89 seconds on. Version 0.5.0 reduces startup/repeated reads, but its new matched comparison was blocked by host credits. No claim of negligible delay is made. See the [lifecycle review](reports/lifecycle-review.md).
+**Performance is still being measured.** Version 0.6.0 passed real Codex CLI lifecycle and automatic-maintenance evaluations. Its new matched on/off comparison has no valid completed samples: host quota failures and a subsequently fixed runner defect blocked it. No fixed overhead or negligible-delay claim is made. See the [memory use and maintenance review](reports/memory-cycle-review.md) for source boundaries, timings and remaining limits.
 
 ## Privacy and safety
 

@@ -8,12 +8,82 @@ import sys
 import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'evals'))
-from check_maintenance import observed_maintenance
+from check_maintenance import observed_maintenance, observed_usage
 from bench_compare import _summary
 from test_dev_memory import MemoryTestCase, store
 
 
 class MaintenanceTests(MemoryTestCase):
+    def test_batch_snapshot_revisions_and_single_compact_form_are_resolved_by_program(self):
+        first = self.add_project_rule(content='Require all stated conditions.')
+        duplicate = self.add_project_rule(turn='duplicate',content='Every stated condition must hold.')
+        long_id = self.add_project_rule(turn='long-other',conditions='Separate condition.',content='Separate unchanged restriction. '*60)
+        response = self.apply(scope='project', turn='ergonomic-batch', operations=[
+            {'op':'MERGE_DUPLICATES','id':first,'expected_revisions':{first:1,duplicate:1},'meaning_preserved':True,'reason':'Same complete rule.'},
+            {'op':'COMPACT','id':long_id,'expected_revision':1,'content':'Separate unchanged restriction.','meaning_preserved':True,'reason':'Repeated prose only.'},
+            {'op':'MAINTENANCE_REVIEW','expected_revisions':{first:1,duplicate:1,long_id:1},'reason':'Inspected these original snapshots and proposed changes.'}])
+        self.assertEqual(response['status'], 'saved', response)
+        review = response['stores'][0]['operations'][-1]
+        self.assertEqual(review['revision_resolution'], 'within_batch')
+        self.assertEqual(review['reviewed_revisions'], {first:2,duplicate:2,long_id:2})
+        self.assertEqual(self.detail(duplicate)['record']['status'], 'superseded')
+        self.assertEqual(self.detail(long_id)['record']['content'], 'Separate unchanged restriction.')
+        self.assertEqual(store.maintenance_prepare('project',project_root=self.project_a,force=True)['status'], 'idle')
+
+    def test_batch_resolution_does_not_accept_external_staleness_or_conflicting_compact_forms(self):
+        first = self.add_project_rule()
+        self.apply(scope='project',turn='external-update',operations=[{'op':'ADD_EVIDENCE','id':first,
+            'expected_revision':1,'source':self.source('Independent current confirmation.')}])
+        response = self.apply(scope='project',turn='stale-snapshot',operations=[{'op':'MAINTENANCE_REVIEW',
+            'expected_revisions':{first:1},'reason':'Old snapshot.'}])
+        self.assertEqual(response['stores'][0]['error'], 'revision_conflict')
+        self.assertEqual(response['stores'][0]['transaction'], 'rolled_back')
+        for n, fields in enumerate([{'expected_revision':True}, {'expected_revision':2,'expected_revisions':{first:1}}]):
+            response = self.apply(scope='project',turn=f'invalid-compact-{n}',operations=[{
+                'op':'COMPACT','id':first,'content':'Short.','meaning_preserved':True,'reason':'Reviewed.',**fields}])
+            self.assertEqual(response['stores'][0]['error'], 'validation_error')
+        self.assertEqual(self.detail(first)['record']['revision'], 2)
+
+    def test_due_cycle_drains_small_tail_and_suppresses_second_pack_in_same_turn(self):
+        ids = [self.add_project_rule(turn=f'queue-{n}', content=f'Synthetic rule {n}.') for n in range(5)]
+        reviewed = self.apply(scope='project', turn='cleanup', operations=[{
+            'op':'MAINTENANCE_REVIEW', 'expected_revisions':{i:1 for i in ids[:3]}, 'reason':'Read these three rules.'}])
+        self.assertEqual(reviewed['stores'][0]['maintenance']['status'], 'pending_next_turn')
+        same_turn = self.apply(scope='project', turn='cleanup', idem='later-write-in-same-turn', operations=[{
+            'op':'NOOP', 'reason':'Checked remaining task; no increment.'}])
+        self.assertEqual(same_turn['stores'][0]['maintenance']['status'], 'pending_next_turn')
+        pack = store.maintenance_prepare('project', project_root=self.project_a, session_id='session-test', turn_id='cleanup')
+        self.assertEqual(pack['status'], 'pending_next_turn')
+        next_turn = self.apply(scope='project', turn='next-interaction', operations=[{'op':'NOOP','reason':'Checked.'}])
+        pack = next_turn['stores'][0]['maintenance']
+        self.assertEqual(pack['status'], 'prepare')
+        self.assertEqual(pack['trigger'], 'drain')
+        self.assertEqual(pack['pending_count'], 2)
+        self.apply(scope='project', turn='next-interaction', idem='finish-tail', operations=[{
+            'op':'MAINTENANCE_REVIEW','expected_revisions':{i:1 for i in ids[3:]},'reason':'Read the remaining two rules.'}])
+        idle = self.apply(scope='project', turn='idle', operations=[{'op':'NOOP','reason':'Checked.'}])
+        self.assertEqual(idle['stores'][0]['maintenance'], {'status':'not_due'})
+        self.assertEqual(store.maintenance_prepare('project',project_root=self.project_a)['status'], 'idle')
+
+    def test_turn_opt_out_blocks_maintenance_prepare_without_consuming_queue(self):
+        for n in range(5):
+            self.add_project_rule(turn=f'pending-{n}', content=f'Rule {n}.')
+        store.record_private_skip('project', session_id='private-session', turn_id='private-turn', project_root=self.project_a)
+        skipped = store.maintenance_prepare('project', project_root=self.project_a, session_id='private-session', turn_id='private-turn')
+        self.assertEqual(skipped['status'], 'skipped_private')
+        self.assertEqual(store.maintenance_prepare('project',project_root=self.project_a)['pending_count'], 5)
+
+    def test_upgrade_restarts_review_for_an_existing_below_threshold_tail(self):
+        memory_id = self.add_project_rule()
+        _, db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            conn.execute("DELETE FROM maintenance_pending")
+            conn.execute("UPDATE meta SET value='2' WHERE key='maintenance_review_version'")
+            conn.commit()
+        response = self.apply(scope='project', turn='upgraded-tail', operations=[{'op':'NOOP','reason':'Checked.'}])
+        self.assertEqual(response['stores'][0]['maintenance']['trigger'], 'drain')
+        self.assertEqual(response['stores'][0]['maintenance']['seed_ids'], [memory_id])
+
     def detail(self, memory_id):
         return store.show_record('project', memory_id, project_root=self.project_a)
 
@@ -361,6 +431,12 @@ class MaintenanceTests(MemoryTestCase):
 
 
 class MaintenanceObserverTests(unittest.TestCase):
+    def test_usage_observation_requires_successful_structured_receipt(self):
+        valid = {'used_id':'rule-one','usage':'ai_reported_not_behavior_verified'}
+        self.assertEqual(observed_usage([self.event({'stores':[{'status':'checked_noop','operations':[valid]}]})]), ['rule-one'])
+        self.assertEqual(observed_usage([self.event({'stores':[{'status':'failed','operations':[valid]}]}),
+                                        self.event({'text':'USE rule-one'})]), [])
+
     def event(self, result, command='python apply'):
         return {'type':'item.completed','item':{'type':'command_execution','command':command,'aggregated_output':json.dumps(result)}}
 

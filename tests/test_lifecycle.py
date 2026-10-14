@@ -10,6 +10,64 @@ from test_dev_memory import MemoryTestCase, store, dev_memory
 
 
 class LifecycleTests(MemoryTestCase):
+    def test_focused_recall_prioritizes_relevant_rule_over_unrelated_hard_history(self):
+        relevant = self.add_project_rule(turn='related', strength='informational', title='Refund eligibility',
+                                        content='Refund eligibility uses the confirmed conditions.',
+                                        source_refs=['contract:refund-v2'], code_refs=['refunds.py'])
+        for n in range(12):
+            self.add_project_rule(turn=f'noise-{n}', title=f'Inventory requirement {n}', content=f'Inventory count rule {n}.',
+                                  conditions='', exceptions='', do='', dont='', verification_steps='', tags=['inventory'])
+        response = store.recall('refund', project_root=self.project_a, global_root=self.global_root,
+                                session_id='focused', max_details=3)
+        project = response['stores'][1]
+        self.assertEqual(project['records'][0]['id'], relevant)
+        self.assertEqual(project['records'][0]['source_refs'], ['contract:refund-v2'])
+        self.assertEqual(project['records'][0]['code_refs'], ['refunds.py'])
+        self.assertTrue(project['context_incomplete'])
+        self.assertTrue(project['unloaded_candidates'])
+        self.assertTrue(all(c['content_loaded'] is False and 'content' not in c for c in project['unloaded_candidates']))
+        self.assertLessEqual(len(project['unloaded_candidates']), 8)
+        self.assertLessEqual(sum(len(json.dumps(c, ensure_ascii=False)) for c in project['unloaded_candidates']), 2000)
+
+    def test_use_is_revision_guarded_receipt_without_new_memory_or_evidence(self):
+        memory_id = self.add_project_rule()
+        before = store.show_record('project', memory_id, project_root=self.project_a)
+        result = self.apply(scope='project', turn='used', operations=[{
+            'op':'USE', 'id':memory_id, 'expected_revision':1,
+            'reason':'Implemented every applicable positive condition and exclusion.', 'action_ref':'refunds.py:eligible',
+        }])
+        self.assertEqual(result['status'], 'checked_noop', result)
+        operation = result['stores'][0]['operations'][0]
+        self.assertEqual(operation['usage'], 'ai_reported_not_behavior_verified')
+        self.assertEqual(result['stores'][0]['data_revision'], 1)
+        after = store.show_record('project', memory_id, project_root=self.project_a)
+        self.assertEqual(before, after)
+        _, db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            receipt = json.loads(conn.execute("SELECT result_json FROM receipts WHERE turn_id='used'").fetchone()[0])
+        self.assertEqual(receipt[0]['used_id'], memory_id)
+        self.assertNotIn('reason', receipt[0])
+        self.assertNotIn('action_ref', receipt[0])
+        self.assertEqual(operation['action_ref'], 'refunds.py:eligible')
+        for label, fields, error in [('stale', {'expected_revision':99}, 'revision_conflict'),
+                                      ('fake-source', {'source':{'type':'user_statement'}}, 'validation_error')]:
+            failed = self.apply(scope='project', turn=label, operations=[{
+                'op':'USE', 'id':memory_id, 'expected_revision':1, 'reason':'Used.', 'action_ref':'implementation', **fields,
+            }])
+            self.assertEqual(failed['stores'][0]['error'], error)
+
+    def test_use_cannot_escape_task_or_place_project_path_in_global_receipt(self):
+        task = self.apply(scope='task', task='first-task', operations=[{'op':'CHECKPOINT','record':self.record()}])
+        task_id = task['stores'][0]['operations'][0]['id']
+        failed = self.apply(scope='task', task='other-task', turn='wrong-task-use', operations=[{
+            'op':'USE','scope':'task','id':task_id,'expected_revision':1,'reason':'Continued work.','action_ref':'next-step'}])
+        self.assertEqual(failed['stores'][0]['error'], 'scope_error')
+        preference = self.apply(scope='global', turn='pref', operations=[{'op':'ADD','record':self.record(scope='global',kind='preference')}])
+        pref_id = preference['stores'][0]['operations'][0]['id']
+        failed = self.apply(scope='global', turn='global-path-use', operations=[{
+            'op':'USE','id':pref_id,'expected_revision':1,'reason':'Applied preference.','action_ref':'/Users/example/private-project/api.py'}])
+        self.assertEqual(failed['stores'][0]['error'], 'scope_error')
+
     def config(self, kind='project', **updates):
         path=store.config_path_for(kind, root=self.project_a, global_root=self.global_root)
         value=json.loads(path.read_text(encoding="utf-8"));value.update(updates);path.write_text(json.dumps(value), encoding="utf-8")

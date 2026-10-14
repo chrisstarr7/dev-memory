@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dev-memory",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "Private local development memory with independent global and project stores."
 }
