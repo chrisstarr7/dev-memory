@@ -10,6 +10,7 @@
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-MIT-08C" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10 or newer" />
   <img src="https://img.shields.io/badge/storage-local%20SQLite-4493F8" alt="Local SQLite storage" />
+  <img src="https://img.shields.io/badge/version-0.7.0-08C" alt="Version 0.7.0" />
 </p>
 
 <p align="center"><a href="../../README.md">English</a> · <strong>简体中文</strong> · <a href="README.ja.md">日本語</a> · <a href="README.ko.md">한국어</a></p>
@@ -20,38 +21,50 @@
 
 ---
 
+Dev Memory 让 AI 逐渐了解你在研发中表达的工作习惯：如何理解需求、分析问题、复用代码、控制修改范围、排查 Bug、验证和交付。这些习惯可以跨项目使用，项目规则和任务断点作为可选的辅助记忆。
+
+**0.7.0** 默认以开发者习惯为重点。当前 AI 判断用户反馈的含义，本地程序保存证据、版本和有界检索结果；自动学习依赖宿主加载指令以及 AI 实际遵循。
+
 ## 开始使用
 
-在**项目根目录**执行，启用 developer-first 项目引导：
+使用 **Codex** 时，为当前用户启用一次全局开发习惯：
 
 ```sh
-npx -y chrisstarr7/dev-memory codex
+npx -y --prefer-online chrisstarr7/dev-memory codex --user
 ```
 
-使用其他 AI 时，将 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot`、`opencode` 或 `deepseek`（DeepSeek Harness／DSH）。macOS、Linux、Windows 使用同一命令。
+随后在任意项目新建 **Codex 会话**。新项目可以使用同一份全局习惯，无需重复初始化项目。安装器管理 Codex 用户指令中的专属块并初始化全局 SQLite 库；已有非空 `AGENTS.override.md` 时使用该文件，否则使用 `AGENTS.md`。
 
-**环境要求：** Node.js 22+（含 npm/npx）、Git、Python 3.10+（含 sqlite3）。安装器自动下载程序、检查环境、初始化项目空库，并配置 AI 的项目启动指令。新项目默认只召回项目规则，不新增项目业务记忆或任务断点。
+**环境要求：** Node.js 22+（含 npm/npx）、Git、Python 3.10+（含 sqlite3）。安装和升级保留本地记忆及管理块以外的用户指令。成功回执证明配置完成；实际自动使用仍依赖宿主和 AI。用户级激活目前支持 Codex。
 
-安装成功后，**在该项目新建 AI 会话，直接开发即可**。无需启用口令、显式调用 Skill，也无需反复要求保存或读取。安装前已打开的会话需重新开始，才能加载新指令。
+### 可选项目引导与其他 AI 宿主
 
-如果希望 Codex 在不同项目间自动使用同一份全局开发习惯，只需执行一次：
+需要绑定某个项目时，在该项目根目录运行：
 
 ```sh
-npx -y chrisstarr7/dev-memory codex --user
+npx -y --prefer-online chrisstarr7/dev-memory codex
 ```
 
-它只管理 Codex 用户指令中的专属块并使用全局库，不初始化当前项目。用户级自动激活目前只支持 Codex。需要项目业务记忆时，再在相应项目单独启用；全量项目模式可运行 `dev-memory mode full-project --project-root <项目路径>`。
+其他宿主将 `codex` 换成 `claude`、`cursor`、`gemini`、`copilot`、`opencode` 或 `deepseek`（DeepSeek Harness／DSH），各自使用项目适配器。完成后新建宿主会话。
+
+新项目默认采用 **`developer-first`**：优先学习全局习惯，已有项目规则仍可召回，项目业务记录和任务断点默认不新增。Codex 项目初始化后，可在 macOS/Linux 上用安装的运行程序开启完整项目捕获：
+
+```sh
+python3 "$HOME/.agents/skills/dev-memory/scripts/dev_memory.py" mode full-project --project-root .
+```
+
+将 `full-project` 换成 `developer-first` 可切回。Windows 路径、其他宿主目录及仅安装程序的方式见 [安装指南](../../docs/installation.md)。
 
 <details>
 <summary>让本地 AI 帮你安装</summary>
 
-> 请从 https://github.com/chrisstarr7/dev-memory 安装并初始化当前项目的 dev-memory，选择当前 AI 宿主，检查成功回执，保留已有记忆和配置。
+> 请从 https://github.com/chrisstarr7/dev-memory 安装 dev-memory。Codex 使用 `--user` 启用用户级全局开发习惯；其他宿主配置当前项目适配器。检查成功回执，保留已有记忆和用户指令。
 
 AI 需要本机文件与命令权限。网页聊天不能直接安装到你的电脑。离线安装、没有 Node.js 时的安装和卸载方法见 [安装指南](../../docs/installation.md)。
 
 </details>
 
-Windows Codex：0.5.2 已修复程序目录的 ACL 创建方式。用上面的同一命令升级，再新建会话。详见 [Windows 访问说明](../../docs/installation.md#windows-codex-访问权限)。
+Windows Codex：详见 [Windows 访问说明](../../docs/installation.md#windows-codex-访问权限)。
 
 ## 特性
 
@@ -72,15 +85,18 @@ Windows Codex：0.5.2 已修复程序目录的 ACL 创建方式。用上面的�
 
 | 想控制什么 | 对 AI 说 |
 | --- | --- |
-| 纠正业务条件 | “退款期限改为签收后 14 天。” |
 | 明确全局偏好 | “以后优先复用已有实现，再考虑新增实现。” |
-| 启用项目记忆 | `dev-memory mode full-project --project-root /项目路径` |
+| 纠正已有习惯 | “修订这条偏好：先比较现有实现，适合当前需求时再复用。” |
+| 限定一次性要求 | “这次任务不要测试，只对这次生效。” |
+| 关闭全局学习 | “暂停全局习惯写入，仍可召回。” |
 | 本轮不记 | “这一轮不要保存记忆。” |
 | 暂停／恢复写入 | “暂停这个项目的记忆写入，仍可召回。”／“恢复记忆写入。” |
 | 只读召回 | “这一轮只读召回，不写入任何内容。” |
 | 遗忘记录 | “预览这条规则的遗忘范围，我确认后再删除。” |
 
 示例是虚构的，不会自动导入。无需手写 JSON；AI 按 [本地协议](../../skills/dev-memory/references/protocol.md) 执行。声称保存成功必须有对应存储的成功回执。
+
+明确的长期偏好可直接成为确认规则。反复出现的选择或纠错先形成候选，两个独立任务 ID 的反馈可晋升为可采用的软偏好。程序用受控任务引用计数，AI 仍需判断反馈真实、可复用。AI 总结和检索命中不增加用户证据；候选晋升前不执行，软偏好服从当前用户要求。
 
 ## 工作方式
 
@@ -113,7 +129,8 @@ AI 在编辑前，会把适用的记忆条件落实到设计、代码决策和�
 
 ```mermaid
 flowchart TD
-    I[一次项目初始化] --> A[AI 开发助手]
+    I[Codex 用户级激活] --> A[AI 开发助手]
+    J[可选项目初始化] --> A
     A --> S[Agent Skill：流程与边界]
     S --> C[Python CLI：路由与校验]
     H[可选宿主适配器] --> C
@@ -138,12 +155,13 @@ flowchart TD
 | 模式 | 行为／状态 |
 | --- | --- |
 | 基础模式 | AI 调用 Skill 和 CLI；仅安装 Skill 不保证每轮执行。 |
+| Codex 用户级引导 | 用户管理块要求跨项目仅读全局习惯；隔离配置检查已通过，真实宿主两个项目自动加载仍未验证。 |
 | 默认项目引导 | 初始化配置宿主项目指令，在普通研发任务中使用；依赖宿主加载指令及 AI 实际遵循。 |
 | 可选事件模式 | Codex hooks 需要宿主信任和事件验证，真实 hook 传递链路尚未验证。 |
 | 只读模式 | 读取已有记录，不初始化或写入。 |
 | 不可用 | 权限不足或存储无法访问时如实报告。 |
 
-Ubuntu、macOS、Windows 的 Python 3.10/3.14 程序测试与打包 CI 已通过。七种安装目标有隔离安装和重复安装检查；安装成功不代表所有宿主的自动行为已验证。真实 Codex CLI 证据、宿主版本、语义评估与 S01–S48 未完成场景见 [验证报告](../../reports/verification.md)。 DSH 已有程序安装和官方发布组件检查；完整 DeepSeek 模型会话仍未验证，见 [DSH 结果](../../reports/deepseek.json)。
+**0.7.0** 的本地 Python 测试共执行 204 项，2 项因环境条件跳过，发布包成功构建。程序检查覆盖独立任务证据、候选晋升、修订、关闭捕获和跨项目全局召回。[场景目录](../../evals/scenarios.json) 按程序、语义和宿主评估区分 S01–S52。历史平台 CI 和其他宿主结果见 [验证报告](../../reports/verification.md)，这些结果不能证明新版用户级指令在真实宿主中已自动加载。DSH 的独立适配限制见 [DSH 结果](../../reports/deepseek.json)。
 
 **性能结果仅为探索性观察。** 0.7.0 使用真实 Codex CLI，对记忆开/关各运行了一个合成任务样本，其中包含整理压力场景。开启记忆时观察到额外记忆工具调用；样本不足以估计普通编码延迟，也未在同一任务上重跑 0.6.0。详见 [0.7.0 对照结果](../../reports/benchmark-0.7.0.md) 和 [记忆使用与维护审查](../../reports/memory-cycle-review.md)。不据此声称开销可忽略。
 

@@ -10,6 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-08C" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10 or newer" />
   <img src="https://img.shields.io/badge/storage-local%20SQLite-4493F8" alt="Local SQLite storage" />
+  <img src="https://img.shields.io/badge/version-0.7.0-08C" alt="Version 0.7.0" />
 </p>
 
 <p align="center"><strong>English</strong> · <a href="docs/readme/README.zh-CN.md">简体中文</a> · <a href="docs/readme/README.ja.md">日本語</a> · <a href="docs/readme/README.ko.md">한국어</a></p>
@@ -20,47 +21,57 @@
 
 ---
 
+Dev Memory helps an AI coding assistant learn your observable working preferences: how you analyze problems, reuse code, control changes, investigate bugs, verify work, and respond to corrections. These habits can apply across projects. Project-specific rules and task checkpoints are optional supporting memory.
+
+Version **0.7.0** makes developer habits the default focus. The current assistant interprets user feedback; the local program stores evidence, revisions and bounded search results. Learning depends on the host loading the instructions and the assistant following them.
+
 ## Quick start
 
-Run this in the **root of a project** for developer-first project activation:
+For **Codex**, enable global developer habits once for your user account:
 
 ```sh
-npx -y chrisstarr7/dev-memory codex
+npx -y --prefer-online chrisstarr7/dev-memory codex --user
 ```
 
-Use `claude`, `cursor`, `gemini`, `copilot`, `opencode`, or `deepseek` (DeepSeek Harness / DSH) instead of `codex` for another assistant. The same command works on macOS, Linux, and Windows.
+Then start a **new Codex session** in any project. New projects can use the same global habits without project initialization. The installer manages a marked block in Codex user instructions and initializes the global SQLite store. It respects an existing nonempty `AGENTS.override.md`; otherwise it uses `AGENTS.md`.
 
-**Requirements:** Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The installer downloads the program, checks the environment, initializes an empty project store, and configures project instructions. New project stores default to developer-first: existing project rules can be recalled, but new project business memory and task checkpoints are off until explicitly enabled.
+**Requirements:** Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. Installation and upgrade retain local memories and text outside managed instruction blocks. Successful setup confirms configuration; automatic use still depends on the host and assistant. User-level activation currently supports Codex.
 
-After installation succeeds, **start a new AI session in that project and develop normally**. No enable phrase, explicit Skill invocation, or repeated save/recall request is needed. Existing sessions must restart to load the new instructions.
+### Optional project guidance and other assistants
 
-To make global developer habits available in every Codex project, run this once instead:
+To bind a particular project, run this from its root:
 
 ```sh
-npx -y chrisstarr7/dev-memory codex --user
+npx -y --prefer-online chrisstarr7/dev-memory codex
 ```
 
-It adds a managed block to Codex user instructions and uses only the global store. It does not initialize the current project. The user-level option currently supports Codex; other hosts need their own supported adapter. Project activation remains separate when project business memory is wanted. The user can enable it with `dev-memory mode full-project --project-root <path>`.
+For another host, replace `codex` with `claude`, `cursor`, `gemini`, `copilot`, `opencode`, or `deepseek` (DeepSeek Harness / DSH). Project adapters are host-specific. Start a new host session after setup.
 
-Run the project command in each project only when you want project-specific recall. The same global habit store can then be used across those initialized projects. Install and upgrade preserve existing memories and text outside managed instruction blocks.
+New project setups use **`developer-first`**: global habits are the focus, existing project rules remain recallable, and new project business records and checkpoints are disabled. To enable full project capture after Codex project setup, run the installed runtime on macOS/Linux:
+
+```sh
+python3 "$HOME/.agents/skills/dev-memory/scripts/dev_memory.py" mode full-project --project-root .
+```
+
+The same runtime command accepts `developer-first` to switch back. Windows paths, other installation targets and program-only setup are covered in the [installation guide](docs/installation.md).
 
 <details>
 <summary>Ask your local AI to install it</summary>
 
-> Install dev-memory from https://github.com/chrisstarr7/dev-memory and initialize the current project for this AI host. Check the success receipt and preserve existing memories and settings.
+> Install dev-memory from https://github.com/chrisstarr7/dev-memory. For Codex, enable user-level global developer habits with `--user`; for other hosts, configure the current project adapter. Check the setup receipt and preserve existing memories and user instructions.
 
 The AI needs local file and command access. A web-only chat cannot install software on your computer. Offline installation, installation without Node.js, and uninstallation are covered in the [installation guide](docs/installation.md).
 
 </details>
 
-Windows Codex: version 0.5.2 repairs public program-directory ACL creation. Upgrade with the same command above and start a new session. See the [Windows access guide](docs/installation.md#windows-codex-访问权限).
+Windows Codex: see the [Windows access guide](docs/installation.md#windows-codex-访问权限).
 
 ## Features
 
 | Capability | What it does |
 | --- | --- |
 | Accurate constraints | Keeps conditions, exceptions, prohibitions, and verification steps; corrections revise the existing rule. |
-| Real task checkpoints | Records completed work, unfinished work, blockers, and the next step. Each task has one current checkpoint. |
+| Optional task checkpoints | Full-project mode can retain completed work, blockers and next steps, with one current checkpoint per task. |
 | Developer-first learning | Explicit habits are global rules; repeated, de-identified user feedback forms a soft candidate and can become active across independent tasks. |
 | Project isolation | Project A's business stays in A. Global habits contain no project business, paths, code, or raw dialogue. |
 | Selective recall | Retrieves applicable global, current-project, and current-task records; reuses valid context and invalidates it after changes. |
@@ -75,15 +86,18 @@ Describe your development work normally. An explicitly activated Codex user guid
 
 | To control memory | Tell your AI |
 | --- | --- |
-| Correct a business condition | “Change the refund deadline to 14 days after delivery.” |
 | Save an explicit global preference | “This preference applies across my projects: reuse existing code before adding another implementation.” |
-| Enable project memory | `dev-memory mode full-project --project-root /path/to/project` |
+| Correct a habit | “Revise that preference: compare the existing implementation first; reuse it only when it fits.” |
+| Keep a direction temporary | “Skip tests for this task only.” |
+| Pause global learning | “Pause global habit writes, but keep recall.” |
 | Skip this turn | “Do not save memory from this turn.” |
 | Pause / resume writes | “Pause memory writes for this project, but keep recall.” / “Resume memory writes.” |
 | Use read-only recall | “Recall memory only; do not write anything this turn.” |
 | Forget a record | “Preview the forget scope for this rule; delete it after I confirm.” |
 
 Examples are fictional and are never imported automatically. No hand-written JSON is needed; the AI uses the [local protocol](skills/dev-memory/references/protocol.md). A save claim requires a successful per-store receipt.
+
+An explicit long-term preference can become a confirmed rule immediately. A repeated choice or correction first forms a candidate; feedback from two independent task IDs can promote it to an active soft preference. The program counts opaque task references, while the assistant must establish that the feedback is genuine and reusable. AI summaries and retrieval hits add no user evidence. A candidate is not applied before promotion, and active soft preferences yield to the current request.
 
 ## How memory works
 
@@ -116,7 +130,8 @@ Retired originals and old bodies remain traceable history. Compaction reduces ac
 
 ```mermaid
 flowchart TD
-    I[One-time project initialization] --> A[AI coding assistant]
+    I[Codex user-level activation] --> A[AI coding assistant]
+    J[Optional project setup] --> A
     A --> S[Agent Skill: workflow and boundaries]
     S --> C[Python CLI: routing and validation]
     H[Optional host adapter] --> C
@@ -141,12 +156,13 @@ Runtime files live in `skills/dev-memory/`; installation entry points are `bin/i
 | Mode | Behavior / status |
 | --- | --- |
 | Base mode | The AI calls the Skill and CLI; installing the Skill alone does not guarantee execution each turn. |
+| Codex user guidance | A managed user instruction block requests global-only habit recall across projects. Isolated configuration checks passed; real two-project host activation remains unverified. |
 | Default project guidance | Initialization configures host-native project instructions for ordinary development tasks. It depends on the host loading instructions and the model following them. |
 | Optional event mode | Codex hooks require host trust and event verification; the real hook delivery chain remains unverified. |
 | Read-only mode | Recall existing records without initialization or writes. |
 | Unavailable | Missing permissions or inaccessible storage are reported honestly. |
 
-Program tests and packaging CI passed on Ubuntu, macOS, and Windows with Python 3.10/3.14. Seven installation targets have isolated installation and repeat-install checks; successful installation does not prove automatic behavior on every host. Real Codex CLI evidence, host versions, semantic checks, and outstanding S01–S48 scenarios are listed in the [verification report](reports/verification.md). DSH has program installation and published-provider checks; a full DeepSeek model session remains unverified. See [DSH results](reports/deepseek.json).
+For **0.7.0**, the local Python suite completed 204 tests with 2 environment-dependent skips, and the release package built successfully. Program checks cover independent task evidence, candidate promotion, revision, capture opt-out and cross-project global recall. The [scenario catalog](evals/scenarios.json) distinguishes program, semantic and host evaluation across S01–S52. Historical platform CI and other-host results are recorded in the [verification report](reports/verification.md); they do not prove the new user-level activation works in a real host. See [DSH results](reports/deepseek.json) for that adapter's separate limits.
 
 **Performance evidence is exploratory.** A 0.7.0 real Codex CLI comparison completed one synthetic run per memory-on/off cell, including a maintenance stress case. It observed extra memory-tool calls in enabled cells; the sample is too small to estimate normal coding latency, and 0.6.0 was not rerun on the same task. See the [0.7.0 comparison](reports/benchmark-0.7.0.md) and [memory use and maintenance review](reports/memory-cycle-review.md). No negligible-overhead claim is made.
 
