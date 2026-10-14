@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "27357cd0ed7bff85b7dd0a821d67b69f70edeeee0830627832cd73010e2f6c61"
+      "sha256": "ec68a37e6e47a8d5900287a8cd48569c12510d8316dc97ca00d8f2b5dc345cb0"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -22,7 +22,7 @@
     },
     {
       "path": "skills/dev-memory/references/protocol.md",
-      "sha256": "f03b3579333fb83dff489e22a7580ff0913452b8836a094fa398b5c0c5447bae"
+      "sha256": "6c2585343720e00e231d1214b4b532231af663bcec208f7d7baadcfbe07c091d"
     },
     {
       "path": "skills/dev-memory/references/codex-hooks.md",
@@ -46,7 +46,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
-      "sha256": "9a0b0ed8f1d4c09f697bab00d0a073b79c416fb2b90dfffa3836be3723316871"
+      "sha256": "aa6121714a5ac66a36cc8f1a492f6eef909a1d1b56131a2fdddbc6613899385b"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
