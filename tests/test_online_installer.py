@@ -96,6 +96,10 @@ class OnlineTests(unittest.TestCase):
 
     def test_repeat_preserves_pause_memory_and_instructions(self):
         self.assertEqual(self.run_online('codex')[0], 0)
+        config = self.project / '.dev-memory/config.json'
+        state = json.loads(config.read_text(encoding="utf-8"))
+        state['capture_mode'] = 'full-project'  # This scenario verifies preservation of an enabled project store.
+        config.write_text(json.dumps(state), encoding="utf-8")
         record = {'kind': 'business_rule', 'claim_type': 'desired', 'strength': 'hard',
                   'title': 'Synthetic return policy', 'content': 'Allow returns within 14 days.',
                   'conditions': 'Delivered and unopened.', 'exceptions': 'No final-sale items.',
@@ -109,7 +113,6 @@ class OnlineTests(unittest.TestCase):
                     'operations': [{'op': 'ADD', 'scope': 'project', 'record': record}]},
                     project_root=self.project, global_root=self.home / '.dev-memory')
         self.assertEqual(saved['status'], 'saved', saved)
-        config = self.project / '.dev-memory/config.json' 
         state = json.loads(config.read_text(encoding="utf-8"))
         state.update(capture_enabled=False, recall_enabled=False)
         config.write_text(json.dumps(state), encoding="utf-8")

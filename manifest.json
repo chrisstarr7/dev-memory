@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "97aa6b806342b61cb9bf135ba5feee3bf6a89ece41a3cc19aa12831a295d9f88"
+      "sha256": "27357cd0ed7bff85b7dd0a821d67b69f70edeeee0830627832cd73010e2f6c61"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -18,11 +18,11 @@
     },
     {
       "path": "skills/dev-memory/assets/config.example.json",
-      "sha256": "7ebca4f7b77e0b818f83c188b55c9c5f145650727d73885220c3a67b6786adfe"
+      "sha256": "5d0969a43b88823193df4bb74a488f9ac125fc66e249832a1254730153c09503"
     },
     {
       "path": "skills/dev-memory/references/protocol.md",
-      "sha256": "4926edbd2aad11170192775263f11b5b1e2b320c27680efc3a89fc47f0695ca8"
+      "sha256": "f03b3579333fb83dff489e22a7580ff0913452b8836a094fa398b5c0c5447bae"
     },
     {
       "path": "skills/dev-memory/references/codex-hooks.md",
@@ -38,15 +38,15 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "04a7a11ec3c93ac958ce45dd2f831f0336d8dcafbc885bce4e486f8a9acba85e"
+      "sha256": "662596c93128a363bcc50a0c785a00c649ba4ebf4efa83c70e1949e2f84e3afb"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "8a6db928ac2d2ebfe2f5b066ddc6f195484f00994043e6c545ac86d984de69ca"
+      "sha256": "e1b5d9039698aebb246c99d181e1b8d29672dbd5c2f895fc825da8178d8271a3"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
-      "sha256": "e7640dc8bc430c37af7080932d81f528e957f5cb0af743ed4c46822df1f00661"
+      "sha256": "9a0b0ed8f1d4c09f697bab00d0a073b79c416fb2b90dfffa3836be3723316871"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "f255e12a0fb0343387e22c1fdae2e8d809d295266758d3e7492906e701795510"
+      "sha256": "19a69c7308cfef8ed6b3841af978c47ee6c870d9bb806b805694c95b35d3fe37"
     },
     {
       "path": "LICENSE",
@@ -70,15 +70,15 @@
     },
     {
       "path": "install.py",
-      "sha256": "1e332f5e7695a04da3c199c17821b96ef5629ef151ee75c8b3d7dda3862d5613"
+      "sha256": "79ee5ca84ebe59ceb6044862bc63a55d6168f911112f6b7a0f503516844939f4"
     },
     {
       "path": "package.json",
-      "sha256": "134be1adba664cec0d03b5c2f2994a8eff3fb146a17f6b98bd4e2393361b9d69"
+      "sha256": "5d601d016bcc75759805a06d08bffe1905c109f45f8ab188217fbb16c1f23c88"
     },
     {
       "path": "bin/install.cjs",
-      "sha256": "3f53aee8a903d7f21223c2d5527429eb84cd71cbe3257b1e913b29c3a093095c"
+      "sha256": "9f23041c4f0d19ce537be87fd892b52eb260087399a76c4dd5b5a1462d19b10a"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "62963c9898a116ae9b8616cd87ea8ce3115503cb90c991709189eb01d9be6b1f"
+      "sha256": "2fb2168681ee2be7ff2e4857fccc50dfb38bae1f2a815ba55ac928019f74f0e8"
     },
     {
       "path": "docs/ecosystem.md",
@@ -98,23 +98,23 @@
     },
     {
       "path": "docs/architecture.md",
-      "sha256": "ac381b279b60479958d7033f427497d152fa5cc4fa4ae974b6e77080f8d0013b"
+      "sha256": "1427070aa5c929f35e95649d6b4e3e8f92a1c72938051d65dc542da5f76b9d52"
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "751b8f6cdcfb7075d8037aea5ff59166bca60a9c20bc37c929f5f849385468ae"
+      "sha256": "e9b72eed83843a65347b742fb8847ccd3b503b9e5d96d949b36a71a3de680f52"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "41d43fe13fb06f670f8621f1ede620399a494a9ebd5d896a4889b83f65b04b7d"
+      "sha256": "3a90f93bf84932b2c989e3630c1a275992df1c5fac00681771fefc87af709092"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "0829ae68cf7798ca0951704d7691fe925b706348b9137be929922b003acebd8c"
+      "sha256": "6b0460c5b3527f1eca4e25dda19614d4197cd5240f59ab9e2929567cdd94b2c8"
     },
     {
       "path": "tests/test_dev_memory.py",
-      "sha256": "b80786d7475ffde4dd0e40474a2b880874c498d2d1063a78ac33efb88494b494"
+      "sha256": "695b65d99e02287d05ba328e80c0e4eafc955a27b12550e7a129788b58175789"
     },
     {
       "path": "tests/test_maintenance.py",
@@ -134,11 +134,11 @@
     },
     {
       "path": "tests/test_setup.py",
-      "sha256": "38e86b030ea2534635bb885f4ab5dcedd77bea9ed0bc7bb3fd186959c3794646"
+      "sha256": "b214f61edfb4b95eb3c14dfea2e0c0a46b24eb1bbdc3790046cc307f31bf896a"
     },
     {
       "path": "tests/test_online_installer.py",
-      "sha256": "7e0b48f9e58b3f3e0e4c4405a95cb86045463e53c9f8787100f14d8c2d321efb"
+      "sha256": "5eaccdd16a36b59ac13f973608013e250c5e349e99523133dd3a018eb6a6cb7b"
     },
     {
       "path": "tests/test_npx_installer.py",
@@ -150,11 +150,11 @@
     },
     {
       "path": "evals/scenarios.json",
-      "sha256": "033932f0f324531d405c0fdb2a42c3d3b8a303a88911fb93d29bc87c65961d13"
+      "sha256": "1274d14d64118de57bb68c92e270c6db3dbf8bca3a6b3613978ca320800f6d22"
     },
     {
       "path": "evals/bench_compare.py",
-      "sha256": "b8e6c86a909716623e79a99bbc9c570590b2732c84165b0229640b53c0589491"
+      "sha256": "0ece1f84d8f72afd0e59d892240a67930be1f794b541117a0a9d86a0eca88469"
     },
     {
       "path": "evals/check_automatic.py",
@@ -162,7 +162,7 @@
     },
     {
       "path": "evals/check_maintenance.py",
-      "sha256": "73f2d260abcb913b14a1fff84fbf12ea152872a8d471b1ddc3caf51d3d52a2d4"
+      "sha256": "e4927a64a3eed3c41dca2c8c76b785b2849e3c36b02906adb39a07b1adec1f4c"
     },
     {
       "path": "evals/check_lifecycle.py",
@@ -202,7 +202,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "52080f1c1e8b9557b41f356a1a79dd03ddecd87086e070bf564bd97b547c64db"
+      "sha256": "d259b0e4982929b5742f1a279c8155f32649310cbd0bc1a7f7ab3ef3f41cc113"
     },
     {
       "path": "reports/online-installation.json",
@@ -227,6 +227,10 @@
     {
       "path": "reports/benchmark-2026-10-11.json",
       "sha256": "9aa1bd2b87e58cdd5e48c1274cb51f541d967207c507c5e2ad5a3fa636220979"
+    },
+    {
+      "path": "reports/benchmark-0.7.0.md",
+      "sha256": "e9f97bfe9e6ab9f6720339532cfbb6b1f5099d09273b97df7b40f8e10bd411be"
     },
     {
       "path": "reports/project-isolation-demo.json",
@@ -263,5 +267,5 @@
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.6.0"
+  "version": "0.7.0"
 }

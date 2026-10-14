@@ -34,7 +34,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "docs/readme/README.zh-CN.md", "docs/readme/README.ja.md", "docs/readme/README.ko.md",
     "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
-    "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/project-isolation-demo.json",
+    "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/benchmark-0.7.0.md", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json", "reports/multi-project-review.md", "reports/memory-cycle-review.md",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
@@ -450,9 +450,11 @@ def uninstall(target: Path | None, agent: str = "codex") -> dict[str, Any]:
     install_path = _install_path(target, agent)
     with _installation_lock(install_path):
         _check_managed_install(install_path)
+        user_activation = activation.remove_user(agent, install_path)
         hooks = _remove_hook_config(install_path)
         shutil.rmtree(install_path)
-    return {"status": "uninstalled", "path": str(install_path), "memory_data_preserved": True, "hooks": hooks}
+    return {"status": "uninstalled", "path": str(install_path), "memory_data_preserved": True,
+            "user_activation": user_activation, "hooks": hooks}
 
 def _scope_arg(args: argparse.Namespace) -> tuple[str, Path | None]:
     scope = args.scope
@@ -486,6 +488,10 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser("setup", help="Initialize this project and configure automatic host instructions")
     p.add_argument("--project-root", type=Path, default=Path.cwd())
     p.add_argument("--agent", choices=tuple(AGENT_DIRS), default="codex")
+    p.add_argument("--user", action="store_true", help="Enable Codex user-level global habit recall across projects")
+    p = sub.add_parser("mode", help="Set project memory capture mode")
+    p.add_argument("capture_mode", choices=("developer-first", "full-project"))
+    p.add_argument("--project-root", type=Path, default=Path.cwd())
     p = sub.add_parser("init")
     p.add_argument("--global", dest="init_global", action="store_true")
     p.add_argument("--project-root", type=Path)
@@ -494,6 +500,7 @@ def _parser() -> argparse.ArgumentParser:
         p.add_argument("--query", default="")
         p.add_argument("--resume", action="store_true", help="Include recent checkpoint candidates when continuing without a task ID")
         p.add_argument("--project-root", type=Path)
+        p.add_argument("--global-only", action="store_true", help="Use only the user global store, even inside a project")
         p.add_argument("--task-id")
         p.add_argument("--session-id")
         if name == 'context':
@@ -582,20 +589,28 @@ def main(argv: list[str] | None = None) -> int:
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             _json_out(doctor(root, global_root))
         elif command == "setup":
-            result = activation.setup(args.project_root, args.agent, PACKAGE_ROOT, sys.executable, global_root)
+            result = (activation.setup_user(args.agent, PACKAGE_ROOT, sys.executable, global_root) if args.user
+                      else activation.setup(args.project_root, args.agent, PACKAGE_ROOT, sys.executable, global_root))
             _json_out(result)
             return 0 if result["status"] == "initialized" else 1
+        elif command == "mode":
+            root = store._reject_unsafe_project_root(args.project_root)
+            base, _, config = store._config_for("project", root, global_root)
+            config["capture_mode"] = args.capture_mode
+            config["updated_at"] = store.utc_now()
+            store.write_json_atomic(base / "config.json", config)
+            _json_out({"status": "updated", "project_root": str(root), "capture_mode": args.capture_mode})
         elif command == "init":
             results = []
             if args.init_global:
                 results.append(store.init_global(global_root))
             if args.project_root:
-                results.append(store.init_project(args.project_root))
+                results.append(store.init_project(args.project_root, capture_mode="developer-first"))
             if not results:
                 _die("validation_error", "Use --global and/or --project-root PATH.")
             _json_out({"status": "initialized", "stores": results})
         elif command in {"recall", "context"}:
-            root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
+            root = None if args.global_only else store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             recall_func = context if command == "context" else store.recall
             _json_out(recall_func(
                 args.query, project_root=root, global_root=global_root, task_id=args.task_id,

@@ -26,7 +26,7 @@ The recommended `npx -y chrisstarr7/dev-memory codex` entry uses npm’s [GitHub
 ```text
 User home
 └── .dev-memory/global/
-    ├── memory.sqlite3       # Confirmed cross-project development memory
+    ├── memory.sqlite3       # Developer habits and preferences; explicit or evidence-backed soft rules
     └── ...                  # Global-only configuration, views and backups
 
 Project A
@@ -42,17 +42,17 @@ Project B
 
 There is no global database containing all projects. Recall opens the applicable global store and explicitly bound/current project, selecting the applicable task. It does not scan other projects. Task records have a task ID inside their owning project's database.
 
-The AI chooses scope from meaning and ownership; the CLI enforces declared scope, provenance and project identity. Global capture requires explicit cross-project confirmation. Business discussed outside its directory still belongs to its project. Unbound business remains in the conversation until ownership is known. A project write failure cannot redirect its data into the global store.
+The AI chooses scope from meaning and ownership; the CLI enforces declared scope, provenance and project identity. Explicit global habits require cross-project confirmation. Repeated, de-identified user feedback may be stored as a candidate and promoted to a soft preference after distinct task evidence. Business rules and one-time directions never become global habits. New project stores use `developer-first`: existing project records remain recallable, while new project/task writes are disabled until the user enables `full-project` mode. A user-level Codex activation shares only global habits across projects.
 
 Each database contains its own records, evidence, revisions, retrieval terms, derivation edges and receipts. SQLite is authoritative; Markdown is a rebuildable view. `DEV_MEMORY_HOME` changes only the global data parent. Different clones/worktrees have independent project stores by default. AI hosts used by the same local user share that user's stores at these paths.
 
 ## Data flow
 
-1. **Check**: `doctor` reports capabilities without initializing stores. Plain installation copies programs only; online installation (current project), source `install.py --project` or installed `setup` explicitly authorizes project memory and merges automatically loaded host instructions. Startup instructions load the Skill without a chat invocation.
+1. **Check**: `doctor` reports capabilities without initializing stores. Plain installation copies programs only; `--user` authorizes Codex user-level global habits, while project setup binds a particular project and merges its automatically loaded host instructions. Startup instructions load the Skill without a chat invocation.
 2. **Recall**: one `context` call combines focused global/project/task recall with the pending-maintenance check. Normal startup does not probe host versions, initialize stores or create a receipt. `doctor` remains an environment/integration diagnostic. The AI compares memory with current instructions and authoritative project evidence.
 3. **Judge**: within the current turn, the AI identifies new requirements, corrections, decisions or actual progress. Desired behavior, observed facts, preferences and hypotheses remain distinct.
 4. **Apply**: the AI submits structured operations and sources. The CLI validates, checks revision conflicts and deduplicates. A read-only `match` returns bounded related candidates when existing context is insufficient; identical text reuses a rule automatically, paraphrases require the current AI's semantic review. Global and project batches use separate transactions and results; one call can succeed in one store and fail in the other.
-5. **Acknowledge**: saved content has a successful receipt. Checked turns with no increment have a short NOOP receipt. Missing checks and failed writes retain their actual status.
+5. **Acknowledge**: a write is reported only after its successful receipt. No extra write is required to report an unchanged turn. Missing checks and failed writes retain their actual status.
 6. **Maintain**: changed IDs queue within their owning store. Five pending IDs or a 1200-character body yield one bounded related pack in the successful apply response. The AI reviews at most one batch in the current turn; `MERGE_DUPLICATES`, `COMPACT` and `MAINTENANCE_REVIEW` use current revision guards. Task boundaries can prepare smaller pending topics. No background model, full-library sweep or recursive maintenance.
 7. **Continue**: checkpoints describe completed work, unfinished work, blockers, next steps and workspace/code boundaries. A new active checkpoint supersedes older active checkpoints of the same task in its transaction, retaining their audit history and invalidating dependent summaries. Other tasks keep their own checkpoints. New sessions recall the current checkpoint; ambiguous task continuation remains explicit.
 
@@ -76,9 +76,9 @@ Summaries refer to source IDs and expected revisions within one scope. Source re
 - Query-related rules rank before unrelated hard-rule fallback, while continuation checkpoints keep priority. Up to eight unloaded candidate descriptors use a separate 2000-character store budget; they contain directory metadata, not complete business constraints. Current records retain code/source references for targeted checks.
 - Force recall after compaction/resume; inspect incomplete results before acting on key constraints. Cache metadata cannot prove that conversation content survived compaction.
 - Git dirty-path or bounded non-Git metadata traversal overflow makes the workspace fingerprint unknown. Unknown workspaces are not cached and are not labeled currently verified. The fingerprint is a bounded metadata check, not a cryptographic snapshot of every source file.
-- Recall and maintenance SQL have a 500 ms progress budget; interruption returns deferred/incomplete. This does not bound process startup, SQLite lock waiting, Git calls or model reasoning. Failures never become checked NOOPs.
+- Recall and maintenance SQL have a 500 ms progress budget; term-led recall uses the term index and interruption returns deferred/incomplete. This does not bound process startup, SQLite lock waiting, Git calls or model reasoning. Failures never become successful recall or write claims.
 - Save explicit corrections promptly; batch ordinary changes at turn end. Do not summarize after every tool call or start a default second AI turn.
-- NOOP writes only the necessary receipt. Consolidation handles changed related sources. Markdown views are exported on demand.
+- No-op turns do not make a separate write. Consolidation handles changed related sources. Markdown views are exported on demand.
 - Optional receipt repair is bounded to one attempt with timeouts. There is no background worker.
 
 Database speed alone does not establish AI workflow latency. Historical model A/B measurements and their version boundary are in [verification](../reports/verification.md); the 0.4.0 A/B attempted 12 tasks, with 8 completed and 4 host exits. Memory-on completed tasks took materially longer. It is a small prepublication sample, not a frozen final-source or latency-free claim. The 0.5.0 matched comparison was blocked by an actual workspace-credit rejection; its local scale probe and two project-A host cycles do not establish a total-task speed improvement. See the [lifecycle review](../reports/lifecycle-review.md).

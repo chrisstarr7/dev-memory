@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import zipfile
 from pathlib import Path
@@ -69,6 +70,136 @@ class MemoryTestCase(unittest.TestCase):
 
 
 class StoreTests(MemoryTestCase):
+    def test_explicit_global_developer_habit_is_recalled_in_two_projects(self) -> None:
+        habit = self.record(scope="global", kind="preference", title="Reuse existing code",
+                            content="Before adding an implementation, inspect and reuse a suitable existing path.")
+        habit.update(claim_type="preference", strength="soft", conditions="When an existing implementation may fit.",
+                     exceptions="Add a new path when existing code cannot meet the requirement.",
+                     do="Inspect current code and reuse a suitable implementation.",
+                     dont="Do not add parallel code before checking existing behavior.", tags=["implementation"])
+        saved = self.apply(scope="global", turn="explicit-global-habit", operations=[
+            {"op": "ADD", "scope": "global", "record": habit}])
+        self.assertEqual(saved["status"], "saved", saved)
+        habit_id = saved["stores"][0]["operations"][0]["id"]
+        for project in (self.project_a, self.project_b):
+            recalled = store.recall("reuse existing implementation", project_root=project,
+                                    global_root=self.global_root, force=True)
+            self.assertTrue(any(item["id"] == habit_id for item in recalled["stores"][0]["records"]))
+
+    def test_global_capture_off_blocks_habit_learning(self) -> None:
+        base, _, config = store._config_for("global", None, self.global_root)
+        config["capture_enabled"] = False
+        store.write_json_atomic(base / "config.json", config)
+        habit = {"kind": "preference", "claim_type": "preference", "status": "candidate",
+                 "strength": "soft", "title": "Prefer narrow changes",
+                 "content": "Use the smallest change that fully addresses the observed issue.",
+                 "cross_project_confirmed": False,
+                 "source": {"type": "user_feedback", "excerpt": "The user preferred a narrower implementation."}}
+        result = self.apply(scope="global", task="task-one", turn="capture-disabled", operations=[
+            {"op": "ADD", "scope": "global", "record": habit}])
+        self.assertEqual(result["status"], "skipped_private")
+        self.assertEqual(store.list_records("global", global_root=self.global_root)["records"], [])
+
+    def test_inferred_global_habit_needs_two_independent_user_tasks_and_is_shared(self) -> None:
+        habit = {"kind": "preference", "claim_type": "preference", "status": "candidate", "strength": "soft",
+                 "title": "Reuse existing code", "content": "Prefer reusing a suitable existing implementation before adding another one.",
+                 "conditions": "When an existing implementation fits the requested behavior.",
+                 "exceptions": "Add a new implementation when the existing one does not fit.",
+                 "do": "Inspect existing code and reuse a suitable path.", "dont": "Do not add parallel code without checking for an existing implementation.",
+                 "cross_project_confirmed": False,
+                 "source": {"type": "user_feedback", "excerpt": "User corrected the approach to reuse an existing implementation."}}
+        def signal(task: str, turn: str):
+            return self.apply(scope="global", task=task, turn=turn,
+                              operations=[{"op": "ADD", "scope": "global", "record": dict(habit)}])
+
+        first = signal("task-alpha", "habit-one")
+        self.assertEqual(first["stores"][0]["operations"][0]["habit_promoted"], False)
+        memory_id = first["stores"][0]["operations"][0]["id"]
+        record = store.show_record("global", memory_id, global_root=self.global_root)["record"]
+        self.assertEqual(record["status"], "candidate")
+        signal("task-alpha", "habit-repeat")  # Same task, different turn: still one signal.
+        record = store.show_record("global", memory_id, global_root=self.global_root)["record"]
+        self.assertEqual(record["status"], "candidate")
+        third = signal("task-beta", "habit-two")
+        self.assertTrue(third["stores"][0]["operations"][0]["habit_promoted"])
+        record = store.show_record("global", memory_id, global_root=self.global_root)["record"]
+        self.assertEqual((record["status"], record["strength"], record["cross_project_confirmed"]), ("active", "soft", False))
+        self.assertFalse(record["source_refs"])
+        conn = store._connect(store.global_paths(self.global_root)[1], readonly=True)
+        ids = [row[0] for row in conn.execute("SELECT ingestion_id FROM evidence WHERE memory_id=?", (memory_id,))]
+        conn.close()
+        self.assertEqual(len(ids), 2)
+        self.assertTrue(all(item.startswith("habit:") for item in ids))
+        self.assertNotIn("task-alpha", " ".join(ids))
+        other_project = store.recall("reuse existing code", project_root=self.project_b, global_root=self.global_root)
+        self.assertTrue(any(row["id"] == memory_id for row in other_project["stores"][0]["records"]))
+        current = store.show_record("global", memory_id, global_root=self.global_root)["record"]
+        revised = dict(habit, status="active", content="Prefer extending a suitable existing implementation before adding a parallel one.",
+                       source={"type": "user_feedback", "excerpt": "User corrected this reusable preference."})
+        changed = self.apply(scope="global", task="task-gamma", turn="habit-correction", operations=[
+            {"op": "REVISE", "scope": "global", "id": memory_id, "expected_revision": current["revision"], "record": revised}])
+        self.assertEqual(changed["status"], "saved", changed)
+        corrected = store.show_record("global", memory_id, global_root=self.global_root)["record"]
+        self.assertEqual(corrected["content"], revised["content"])
+        self.assertEqual(corrected["status"], "active")
+
+    def test_global_habit_candidates_reject_model_summaries_and_project_content(self) -> None:
+        candidate = {"kind": "preference", "claim_type": "preference", "status": "candidate", "strength": "soft",
+                     "title": "Prefer narrow fixes", "content": "Prefer narrow fixes that address the evidenced cause.",
+                     "cross_project_confirmed": False,
+                     "source": {"type": "model_inference", "excerpt": "The assistant inferred this preference."}}
+        rejected = self.apply(scope="global", task="task-one", turn="model-only",
+                             operations=[{"op": "ADD", "scope": "global", "record": candidate}])
+        self.assertEqual(rejected["stores"][0]["error"], "provenance_error")
+        candidate["source"] = {"type": "user_feedback", "excerpt": "User preferred this change for project_id:team-a."}
+        rejected = self.apply(scope="global", task="task-one", turn="project-text",
+                             operations=[{"op": "ADD", "scope": "global", "record": candidate}])
+        self.assertEqual(rejected["stores"][0]["error"], "scope_error")
+
+    def test_developer_first_project_capture_skips_records_until_mode_enabled(self) -> None:
+        project = self.home / "developer-first"
+        project.mkdir()
+        store.init_project(project, capture_mode="developer-first")
+        payload = {"schema_version": 1, "scope": "task", "session_id": "s", "turn_id": "t",
+                   "task_id": "task-1", "idempotency_key": "developer-first-add",
+                   "operations": [{"op": "CHECKPOINT", "scope": "task", "record": self.record(kind="checkpoint")}]}
+        result = store.apply_payload(payload, project_root=project, global_root=self.global_root)
+        self.assertEqual(result["status"], "skipped_developer_first")
+        base, _, config = store._config_for("project", project, self.global_root)
+        config["capture_mode"] = "full-project"
+        store.write_json_atomic(base / "config.json", config)
+        payload["idempotency_key"] = "full-project-add"
+        self.assertEqual(store.apply_payload(payload, project_root=project, global_root=self.global_root)["status"], "saved")
+
+    def test_growth_recall_uses_sqlite_index_and_returns_bounded_records(self) -> None:
+        operations = []
+        for number in range(300):
+            operations.append({"op": "ADD", "scope": "global", "record": {
+                "kind": "preference", "claim_type": "preference", "strength": "soft", "status": "active",
+                "title": f"Synthetic habit {number:03d}", "content": f"For synthetic topic-{number:03d}, prefer evidence-based narrow changes.",
+                "cross_project_confirmed": True,
+                "source": {"type": "user_confirmation", "excerpt": "This synthetic habit is a test fixture."}}})
+        result = self.apply(scope="global", turn="growth-seed", operations=operations)
+        self.assertEqual(result["status"], "saved", result)
+        _, db = store.global_paths(self.global_root)
+        conn = store._connect(db, readonly=True)
+        plan = [row[3] for row in conn.execute(
+            "EXPLAIN QUERY PLAN SELECT m.id FROM search_terms st INDEXED BY search_term_term "
+            "CROSS JOIN memories m ON m.id=st.memory_id "
+            "WHERE st.term=? AND m.scope='global' AND m.status IN ('active','conflicted')", ("topic-299",))]
+        conn.close()
+        self.assertTrue(any("search_term_term" in row for row in plan), plan)
+        started = time.perf_counter()
+        for index in range(10):
+            recalled = store.recall("topic-299", project_root=None, global_root=self.global_root,
+                                   max_candidates=10, max_details=2, max_chars=1500,
+                                   session_id=f"growth-{index}", force=True)
+            self.assertLessEqual(len(recalled["stores"][0]["records"]), 2)
+            self.assertLessEqual(recalled["stores"][0]["candidate_count"], 2 * 10 + 2)
+            self.assertTrue(recalled["stores"][0]["candidate_limit_reached"])
+        elapsed = time.perf_counter() - started
+        self.assertLess(elapsed, 3.0, f"bounded recall took {elapsed:.3f}s for 300 records x10")
+
     def test_resume_recovers_checkpoint_candidates_without_binding_a_task(self) -> None:
         for task in ("task-a", "task-b"):
             self.apply(scope="task", task=task, turn=task, operations=[

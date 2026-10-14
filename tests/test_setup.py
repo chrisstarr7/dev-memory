@@ -208,6 +208,51 @@ class SetupTests(unittest.TestCase):
         (self.project / 'AGENTS.md').unlink()
         self.assertEqual(setup.status(self.project)['status'], 'not_configured')
 
+    def test_user_setup_updates_only_codex_managed_block_and_is_reversible(self):
+        codex_home = self.home / '.codex'
+        codex_home.mkdir()
+        agents = codex_home / 'AGENTS.md'
+        override = codex_home / 'AGENTS.override.md'
+        agents.write_text('Base user instructions\n', encoding='utf-8')
+        original_override = 'Temporary user override\n'
+        override.write_text(original_override, encoding='utf-8')
+        with patch.dict(os.environ, {'CODEX_HOME': str(codex_home)}):
+            first = setup.setup_user('codex', self.skill, sys.executable, self.global_root)
+            self.assertEqual(first['activation'], 'configured')
+            self.assertEqual(first['guide'], str(override))
+            managed = override.read_text(encoding='utf-8')
+            self.assertIn('--global-only', managed)
+            self.assertTrue(managed.endswith(original_override))
+            self.assertEqual(agents.read_text(encoding='utf-8'), 'Base user instructions\n')
+            setup.setup_user('codex', self.skill, sys.executable, self.global_root)
+            self.assertEqual(override.read_text(encoding='utf-8').count(setup.USER_BEGIN), 1)
+            other_a = store.recall('bug evidence', project_root=None, global_root=self.global_root)
+            other_b = store.recall('feature reuse', project_root=None, global_root=self.global_root)
+            self.assertEqual([item['scope'] for item in other_a['stores']], ['global'])
+            self.assertEqual([item['scope'] for item in other_b['stores']], ['global'])
+            removed = setup.remove_user('codex', self.skill)
+            self.assertEqual(removed['status'], 'removed')
+            self.assertEqual(override.read_text(encoding='utf-8'), original_override)
+        self.assertTrue(store.global_paths(self.global_root)[1].is_file())
+        self.assertFalse((self.project / '.dev-memory').exists())
+
+    def test_user_setup_prefers_override_and_refuses_other_host(self):
+        with patch.dict(os.environ, {'CODEX_HOME': str(self.home / '.codex')}):
+            with self.assertRaises(store.MemoryError) as exc:
+                setup.setup_user('claude-code', self.skill, sys.executable, self.global_root)
+            self.assertEqual(exc.exception.code, 'host_unsupported')
+
+    def test_install_user_mode_does_not_initialize_working_project(self):
+        env = {**os.environ, 'HOME': str(self.home), 'USERPROFILE': str(self.home),
+               'CODEX_HOME': str(self.home / '.codex'), 'DEV_MEMORY_HOME': str(self.global_root)}
+        cmd = [sys.executable, '-B', str(ROOT / 'install.py'), 'codex', '--user', '--json']
+        run = subprocess.run(cmd, env=env, cwd=self.project, capture_output=True, text=True, timeout=15)
+        self.assertEqual(run.returncode, 0, run.stderr + run.stdout)
+        result = json.loads(run.stdout)
+        self.assertEqual(result['user_activation']['activation'], 'configured')
+        self.assertFalse((self.project / '.dev-memory').exists())
+        self.assertIn(setup.USER_BEGIN, (self.home / '.codex/AGENTS.md').read_text(encoding='utf-8'))
+
 
 if __name__ == '__main__':
     unittest.main()

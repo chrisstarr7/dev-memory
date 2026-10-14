@@ -88,7 +88,7 @@ def main() -> int:
         parser.error('Codex CLI is required for this optional real model check.')
     auth = Path(os.environ.get('CODEX_HOME',Path.home()/'.codex'))/'auth.json'
     frozen = source_hashes()
-    report = {'runtime_source_sha256':frozen,'status':'running','runtime_version':'0.6.0','host':subprocess.check_output([codex,'--version'],text=True).strip(),
+    report = {'runtime_source_sha256':frozen,'status':'running','runtime_version':'0.7.0','host':subprocess.check_output([codex,'--version'],text=True).strip(),
               'model':args.model,'reasoning_effort':args.reasoning,'synthetic_only':True,
               'user_prompts_mention_skill_or_maintenance':False,'hooks_configured':False,'runs':[]}
     try:

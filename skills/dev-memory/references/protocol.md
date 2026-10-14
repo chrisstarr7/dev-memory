@@ -20,7 +20,7 @@ Required fields: `schema_version: 1`, `scope` (`global`, `project`, `task`, `bot
 
 USE action notes appear in the current command result only. Persisted receipts keep the ID/revision and reporting marker, omitting `reason`/`action_ref` to avoid another copy of business prose after record deletion. An idempotent replay therefore returns the minimal stored usage result, not those action notes.
 
-Global records require one of `preference`, `convention`, `decision`, `lesson`, `procedure`, or `summary`, `cross_project_confirmed: true`, explicit user statement/confirmation/feedback, and no project/task/workspace markers. Project records allow business rules. Task is a project-local checkpoint. These machine checks do not determine natural-language applicability.
+Global explicit habits require a global kind, `cross_project_confirmed: true`, explicit user statement/confirmation/feedback, and no project/task/workspace markers. The one inferred-habit path accepts only a de-identified `preference` candidate (`claim_type: preference`, `strength: soft`, `status: candidate`, `cross_project_confirmed: false`) from `user_feedback`; project/task/workspace markers are rejected. It also requires the envelope task ID. Before writing global evidence, the program replaces that ID with a namespace-salted SHA-256 reference and drops any message ID. One distinct task reference counts once; two references promote the candidate to an active soft preference. Model inference, recall, and reuse of the same task cannot add support. Project records allow business rules. Task is a project-local checkpoint. Machine marker checks are defense in depth; the AI must semantically remove project names, business entities, code, paths, customer data, and raw dialogue.
 
 ## Evidence and truth
 
@@ -78,7 +78,7 @@ Query terms and output budgets also participate in cache identity; a topic chang
 
 Forgetting removes managed Markdown views immediately rather than leaving private text waiting for an export. Check `view_cleanup_incomplete` and `backup_cleanup_incomplete` for failure to clean a managed artifact. A later export removes old empty buckets. This is logical deletion, not secure disk erasure.
 
-The empty config example is not a ready runtime config: initialize with the CLI to generate namespace/workspace identity. Authorized changes to limits narrow recall budgets; `excluded: true` disables project capture and recall. Do not alter identity/storage routing fields.
+The empty config example is not a ready runtime config: initialize with the CLI to generate namespace/workspace identity. New project `setup` stores use `capture_mode: developer-first`, which blocks new project/task records while retaining recall; `mode full-project` enables them. Existing configs without this field keep their existing behavior. Authorized changes to limits narrow recall budgets; `excluded: true` disables project capture and recall. Do not alter identity/storage routing fields.
 
 For an ordinary continuation request with no known task ID, use `recall --resume --force`. It includes bounded recent task checkpoint candidates from the current project without automatically binding a task. Select the relevant task from current user intent and visible progress; ask if candidates make that materially ambiguous. Explicit task IDs retain the normal focused path. Resume intent participates in cache identity; incomplete results still require inspection.
 

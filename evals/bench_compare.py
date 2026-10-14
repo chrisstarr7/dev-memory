@@ -73,6 +73,8 @@ def _seed_history(skill: Path, project: Path, global_root: Path) -> None:
     cli = skill / "scripts" / "dev_memory.py"
     subprocess.run([sys.executable, str(cli), "init", "--global"], check=True, env=env, capture_output=True, text=True)
     subprocess.run([sys.executable, str(cli), "init", "--project-root", str(project)], check=True, env=env, capture_output=True, text=True)
+    subprocess.run([sys.executable, str(cli), "mode", "full-project", "--project-root", str(project)],
+                   check=True, env=env, capture_output=True, text=True)
     record = {
         "kind": "business_rule", "claim_type": "desired", "strength": "hard",
         "title": "Confirmed refund eligibility", "content": "Refund eligibility requires a delivered, unopened order within 14 days.",
@@ -240,7 +242,8 @@ def _run_trial(codex: str, model: str, reasoning: str, timeout: int, *, mode: st
     root_tests = list(project.glob("test*.py"))
     if tests_path.is_dir() or root_tests:
         try:
-            test = subprocess.run([sys.executable, "-m", "unittest", "discover", "-v"],
+            test = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s",
+                                   "tests" if tests_path.is_dir() else ".", "-v"],
                                   cwd=project, env=env, capture_output=True, text=True, timeout=15)
             output = test.stdout + test.stderr
             match = re.search(r"Ran\s+(\d+)\s+tests?", output)
@@ -294,6 +297,8 @@ def _seed_empty(skill: Path, project: Path, global_root: Path) -> None:
     cli = skill / "scripts" / "dev_memory.py"
     subprocess.run([sys.executable, str(cli), "init", "--global"], check=True, env=env, capture_output=True, text=True)
     subprocess.run([sys.executable, str(cli), "init", "--project-root", str(project)], check=True, env=env, capture_output=True, text=True)
+    subprocess.run([sys.executable, str(cli), "mode", "full-project", "--project-root", str(project)],
+                   check=True, env=env, capture_output=True, text=True)
 
 def _completed_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     def stats(field):
@@ -369,7 +374,7 @@ def main() -> int:
         "benchmark": "dev-memory A/B synthetic refund-rule coding task", "scenario": args.scenario,
         "runtime_source_sha256": frozen,
         "history_stores_identically_seeded_on_and_off": args.scenario == "automatic-maintenance",
-        "runtime_version": "0.6.0", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
+        "runtime_version": "0.7.0", "current_constraints_given_equally": args.scenario == "automatic-maintenance",
         "model": args.model, "reasoning": args.reasoning, "codex_cli": _version(codex),
         "repetitions_per_cell": args.repetitions, "condition_order_seed": args.seed,
         "same_task_text": True, "same_starting_code": True,

@@ -10,7 +10,21 @@ npx -y chrisstarr7/dev-memory codex
 
 只替换末尾的 AI 名称，见下表。需要 Node.js 22+、npm/npx、Git 和 Python 3.10+（含 sqlite3）。`npx` 直接获取这个公开 GitHub 仓库的程序，不需要 npm 账号。安装器无第三方 Node 依赖、无安装生命周期脚本，记忆运行时仍是 Python 标准库和 SQLite；安装完成后的记忆管理不调用 npx 或网络下载。
 
-成功时显示程序、项目和引导文件。一条命令完成下载、运行检查、独立空库初始化和项目引导。重复执行复用相同的受管理程序，有变化时自动更新；每次独立初始化或检查当前项目。已有记忆、暂停状态和原有指令保留。默认使用当前目录；其他目录执行时可加 `--project /项目绝对路径`。加 `--json` 获取机器回执。
+成功时显示程序、项目和引导文件。一条命令完成下载、运行检查、独立空库初始化和项目引导。新项目默认为 `developer-first`：读取已有项目规则，但不新增项目或任务记录。需显式运行 `dev-memory mode full-project --project-root /项目路径` 才开启完整项目记忆。重复执行复用相同的受管理程序，有变化时自动更新；已有记忆与配置不会清空。默认使用当前目录；其他目录执行时可加 `--project /项目绝对路径`。加 `--json` 获取机器回执。
+
+## Codex 用户级全局开发习惯
+
+要让新会话在不同项目自动召回同一份全局开发习惯，执行一次：
+
+```sh
+npx -y chrisstarr7/dev-memory codex --user
+```
+
+`--user` 不隐式初始化当前项目。安装器只更新 `$CODEX_HOME/AGENTS.override.md`（若存在且非空），否则更新 `$CODEX_HOME/AGENTS.md`，并只管理成对标记之间的内容。Codex 官方说明全局层只加载 `AGENTS.override.md` 或 `AGENTS.md` 中第一个非空文件；因此管理已有 override 可避免它遮蔽新增的 AGENTS.md。两种文件随后都按全局先于项目的顺序合并，项目约束仍可更具体。
+
+此方式只初始化/使用全局 SQLite 库，不初始化任何项目库。全局指令要求一轮有界 `context --global-only` 召回；项目业务记忆需要项目自己的授权。其他 AI 宿主暂无用户级适配器，不能声称已自动激活。卸载受管理 Skill 会删除属于该安装路径的用户级管理块，并保留其他文字及记忆数据；重新打开 Codex 会话后生效。
+
+用户级激活可在隔离环境中检查文件、回执和全局库；程序回执不代表真实 Codex 对话已正确遵循。官方检查方法是在任意两个项目新会话中询问当前加载的指令，并确认全局文件在项目文件之前。见 [Codex AGENTS.md 指南](https://developers.openai.com/codex/guides/agents-md)。
 
 | AI 参数 | 自动加载的项目引导 | Python 安装目录 |
 | --- | --- | --- |

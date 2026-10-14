@@ -450,7 +450,9 @@ def init_global(root: Path | None = None) -> dict[str, Any]:
     _init_database(db_path, ns, "global")
     return {"status": "initialized", "scope": "global", "namespace_id": ns, "database": str(db_path)}
 
-def init_project(root: Path) -> dict[str, Any]:
+def init_project(root: Path, capture_mode: str = "full-project") -> dict[str, Any]:
+    if capture_mode not in {"developer-first", "full-project"}:
+        raise MemoryError("validation_error", "Project capture mode must be developer-first or full-project.")
     project = _reject_unsafe_project_root(root)
     base, db_path = project_paths(project)
     if base.exists() and not (base / "config.json").exists() and any(base.iterdir()):
@@ -468,6 +470,7 @@ def init_project(root: Path) -> dict[str, Any]:
             "schema_version": SCHEMA_VERSION, "namespace_id": ns, "workspace_id": workspace_id,
             "storage_kind": "project", "project_root": str(project),
             "capture_enabled": True, "recall_enabled": True, "created_at": utc_now(),
+            "capture_mode": capture_mode,
             "limits": {"max_candidates": 20, "max_details": 5, "max_context_chars": 4000},
             "excluded": False,
         }
@@ -477,7 +480,8 @@ def init_project(root: Path) -> dict[str, Any]:
     if config.get("storage_kind") != "project" or Path(config.get("project_root", "")).resolve() != project:
         raise MemoryError("scope_error", "Existing configuration belongs to another scope or project.")
     _init_database(db_path, ns, "project")
-    return {"status": "initialized", "scope": "project", "namespace_id": ns, "workspace_id": workspace_id, "database": str(db_path)}
+    return {"status": "initialized", "scope": "project", "namespace_id": ns, "workspace_id": workspace_id,
+            "capture_mode": config.get("capture_mode", "full-project"), "database": str(db_path)}
 
 def _config_for(kind: str, root: Path | None, global_root: Path | None) -> tuple[Path, Path, dict[str, Any]]:
     if kind == "global":
@@ -584,15 +588,22 @@ def _select_record(conn: sqlite3.Connection, memory_id: str) -> dict[str, Any] |
     ).fetchone()
     return _record_row(row) if row else None
 
-def _validate_global(record: dict[str, Any], source: dict[str, Any]) -> None:
+def _validate_global(record: dict[str, Any], source: dict[str, Any], *, inferred_active: bool = False) -> None:
     if record["kind"] not in GLOBAL_KINDS:
         raise MemoryError("scope_error", "This record type cannot be stored globally.")
     if any(record.get(key) for key in ("task_id", "workspace_id", "project_id")):
         raise MemoryError("scope_error", "Global records cannot carry project, workspace, or task identifiers.")
-    if record.get("cross_project_confirmed") is not True:
-        raise MemoryError("scope_error", "Global records require explicit cross-project user scope.")
+    explicit = record.get("cross_project_confirmed") is True
+    inferred_candidate = (record.get("status") == "candidate" and record.get("claim_type") == "preference"
+                          and record.get("strength") == "soft" and record.get("cross_project_confirmed") is False)
+    inferred_active_rule = (inferred_active and record.get("status") == "active" and record.get("claim_type") == "preference"
+                            and record.get("strength") == "soft" and record.get("cross_project_confirmed") is False)
+    if not (explicit or inferred_candidate or inferred_active_rule):
+        raise MemoryError("scope_error", "Global rules need explicit cross-project scope or a de-identified soft-preference candidate.")
     if source.get("type") not in {"user_statement", "user_confirmation", "user_feedback"}:
         raise MemoryError("provenance_error", "A global rule needs explicit user evidence.")
+    if (inferred_candidate or inferred_active_rule) and source.get("type") != "user_feedback":
+        raise MemoryError("provenance_error", "Inferred global habits require direct user feedback, not an AI summary.")
     text = json.dumps({"record": record, "source": source}, ensure_ascii=False)
     if _project_marker(text):
         raise MemoryError("scope_error", "Global body or evidence contains a project-specific marker.")
@@ -600,7 +611,8 @@ def _validate_global(record: dict[str, Any], source: dict[str, Any]) -> None:
 def _valid_local_id(value: Any) -> bool:
     return isinstance(value, str) and bool(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", value))
 
-def _validate_record(record: Any, scope: str, task_id: str | None, namespace_id: str) -> dict[str, Any]:
+def _validate_record(record: Any, scope: str, task_id: str | None, namespace_id: str,
+                     *, inferred_active: bool = False) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise MemoryError("validation_error", "Record must be a nested JSON object under the operation's record key.")
     _ensure_not_sensitive(record)
@@ -626,7 +638,7 @@ def _validate_record(record: Any, scope: str, task_id: str | None, namespace_id:
     if source.get("type") == "model_inference" and status == "active":
         raise MemoryError("provenance_error", "Model inference alone cannot create an active memory.")
     if scope == "global":
-        _validate_global(record, source)
+        _validate_global(record, source, inferred_active=inferred_active)
     verify = record.get("verification", {})
     if not isinstance(verify, dict):
         raise MemoryError("validation_error", "verification must be an object.")
@@ -1160,6 +1172,16 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
                     'revision': canonical['revision'] + int(changed), 'duplicate_merged': True,
                     'body_written': False, 'semantic_review': 'ai_claim_not_program_verified'}, bool(changed)
         memory_id, changed = _store_record(conn, data)
+        promoted = False
+        if scope == "global" and data["status"] == "candidate" and data["claim_type"] == "preference" and data["strength"] == "soft":
+            independent = conn.execute("SELECT COUNT(DISTINCT ingestion_id) FROM evidence WHERE memory_id=? AND source_type='user_feedback' AND ingestion_id LIKE 'habit:%'", (memory_id,)).fetchone()[0]
+            if independent >= 2 and _select_record(conn, memory_id)["status"] == "candidate":
+                current_candidate = _select_record(conn, memory_id)
+                conn.execute("INSERT INTO revisions(memory_id,revision,snapshot,changed_at) VALUES(?,?,?,?)",
+                             (memory_id, current_candidate["revision"], _snapshot(current_candidate), utc_now()))
+                conn.execute("UPDATE memories SET status='active',revision=revision+1,updated_at=? WHERE id=?", (utc_now(), memory_id))
+                changed = promoted = True
+                _queue_maintenance(conn, memory_id)
         retired = []
         if data['kind'] == 'checkpoint' and scope == 'task' and data['status'] == 'active':
             previous = conn.execute("SELECT id FROM memories WHERE scope='task' AND task_id=? AND kind='checkpoint' AND status='active' AND id!=?", (data['task_id'], memory_id)).fetchall()
@@ -1174,6 +1196,7 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
         current = _select_record(conn, memory_id)
         return {"status": "saved" if changed else "duplicate_evidence", "id": memory_id,
                 "revision": current["revision"] if current else 1, "duplicate_merged": memory_id != data["id"],
+                "habit_promoted": promoted, "independent_task_signals": independent if scope == "global" and data["status"] == "candidate" and data["claim_type"] == "preference" and data["strength"] == "soft" else None,
                 "superseded_checkpoint_ids": retired}, changed
     memory_id = op.get("id")
     if not _valid_local_id(memory_id):
@@ -1196,7 +1219,8 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
             source["_dev_memory_generated_ingestion"] = True
         _ensure_not_sensitive(source)
         if scope == "global":
-            _validate_global(current, source)
+            inferred = current["cross_project_confirmed"] is False and current["status"] == "active" and current["strength"] == "soft"
+            _validate_global(current, source, inferred_active=inferred)
         inserted = _add_evidence(conn, memory_id, source)
         if inserted:
             conn.execute("UPDATE memories SET revision=revision+1,updated_at=? WHERE id=?", (utc_now(), memory_id))
@@ -1222,7 +1246,9 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
         data = _stamp_record(data, top)
         if keeps_old_verification:
             data["verification"] = current["verification"]
-        revised = _validate_record(data, current["scope"], top.get("task_id"), config["namespace_id"])
+        inferred = (current["scope"] == "global" and current["cross_project_confirmed"] is False
+                    and current["status"] == "active" and current["strength"] == "soft")
+        revised = _validate_record(data, current["scope"], top.get("task_id"), config["namespace_id"], inferred_active=inferred)
         if revised["semantic_hash"] != current["semantic_hash"] and revised["verification"] == current["verification"]:
             revised["verification"] = {}
             revised["last_verified_at"] = None
@@ -1278,7 +1304,36 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
     if not config.get("capture_enabled", True) or config.get("excluded") is True:
         return {"scope": target_scope, "status": "skipped_private", "checked": False}
     top = dict(top)
+    if kind == "project" and config.get("capture_mode", "full-project") == "developer-first":
+        if any(op.get("op") in {"ADD", "CHECKPOINT", "SUPERSEDE"} for op in operations):
+            return {"scope": target_scope, "status": "skipped_developer_first",
+                    "message": "New project/task memories are disabled in developer-first mode; enable full-project mode to capture them."}
     if kind == "global":
+        task_id = top.get("task_id")
+        prepared = []
+        for op in operations:
+            op = dict(op)
+            record = op.get("record")
+            if (op.get("op") == "ADD" and isinstance(record, dict) and record.get("status") == "candidate"
+                    and record.get("scope", "global") == "global" and record.get("kind") == "preference"
+                    and record.get("claim_type") == "preference" and record.get("strength") == "soft"
+                    and record.get("cross_project_confirmed") is False):
+                if not isinstance(task_id, str) or not task_id:
+                    return {"scope": target_scope, "status": "failed", "error": "provenance_error",
+                            "message": "A habit candidate needs an opaque task ID to count independent user evidence."}
+                record = dict(record)
+                source = dict(record.get("source") or {})
+                if source.get("type") != "user_feedback":
+                    return {"scope": target_scope, "status": "failed", "error": "provenance_error",
+                            "message": "Habit candidates require direct user feedback."}
+                source.pop("message_id", None)
+                digest = hashlib.sha256(f"{config['namespace_id']}\0{task_id}".encode()).hexdigest()
+                source["ingestion_id"] = "habit:" + digest
+                source["_dev_memory_generated_ingestion"] = True
+                record["source"] = source
+                op["record"] = record
+            prepared.append(op)
+        operations = prepared
         # Request context belongs to the project side of a mixed-scope batch.
         # Explicit project identifiers in a global record still fail validation.
         for key in ("task_id", "workspace_id", "project_id", "branch", "commit_id", "module", "_workspace_signature"):
@@ -1426,7 +1481,8 @@ def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, 
             results.append(_apply_store(kind, root, global_root, group, payload))
     statuses = [item["status"] for item in results]
     successes = {"saved", "checked_noop", "duplicate_evidence"}
-    failures = [status for status in statuses if status not in successes and status != "skipped_private"]
+    skipped = {"skipped_private", "skipped_developer_first"}
+    failures = [status for status in statuses if status not in successes and status not in skipped]
     if failures and any(status in successes for status in statuses):
         overall = "partial_success"
     elif failures:
@@ -1435,6 +1491,8 @@ def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, 
         overall = "saved"
     elif "checked_noop" in statuses:
         overall = "checked_noop"
+    elif "skipped_developer_first" in statuses:
+        overall = "skipped_developer_first"
     else:
         overall = "skipped_private"
     return {"status": overall, "stores": results}
@@ -1615,8 +1673,8 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             scopes = ["global"] if kind == "global" else ["project", "task"]
             scope_marks = ",".join("?" for _ in scopes)
             found = conn.execute(
-                f"""SELECT m.id,COUNT(DISTINCT st.term) score FROM search_terms st
-                JOIN memories m ON m.id=st.memory_id
+                f"""SELECT m.id,COUNT(DISTINCT st.term) score FROM search_terms st INDEXED BY search_term_term
+                CROSS JOIN memories m ON m.id=st.memory_id
                 WHERE st.term IN ({placeholders}) AND m.status IN ('active','conflicted')
                 AND m.scope IN ({scope_marks})
                 AND (m.scope!='task' OR (? IS NOT NULL AND m.task_id=?))

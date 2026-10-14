@@ -17,6 +17,7 @@ def argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("agent", nargs="?", help="codex, claude, cursor, gemini, copilot, opencode, deepseek (DSH)")
     parser.add_argument("--agent", dest="agent_option", help="Compatible explicit AI selector")
     parser.add_argument("--project", type=Path, help="Install and initialize this project for automatic memory")
+    parser.add_argument("--user", action="store_true", help="Enable Codex user-level global habits across projects")
     parser.add_argument("--target", type=Path, help="Custom Skill directory")
     parser.add_argument("--upgrade", action="store_true", help="Force rebuilding a managed installation; normal runs reuse/update automatically")
     parser.add_argument("--with-codex-hooks", action="store_true", help="Explicitly configure optional Codex hooks")
@@ -67,17 +68,24 @@ def main(argv: list[str] | None = None) -> int:
             agent = ALIASES.get(selected, selected)
     if agent not in dev_memory.AGENT_DIRS:
         parser.error("未知 AI；可选：" + ", ".join(dev_memory.AGENT_DIRS))
+    if args.user and agent != "codex":
+        parser.error("--user 目前只支持 Codex；其他宿主请使用项目级适配器。")
 
     result: dict = {}
     try:
         # --project is explicit authorization for managed project activation.
-        dev_memory._install_path(args.target, agent)
+        install_path = dev_memory._install_path(args.target, agent)
         if args.project:
             import dev_memory_setup
             project = store._reject_unsafe_project_root(args.project)
             guide = dev_memory_setup.guide_path(project, agent)
             dev_memory_setup._merged(guide.read_bytes() if guide.exists() else b"", agent)
             dev_memory_setup._activation(project)
+        if args.user:
+            import dev_memory_setup
+            _, guide = dev_memory_setup.user_guide_path(agent)
+            dev_memory_setup._merge_user_guide(guide.read_bytes() if guide.exists() else b"",
+                                               dev_memory_setup._user_block(install_path, sys.executable, store.default_global_root()))
         result = dev_memory.install(args.target, args.with_codex_hooks,
                                     args.upgrade, agent)
         installed_cli = Path(result["path"]) / "scripts/dev_memory.py"
@@ -96,6 +104,12 @@ def main(argv: list[str] | None = None) -> int:
             if setup["status"] != "initialized":
                 result.update(status="failed", error="project_setup_failed",
                               message="程序已安装，但项目初始化未完成；请检查各存储结果。")
+        if args.user and result["status"] == "installed":
+            import dev_memory_setup
+            result["user_activation"] = dev_memory_setup.setup_user(agent, Path(result["path"]), sys.executable)
+            if result["user_activation"].get("activation") != "configured":
+                result.update(status="failed", error="user_activation_failed",
+                              message="程序已安装，但 Codex 用户级指令未配置完成。")
         if result["hooks"]["status"] == "failed":
             result.update(status="failed", error="hook_configuration_failed",
                           message="Skill 文件已安装且基础检查通过，但可选 hooks 配置失败；请检查 hooks 结果。")
@@ -141,7 +155,10 @@ def report(result: dict, args: argparse.Namespace, agent: str) -> None:
             print("自动引导：" + result["project_setup"]["guide"])
             print("在该项目新建 AI 会话，直接提出开发任务即可；无需启用口令。")
         else:
-            print("仅安装了程序。为业务项目初始化：python3 install.py " + agent + " --project /项目路径")
+            if args.user:
+                print("Codex 用户级全局开发习惯已配置；在新项目会话中生效。")
+            else:
+                print("仅安装了程序。为业务项目初始化：python3 install.py " + agent + " --project /项目路径")
         if args.with_codex_hooks:
             print("可选 hooks 已配置；仍需宿主信任和真实事件验证。")
 
@@ -270,7 +287,12 @@ def online_main(argv: list[str] | None = None) -> int:
     agent = agent or option
     if agent not in {"codex", "claude-code", "cursor", "gemini-cli", "github-copilot", "opencode", "deepseek-harness"}:
         parser.error("请指定 AI：codex、claude、cursor、gemini、copilot、opencode 或 deepseek。")
-    args.project = (args.project or Path.cwd()).expanduser().resolve()
+    if args.user and agent != "codex":
+        parser.error("--user 目前只支持 Codex；其他宿主请使用项目级适配器。")
+    if args.project is not None:
+        args.project = args.project.expanduser().resolve()
+    elif not args.user:
+        args.project = Path.cwd().resolve()
     result = {}
     try:
         if sys.version_info < (3, 10):
@@ -283,8 +305,11 @@ def online_main(argv: list[str] | None = None) -> int:
         with tempfile.TemporaryDirectory(prefix="dev-memory-source-") as staging:
             source = Path(staging)
             snapshot = unpack_snapshot(download_snapshot(), source)
-            command = [sys.executable, "-B", str(source / "install.py"), agent,
-                       "--project", str(args.project), "--json"]
+            command = [sys.executable, "-B", str(source / "install.py"), agent, "--json"]
+            if args.project:
+                command += ["--project", str(args.project)]
+            if args.user:
+                command.append("--user")
             if args.target:
                 command += ["--target", str(args.target.expanduser().resolve())]
             if args.upgrade:
@@ -298,18 +323,14 @@ def online_main(argv: list[str] | None = None) -> int:
             if child.returncode == 0:
                 runtime = result.get("runtime_check")
                 setup = result.get("project_setup")
-                stores = setup.get("stores") if isinstance(setup, dict) else None
-                if (result.get("status") != "installed"
-                        or not isinstance(result.get("path"), str) or not result["path"]
-                        or not isinstance(runtime, dict) or runtime.get("status") != "passed"
-                        or not isinstance(setup, dict) or setup.get("status") != "initialized"
-                        or setup.get("activation") != "configured"
-                        or setup.get("project_root") != str(args.project)
-                        or not isinstance(setup.get("guide"), str)
-                        or not isinstance(stores, list) or len(stores) != 2
-                        or not all(isinstance(item, dict) and item.get("status") == "initialized"
-                                   for item in stores)
-                        or {item.get("scope") for item in stores} != {"global", "project"}):
+                user_setup = result.get("user_activation")
+                valid_setup = (not args.project or (isinstance(setup, dict) and setup.get("status") == "initialized"
+                               and setup.get("activation") == "configured" and setup.get("project_root") == str(args.project)
+                               and isinstance(setup.get("stores"), list) and len(setup["stores"]) == 2
+                               and {item.get("scope") for item in setup["stores"] if isinstance(item, dict)} == {"global", "project"}))
+                valid_user = (not args.user or (isinstance(user_setup, dict) and user_setup.get("activation") == "configured"))
+                if (result.get("status") != "installed" or not isinstance(result.get("path"), str) or not result["path"]
+                        or not isinstance(runtime, dict) or runtime.get("status") != "passed" or not valid_setup or not valid_user):
                     raise ValueError("安装程序没有返回完整成功回执。")
             elif result.get("status") != "failed":
                 raise ValueError("安装程序退出失败，但回执未报告失败。")

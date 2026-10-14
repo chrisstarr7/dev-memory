@@ -1,8 +1,8 @@
 <h1 align="center">dev-memory</h1>
 
 <p align="center">
-  <strong>Private local memory for AI coding assistants.</strong><br />
-  Recall constraints. Save corrections. Resume real progress.
+  <strong>Private local memory for developer habits across projects.</strong><br />
+  Learn how you work. Recall only what the current task needs.
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 ## Quick start
 
-Run this in the **root of the project you want to develop**:
+Run this in the **root of a project** for developer-first project activation:
 
 ```sh
 npx -y chrisstarr7/dev-memory codex
@@ -30,11 +30,19 @@ npx -y chrisstarr7/dev-memory codex
 
 Use `claude`, `cursor`, `gemini`, `copilot`, `opencode`, or `deepseek` (DeepSeek Harness / DSH) instead of `codex` for another assistant. The same command works on macOS, Linux, and Windows.
 
-**Requirements:** Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The installer downloads the program, checks the environment, initializes an empty project store, and configures the assistant's project instructions.
+**Requirements:** Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The installer downloads the program, checks the environment, initializes an empty project store, and configures project instructions. New project stores default to developer-first: existing project rules can be recalled, but new project business memory and task checkpoints are off until explicitly enabled.
 
 After installation succeeds, **start a new AI session in that project and develop normally**. No enable phrase, explicit Skill invocation, or repeated save/recall request is needed. Existing sessions must restart to load the new instructions.
 
-Run the same command in each project to initialize or update it. One managed program is shared: identical files are reused, changed files are updated, and each project is initialized independently. Upgrades preserve existing memories, unrelated project instructions, and paused settings. Each project needs its own initialization; explicitly confirmed global preferences can be shared.
+To make global developer habits available in every Codex project, run this once instead:
+
+```sh
+npx -y chrisstarr7/dev-memory codex --user
+```
+
+It adds a managed block to Codex user instructions and uses only the global store. It does not initialize the current project. The user-level option currently supports Codex; other hosts need their own supported adapter. Project activation remains separate when project business memory is wanted. The user can enable it with `dev-memory mode full-project --project-root <path>`.
+
+Run the project command in each project only when you want project-specific recall. The same global habit store can then be used across those initialized projects. Install and upgrade preserve existing memories and text outside managed instruction blocks.
 
 <details>
 <summary>Ask your local AI to install it</summary>
@@ -53,7 +61,8 @@ Windows Codex: version 0.5.2 repairs public program-directory ACL creation. Upgr
 | --- | --- |
 | Accurate constraints | Keeps conditions, exceptions, prohibitions, and verification steps; corrections revise the existing rule. |
 | Real task checkpoints | Records completed work, unfinished work, blockers, and the next step. Each task has one current checkpoint. |
-| Project isolation | Project A's business stays in A. Only explicitly confirmed cross-project preferences and methods belong globally. |
+| Developer-first learning | Explicit habits are global rules; repeated, de-identified user feedback forms a soft candidate and can become active across independent tasks. |
+| Project isolation | Project A's business stays in A. Global habits contain no project business, paths, code, or raw dialogue. |
 | Selective recall | Retrieves applicable global, current-project, and current-task records; reuses valid context and invalidates it after changes. |
 | Deduplication and compaction | Intercepts exact duplicates; the current AI compares paraphrases and shortens related records while preserving constraints and evidence. |
 | Local control | Supports inspection, correction, turn opt-out, pause, read-only recall, archive, and forget. |
@@ -62,12 +71,13 @@ An independent Agent Skill plus a small Python CLI: standard library and SQLite,
 
 ## Everyday use
 
-Describe your development work normally. The initialized assistant recalls relevant constraints, saves explicit corrections promptly, batches ordinary changes at turn end, and checks actual code before resuming a saved checkpoint.
+Describe your development work normally. An explicitly activated Codex user guide recalls a few relevant global habits across projects. The assistant can learn repeated behavior from actual user feedback without requiring a “save globally” phrase each time. One-time instructions do not become permanent preferences.
 
 | To control memory | Tell your AI |
 | --- | --- |
 | Correct a business condition | “Change the refund deadline to 14 days after delivery.” |
-| Save a global preference | “This development convention applies to all my projects; save it globally.” |
+| Save an explicit global preference | “This preference applies across my projects: reuse existing code before adding another implementation.” |
+| Enable project memory | `dev-memory mode full-project --project-root /path/to/project` |
 | Skip this turn | “Do not save memory from this turn.” |
 | Pause / resume writes | “Pause memory writes for this project, but keep recall.” / “Resume memory writes.” |
 | Use read-only recall | “Recall memory only; do not write anything this turn.” |
@@ -77,10 +87,10 @@ Examples are fictional and are never imported automatically. No hand-written JSO
 
 ## How memory works
 
-1. **Recall:** at task start/resume or project/module changes, one call returns relevant records and pending maintenance. Normal startup avoids repeated host probes.
-2. **Capture:** the current AI extracts meaning; the CLI validates scope, source, revision, and transaction boundaries. No increment produces a short checked NOOP receipt.
-3. **Organize:** compare related records, retire equivalent duplicates, and compact long bodies while retaining conditions, exceptions, negation, version boundaries, and sources.
-4. **Continue:** preserve one current checkpoint per task and keep older checkpoints as history. Source edits/deletion invalidate dependent summaries.
+1. **Recall:** one bounded call at task start returns a few relevant active habits and, when authorized, current-project constraints.
+2. **Capture:** explicit global preferences are saved as confirmed rules. Repeated feedback is stored as generic candidates, with one hashed task signal per task; two independent tasks promote a soft preference. No additional model is used.
+3. **Organize:** exact duplicates are reused. Bounded maintenance remains threshold-triggered and is not a per-turn coding workflow.
+4. **Continue:** task checkpoints are optional. Source edits/deletion invalidate dependent summaries.
 
 The AI connects applicable remembered conditions to design/code decisions and regression checks before editing. Relevant rules receive priority; a small candidate directory supports selective follow-up. Optional use receipts name a concrete action informed by a rule and add no user evidence. Task correctness is evaluated separately from reported use.
 
@@ -118,9 +128,9 @@ flowchart TD
 
 | Scope | Contents | Default location |
 | --- | --- | --- |
-| `global` | Explicitly confirmed cross-project development preferences, conventions, and methods | `~/.dev-memory/global/` |
-| `project` | The owning project's business, architecture, interfaces, constraints, decisions, and defect lessons | `<project-root>/.dev-memory/` |
-| `task` | Temporary requirements, progress, blockers, and next steps | Inside the owning project's store |
+| `global` | Explicit developer habits and de-identified, evidence-backed soft preferences | `~/.dev-memory/global/` |
+| `project` | Optional project-specific business, architecture, interfaces and constraints | `<project-root>/.dev-memory/` |
+| `task` | Optional temporary requirements and continuation points | Inside the owning project's store |
 
 Each store has separate transactions, evidence, receipts, views, and backups. Project writes never fall back to global storage. Scope follows content and user intent, not just the working directory; business without an identified project never goes global.
 
@@ -138,7 +148,7 @@ Runtime files live in `skills/dev-memory/`; installation entry points are `bin/i
 
 Program tests and packaging CI passed on Ubuntu, macOS, and Windows with Python 3.10/3.14. Seven installation targets have isolated installation and repeat-install checks; successful installation does not prove automatic behavior on every host. Real Codex CLI evidence, host versions, semantic checks, and outstanding S01–S48 scenarios are listed in the [verification report](reports/verification.md). DSH has program installation and published-provider checks; a full DeepSeek model session remains unverified. See [DSH results](reports/deepseek.json).
 
-**Performance is still being measured.** Version 0.6.0 passed real Codex CLI lifecycle and automatic-maintenance evaluations. Its new matched on/off comparison has no valid completed samples: host quota failures and a subsequently fixed runner defect blocked it. No fixed overhead or negligible-delay claim is made. See the [memory use and maintenance review](reports/memory-cycle-review.md) for source boundaries, timings and remaining limits.
+**Performance evidence is exploratory.** A 0.7.0 real Codex CLI comparison completed one synthetic run per memory-on/off cell, including a maintenance stress case. It observed extra memory-tool calls in enabled cells; the sample is too small to estimate normal coding latency, and 0.6.0 was not rerun on the same task. See the [0.7.0 comparison](reports/benchmark-0.7.0.md) and [memory use and maintenance review](reports/memory-cycle-review.md). No negligible-overhead claim is made.
 
 ## Privacy and safety
 
