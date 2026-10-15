@@ -33,8 +33,10 @@ class InstallerTests(unittest.TestCase):
                     'DSH_HOME': str(self.home / '.dsh'), 'PYTHONDONTWRITEBYTECODE': '1'}
 
     def run_installer(self, *args: str) -> subprocess.CompletedProcess[str]:
+        input_args = {"input": ""} if not args else {}
         return subprocess.run([sys.executable, '-B', str(ROOT / 'install.py'), *args],
-                              cwd=self.home, env=self.env, text=True, encoding="utf-8", capture_output=True, timeout=15)
+                              cwd=self.home, env=self.env, text=True, encoding="utf-8", capture_output=True,
+                              timeout=15, **input_args)
 
     def test_all_short_names_check_runtime_and_keep_empty_data(self) -> None:
         for agent, relative in dev_memory.AGENT_DIRS.items():

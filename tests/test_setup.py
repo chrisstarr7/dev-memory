@@ -73,6 +73,21 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(set(activation['bindings']), set(setup.GUIDES))
         self.assertEqual(activation['bindings']['codex']['global_root'], str(self.global_root))
 
+    def test_project_instruction_is_a_light_trigger_with_required_boundaries(self):
+        result = self.activate()
+        guide = Path(result['guide']).read_text(encoding="utf-8")
+        block = guide.split(setup.BEGIN, 1)[1].split(setup.END, 1)[0]
+
+        self.assertIn('use dev-memory automatically', block)
+        self.assertIn('one bounded, task-focused `context` call', block)
+        self.assertIn('material project/module/topic change', block)
+        self.assertIn('Save explicit corrections before affected edits', block)
+        self.assertIn('at a natural task boundary', block)
+        self.assertIn('`pending_next_turn`', block)
+        self.assertIn('pause, disable, read-only, or turn opt-out settings', block)
+        self.assertIn('Keep project facts in project scope', block)
+        self.assertLess(len(block), 1800)
+
     def test_empty_override_does_not_hide_existing_team_instructions(self):
         (self.project / 'AGENTS.md').write_text('Team instructions must remain visible.\n', encoding="utf-8")
         (self.project / 'AGENTS.override.md').write_text('  \n', encoding="utf-8")

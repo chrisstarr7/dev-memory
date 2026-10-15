@@ -368,13 +368,13 @@ class AdversarialTests(MemoryTestCase):
         result = store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)
         self.assertEqual(result["status"], "saved", result)
 
-    def test_skill_quick_checkpoint_contract_is_a_valid_nested_record(self):
+    def test_skill_ordinary_apply_contract_is_a_valid_nested_record(self):
         skill = (ROOT / 'skills/dev-memory/SKILL.md').read_text(encoding='utf-8')
         payload = json.loads(skill.split('```json\n', 1)[1].split('```', 1)[0])
         result = store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)
         self.assertEqual(result['status'], 'saved', result)
-        active = store.list_records('project', project_root=self.project_a)['records']
-        self.assertEqual({r['kind'] for r in active}, {'business_rule','checkpoint'})
+        active = store.list_records('global', global_root=self.global_root)['records']
+        self.assertEqual({r['kind'] for r in active}, {'preference'})
 
     def test_empty_apply_input_explains_input_contract_and_writes_nothing(self):
         result = subprocess.run([sys.executable, str(ROOT/'skills/dev-memory/scripts/dev_memory.py'),
