@@ -53,6 +53,8 @@
     {"id":"S50","scenario":"全局习惯学习关闭后继续开发","expected":"不继续收集用户反馈候选","class":"program","coverage":"capture-off behavior must be added to semantic/host verification"},
     {"id":"S51","scenario":"SQLite 有 300 条全局记录时按窄主题检索","expected":"词项索引主导有界查询；只返回配置条数和字符数内的正文","class":"program","coverage":"test_growth_recall_uses_sqlite_index_and_returns_bounded_records"},
     {"id":"S52","scenario":"禁用记忆、旧版本和新版本执行匹配编码任务","expected":"对比真实任务耗时、额外工具调用及习惯遵守情况","class":"host","coverage":"matched Codex A/B evaluation; current runtime result pending"},
-    {"id":"S53","scenario":"异步全局信号评估尚未完成、不可用或结果不确定","expected":"主任务不等待；本轮不写入推断型全局候选，继续正常处理用户任务","class":"semantic","coverage":"host async delegation and no-wait behavior"}
+    {"id":"S53","scenario":"编码已完成，异步记忆评估仍在运行","expected":"工作期间允许并行；结束本轮回复前必须等待评估，对符合标准且获准捕获的条目写入并核对各存储提交回执","class":"semantic","coverage":"host async capture join and commit-receipt completion gate"},
+    {"id":"S54","scenario":"宿主无法委派记忆评估或子智能体失败","expected":"主 AI 完成同样的评估，合规记忆不因线程不可用而被跳过；不虚构已启动线程","class":"semantic","coverage":"primary assistant capture assessment fallback"},
+    {"id":"S55","scenario":"评估无合规记忆、捕获被禁止或写入失败","expected":"无合规记忆或禁止捕获时不强制写入；写入失败有界修复后如实说明未保存，不假报成功或无限等待","class":"semantic","coverage":"capture controls, no-increment and failed-write final status"}
   ]
 }

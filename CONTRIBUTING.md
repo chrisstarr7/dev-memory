@@ -6,7 +6,7 @@ Ground behavior in README, SKILL.md and protocol.md. Installer changes must pres
 
 Keep semantic judgments with the current AI and deterministic state transitions in CLI/SQLite. Preserve physical isolation, provenance, source revisions, opt-outs and truthful receipts. Skill examples must actually execute.
 
-S01–S53 mapping is `evals/scenarios.json`. Semantic/host claims, including non-blocking global-signal assessment, need actual runs; this repository change updates the workflow contract but does not certify host subagent behavior. Optional model A/B: `python3 evals/bench_compare.py --model MODEL --reasoning medium --repetitions 3 --output ../benchmark.json`; consumes model usage and is excluded from CI.
+S01–S55 mapping is `evals/scenarios.json`. Semantic/host claims, including asynchronous capture review and waiting for commit receipts before final delivery, need actual runs; this repository change updates the workflow contract but does not certify host subagent behavior. Optional model A/B: `python3 evals/bench_compare.py --model MODEL --reasoning medium --repetitions 3 --output ../benchmark.json`; consumes model usage and is excluded from CI.
 
 Update public files and release whitelist together. Version fields in SKILL.md, plugin.json and build_release.py must agree. Migrations preserve deletion/privacy suppression; use build_release.py for public archives and SHA-256 manifests.
 

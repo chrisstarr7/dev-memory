@@ -16,7 +16,7 @@ Dev Memory learns from the requirements, corrections, technical decisions and wo
 
 ## How it works
 
-1. **Assess feedback.** The assistant judges whether a user message signals a durable cross-project habit. If the host offers non-blocking subagents, one read-only reviewer can assess an implicit signal while the main task continues. Explicit cross-project rules remain direct evidence; inferred feedback stays a candidate until two independent task IDs support it.
+1. **Assess feedback.** The assistant judges whether a user message signals a durable cross-project habit. When memory capture is authorized, a read-only subagent can assess potential global or project records while the main task continues. Before the final response, the assistant waits for review and confirms any required writes. Explicit cross-project rules remain direct evidence; inferred feedback stays a candidate until two independent task IDs support it.
 2. **Recall for the task.** The assistant retrieves a small set of relevant active habits and applies their conditions and exceptions. It reuses valid context within the task; current user instructions take priority over soft preferences.
 3. **Revise with evidence.** Corrections update existing habits, preserving their sources and revision history. Exact duplicates are detected locally; the current assistant judges equivalent wording. AI summaries and retrieval hits add no user evidence.
 
@@ -31,13 +31,18 @@ Dev Memory learns from the requirements, corrections, technical decisions and wo
 flowchart LR
     U[User message] --> R[Inline bounded recall]
     R --> T[Main task continues]
-    U -. host has non-blocking reviewer .-> A[Async read-only global-signal assessment]
-    U -. no reviewer available .-> N[No inferred global candidate]
-    A --> C{Result ready at normal capture point?}
-    C -- no or uncertain --> S[Skip this turn; do not wait]
-    C -- yes --> V[Primary assistant checks scope, privacy, controls and evidence]
-    V --> M[Normal local apply]
-    T --> M
+    U -. potential memory increment .-> A[Async read-only capture review]
+    U -. no delegation available .-> P[Primary assistant performs review]
+    A --> J[Wait for review before final response]
+    P --> J
+    T --> J
+    J --> C{Eligible records?}
+    C -- yes --> V[Check scope, privacy, controls and evidence]
+    V --> M[Apply and inspect per-store commit receipts]
+    M -- committed --> F[Final response]
+    M -- failure --> E[Bounded repair or explicit unsaved status]
+    E --> F
+    C -- no --> F
 ```
 
 ## Installation
@@ -70,7 +75,7 @@ User-level activation currently supports Codex only. Other hosts use their proje
 
 ## Everyday use
 
-Develop normally after setup. An available host subagent may asynchronously assess a possible global habit; the coding task never waits for it, and only the primary assistant can validate and save its result. If no result is ready at the normal capture point, no inferred global candidate is saved from that turn. This uses the host's existing model capability and account usage. Recall remains inline before edits; project-memory writes and maintenance remain bounded local operations. There is no always-running conversation monitor, daemon or separate learning service.
+Develop normally after setup. Memory assessment can run in a read-only host subagent while coding proceeds. Before ending the turn, the primary assistant waits for that review, validates eligible records and checks successful store receipts; finishing coding first does not discard a memory increment. If delegation is unavailable or fails, the primary assistant performs the assessment. A finding of no eligible memory requires no write. Storage failure is reported honestly after a bounded repair attempt. This uses the host's existing model capability and account usage. Recall remains inline before edits, all writes belong to the primary assistant, and unrelated maintenance can be deferred. There is no always-running conversation monitor, daemon or separate learning service.
 
 | To control memory | Tell your assistant |
 | --- | --- |
