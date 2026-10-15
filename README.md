@@ -10,58 +10,25 @@
 </p>
 
 <p align="center"><strong>English</strong> · <a href="docs/readme/README.zh-CN.md">简体中文</a> · <a href="docs/readme/README.ja.md">日本語</a> · <a href="docs/readme/README.ko.md">한국어</a></p>
-<p align="center"><a href="#quick-start">Quick start</a> · <a href="#using-another-project">Another project</a> · <a href="#what-is-remembered">Memory scope</a> · <a href="#when-memory-is-read-and-saved">Read and save</a></p>
 
-Dev Memory helps an AI coding assistant reuse your development habits and an individual project's durable rules in later sessions. The assistant assesses what is worth remembering; a local Python program stores and retrieves the records in SQLite.
+Dev Memory helps an AI coding assistant learn reusable development habits from visible user requirements, corrections and choices. It keeps project rules in their owning projects and stores records, evidence and revisions locally in SQLite.
+
+## What it does
+
+- Learns traceable, correctable habits that can be reused in later sessions and projects.
+- Recalls a small set of relevant habits and authorized project rules for the current task.
+- Keeps one-time directions in the conversation; new project memory is off by default.
+- Runs as a host-guided Skill with a local Python CLI. It has no daemon, telemetry or external memory service.
 
 ## Quick start
 
-Requires Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. Run this command **from the root of the project you want to configure**:
+Run this from the root of the project you want to configure. Replace `codex` with the host parameter in the table below:
 
 ```sh
 npx -y --prefer-online chrisstarr7/dev-memory codex
 ```
 
-Then **start a new Codex session in that project** and work normally. You do not need to invoke the Skill or say “remember this” on every turn.
-
-For Codex, this one command sets up:
-
-| Configuration | What it enables |
-| --- | --- |
-| User-level guidance | Relevant global development habits can be recalled and learned across projects. |
-| Current-project guidance | This project gets its own memory store and startup binding. Its business rules remain project-local. |
-
-Installation creates or reuses stores and configures instructions. **The permission to add new project records is controlled separately by the capture mode below.**
-
-### Default capture mode
-
-New projects use **`developer-first`**. Setting up a project does not automatically enable new business-memory records.
-
-| Mode | Global development habits | Existing project rules | New durable project records |
-| --- | --- | --- | --- |
-| `developer-first` — default | Recall and eligible capture | Recall | Off |
-| `full-project` | Recall and eligible capture | Recall | On |
-
-Pause, disable, read-only and turn opt-out controls still apply in either mode. To enable project capture, tell the assistant: **“Enable memory recording for this project; switch it to full-project.”** It uses the installed CLI and this project's binding. No second installation command is needed. See the [installation guide](docs/installation.md) for the exact mode command.
-
-## Using another project
-
-**To give project B its own project configuration, enter B's root, run the same installation command again, and start a new Codex session there.**
-
-| Situation | What to do / what happens |
-| --- | --- |
-| First setup in project A | Run the command in A. It configures user-level global habits and A's project binding. |
-| Project B also needs project memory | Run the same command in B. B gets its own store and binding; its new-project capture mode is `developer-first`. |
-| Codex enters a project that has not been initialized | User-level guidance can use global habits; it does not initialize or capture that project's business memory. |
-| An initialized project needs an update | Run the same command there. Managed program files update; memories, capture settings and unrelated instructions are preserved. |
-
-A and B share the user's global store. Their project stores are separate. An initialized project uses **one combined global/project recall**, rather than repeating the global recall.
-
-### Other AI hosts
-
-Replace `codex` in the command with the appropriate parameter:
-
-| Host | Parameter |
+| AI host | Parameter |
 | --- | --- |
 | Codex | `codex` |
 | Claude Code | `claude` |
@@ -71,42 +38,31 @@ Replace `codex` in the command with the appropriate parameter:
 | OpenCode | `opencode` |
 | DeepSeek Harness (DSH) | `deepseek` |
 
-Only Codex currently has user-level guidance across uninitialized projects. Other hosts require project setup for automatic use. DeepSeek here means the local DSH host. Installation paths, offline setup and removal are in the [installation guide](docs/installation.md).
+Requirements: Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. After setup, start a new AI session in that project and work normally; no repeated Skill invocation or save request is needed.
 
-## What is remembered
+For Codex, the command configures both user-level global habits and the current project's binding. Other hosts need project setup for automatic use; only Codex currently supports user-level guidance across uninitialized projects. DeepSeek here means the local DSH host.
 
-| Memory | Examples | Scope |
+## Memory scope and defaults
+
+| Memory | Examples | Scope and default |
 | --- | --- | --- |
-| Global habits | Reuse suitable existing code; diagnose from evidence; preferred response order | Reusable across projects, with project details removed |
-| Project rules | Business constraints, architecture decisions, interface agreements and durable lessons | The owning project; new capture requires `full-project` |
-| One-time directions | “Skip tests this time” | Current conversation only |
+| Global habits | Reuse suitable existing code; diagnose from evidence; preferred response order | Reused across projects after removing project details. Eligible global capture requires an authorized setup. |
+| Project rules | Business constraints, architecture decisions, interface agreements | Available only in the owning project. New project records require `full-project`. |
+| One-time directions | “Skip tests this time” | Current conversation only. |
 
-Temporary task progress and checkpoints stay in the conversation. The ordinary Skill workflow uses global and project memory only.
+New project stores use **`developer-first`**: existing project rules can be recalled, but new project records are off. Use `full-project` to enable new durable project records. Existing settings and data are preserved during upgrades.
 
-The AI judges visible user requirements, corrections and choices; you do not have to label each one as a memory. A clearly cross-project instruction can become a confirmed habit. An inferred habit first becomes an inactive candidate and needs feedback from **two genuinely independent tasks** before it becomes a soft preference. AI summaries, repeated retrieval and repeated wording within one task do not add independent user evidence. Current instructions take priority over remembered habits.
+Codex user-level guidance can use global habits in an uninitialized project without initializing or capturing that project's business memory. To give another project its own store and project rules, run the setup command from that project's root. Initialized projects make one combined global/project recall.
 
-## When memory is read and saved
+## How learning and recall work
 
-**Reading happens in the primary assistant.** It makes a small, focused recall at task start, resume, or a meaningful topic/module change, and reuses valid context while working. It does not reload the entire store for every tool call.
+1. **Recall:** At task start, resume, or a meaningful topic change, the assistant makes one bounded, focused lookup and reuses valid results while working.
+2. **Learn:** Explicit cross-project preferences can become confirmed habits. Repeated feedback starts as an inactive candidate; two genuinely independent tasks can promote it to a soft preference. AI summaries and repeated retrieval do not count as user evidence.
+3. **Correct and organize:** The assistant checks existing records before adding, revises habits when corrected, and performs bounded cleanup at suitable task boundaries. Current user instructions take priority over remembered preferences.
 
-**Assessment can run in parallel with development.** When the host supports asynchronous subagents, a read-only reviewer assesses possible new memories. The primary assistant remains responsible for scope, privacy, capture controls, duplicate checks and all writes.
+When the host supports asynchronous subagents, a read-only reviewer can assess potential memory while development continues. The primary assistant checks scope, privacy and controls, performs all writes, and verifies the store receipt before reporting success. Without delegation, the primary assistant does the assessment. This is a host-guided workflow, not continuous conversation monitoring.
 
-```mermaid
-flowchart TD
-    R[Primary assistant recalls relevant memory] --> W[Main task proceeds]
-    A[Read-only memory assessment runs in parallel] --> J[Before final response, wait for assessment]
-    W --> J
-    J --> C{Eligible and permitted memory?}
-    C -- Yes --> S[Primary assistant saves and checks commit receipts]
-    S --> F[Final response]
-    C -- No --> F
-```
-
-**Before ending the turn, the assistant waits for pending capture assessment and confirms required writes.** Finishing development first does not discard eligible memories. Without a usable subagent, the primary assistant assesses them itself. No eligible increment means no write. A failed save gets a bounded repair attempt and an explicit unsaved status; it must not be reported as saved. Unrelated maintenance can wait for a later task boundary.
-
-This is a host-guided Skill workflow, not a continuously running conversation monitor. Subagents use the host's model/account allowance; there is no separate learning service.
-
-## Control your memory
+## Control memory
 
 | Goal | Tell the assistant |
 | --- | --- |
@@ -115,8 +71,7 @@ This is a host-guided Skill workflow, not a continuously running conversation mo
 | Correct a habit | “Revise that habit: reuse existing code when it fits the requirement.” |
 | Pause global learning, keep recall | “Pause global habit writes, but keep recall.” |
 | Exclude this turn | “Do not save memory from this turn.” |
-| Inspect records | “Show the relevant global and current-project memories.” |
-| Forget a record | “Preview this memory's deletion scope; delete it after I confirm.” |
+| Inspect or forget a record | “Show relevant memories.” / “Preview deletion scope, then delete after I confirm.” |
 
 ## Storage and privacy
 
@@ -125,11 +80,11 @@ This is a host-guided Skill workflow, not a continuously running conversation mo
 | User's global habits | `~/.dev-memory/global/` |
 | Current project's rules | `<project-root>/.dev-memory/` |
 
-SQLite holds records, evidence and revisions; exported Markdown is a reading view. Global records exclude project names, business data, code, paths, credentials and raw conversations. The core does not upload stores or collect telemetry. Any excerpts processed by a hosted model follow that host's data policy.
+SQLite is authoritative; exported Markdown is a reading view. The workflow excludes project names, business details, code, paths, credentials and raw conversations from global records. The program rejects known sensitive and project-specific markers, but semantic de-identification remains the assistant's responsibility. The core does not upload stores or collect telemetry. Excerpts processed by a hosted model follow that host's data policy.
 
-## Documentation and current limits
+## Verification and documentation
 
-Installation success confirms configuration, not that every real host session follows it correctly. Automatic use requires the host to load instructions and the assistant to follow them. The unified two-project Codex workflow, asynchronous capture completion and current-version total task latency still need real-host verification.
+Installation confirms configuration, not that a real host session follows it. Cross-project Codex behavior, asynchronous capture completion and current-version total task latency still need real-host verification.
 
 [Installation and removal](docs/installation.md) · [Architecture](docs/architecture.md) · [Protocol](skills/dev-memory/references/protocol.md) · [Verification reports](reports/verification.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
