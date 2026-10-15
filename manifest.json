@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "181aa321848491911d488a83ca8436c657d62797cca480438f72a77258c2f9ea"
+      "sha256": "916c8547063e224b041c5b1f3127ced8ba8d7887e2eb1803926c3acbcc045982"
     },
     {
       "path": "LICENSE",
@@ -102,15 +102,15 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "8a160fa984a4f55a41612e795772ab1edcb8e10381d44ee6528bc11f6b00a9f0"
+      "sha256": "f748588bdca9880ba8fc1706ff071d5d8cae932b47672821848d587d984ea51d"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "d12b643586223409ee62b1babd4d725818590b46b43e99f9ab711976fcdcd200"
+      "sha256": "bade931c0f907fb6e78055676b94ed4e88d40bfac9a66ee8fbfd59b4e8298535"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "554cbfce5d2ec4e9fc9e249b16cdd3d807284611d2b40b2f711368ae7d8f8b62"
+      "sha256": "3ba2e313c87e98545926ed5f4ac2aa16437452bb0b6a106566116c8a104cb596"
     },
     {
       "path": "tests/test_dev_memory.py",
