@@ -908,11 +908,13 @@ def _related_records(conn: sqlite3.Connection, record: dict[str, Any], limit: in
     return [_select_record(conn, memory_id) for memory_id in ids]
 
 
-def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: bool = False) -> dict[str, Any]:
+def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: bool = False,
+                     include_task: bool = True) -> dict[str, Any]:
     if config.get('maintenance_enabled', True) is False:
         return {'status': 'disabled'}
-    seeds = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active' ORDER BY q.updated_at,q.memory_id LIMIT 5").fetchall()
-    long_row = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status='active' ORDER BY q.updated_at,q.memory_id LIMIT 1").fetchone()
+    task_filter = " AND m.scope!='task'" if not include_task else ""
+    seeds = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active'" + task_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 5").fetchall()
+    long_row = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status='active'" + task_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 1").fetchone()
     if not seeds:
         return {'status': 'idle'}
     draining = bool(conn.execute("SELECT 1 FROM meta WHERE key='maintenance_cycle_active' AND value='1'").fetchone())
@@ -935,7 +937,7 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
             continue
         records.append(record)
         used += size
-    pending_count = conn.execute("SELECT COUNT(*) FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active'").fetchone()[0]
+    pending_count = conn.execute("SELECT COUNT(*) FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active'" + task_filter).fetchone()[0]
     return {'status': 'prepare', 'namespace_id': config['namespace_id'],
             'trigger': 'long_record' if long_row else ('threshold' if len(seeds) == 5 else ('drain' if draining else 'forced_boundary')),
             'record_scope': anchor['scope'], 'task_id': anchor.get('task_id') if anchor['scope'] == 'task' else None,
@@ -947,7 +949,8 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
 
 
 def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
-                        force: bool = False, session_id: str | None = None, turn_id: str | None = None) -> dict[str, Any]:
+                        force: bool = False, session_id: str | None = None, turn_id: str | None = None,
+                        include_task: bool = True) -> dict[str, Any]:
     _, db, config = _config_for(kind, project_root, global_root)
     if not config.get('capture_enabled', True) or not config.get('recall_enabled', True) or config.get('excluded'):
         return {'scope': kind, 'status': 'skipped_private'}
@@ -963,7 +966,7 @@ def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_r
                 return {'scope':kind, 'status':'skipped_private'}
             if _maintained_this_turn(conn, {'session_id':session_id, 'turn_id':turn_id}):
                 return {'scope':kind, 'status':'pending_next_turn'}
-        return {'scope': kind, **_maintenance_plan(conn, config, force)}
+        return {'scope': kind, **_maintenance_plan(conn, config, force, include_task)}
     except sqlite3.OperationalError:
         return {'scope': kind, 'status': 'deferred', 'reason': 'query_budget_or_storage_failure'}
     finally:
@@ -1389,7 +1392,8 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
                 changed_ids.add(result["id"])
                 if op.get('op') not in MAINTENANCE_OPS:
                     _queue_maintenance(conn, result['id'])
-        if kind == "project" and top.get("session_id") and top.get("task_id"):
+        if (kind == "project" and top.get("session_id") and top.get("task_id")
+                and any(op.get("scope") == "task" or op.get("op") == "CHECKPOINT" for op in operations)):
             conn.execute(
                 "INSERT INTO session_bindings(session_id,task_id,workspace_id,branch,commit_id,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET task_id=excluded.task_id,workspace_id=excluded.workspace_id,branch=excluded.branch,commit_id=excluded.commit_id,updated_at=excluded.updated_at",
                 (top["session_id"], top["task_id"], config.get("workspace_id"), top.get("branch"), top.get("commit_id"), utc_now()),
@@ -1598,7 +1602,8 @@ def _verification_status(record: dict[str, Any], root: Path | None, current_head
 
 def _recall_store(kind: str, root: Path | None, global_root: Path | None, query: str, *, task_id: str | None,
                   session_id: str | None, module: str | None, max_candidates: int, max_details: int,
-                  max_chars: int, force: bool, readonly: bool, resume: bool = False) -> dict[str, Any]:
+                  max_chars: int, force: bool, readonly: bool, resume: bool = False,
+                  include_task: bool = True) -> dict[str, Any]:
     try:
         base, db_path, config = _config_for(kind, root, global_root)
     except MemoryError as exc:
@@ -1621,8 +1626,8 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         current_revision = data_revision(db_path)
     except (sqlite3.Error, OSError, MemoryError):
         return {"scope": kind, "status": "unavailable", "reason": "storage_unavailable", "records": []}
-    active_task = task_id
-    if kind == "project" and not active_task and session_id:
+    active_task = task_id if include_task else None
+    if include_task and kind == "project" and not active_task and session_id:
         try:
             binding_conn = _connect(db_path, readonly=True)
             binding = binding_conn.execute("SELECT task_id FROM session_bindings WHERE session_id=?", (session_id,)).fetchone()
@@ -1634,6 +1639,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         "retrieval_format": 2,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
         "revision": current_revision, "task": active_task, "module": module, "resume": resume,
+        "include_task": include_task,
         "query_terms": sorted(_token_terms(query[:10000]))[:128],
         "limits": [max_candidates, max_details, max_chars],
     }
@@ -1670,7 +1676,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         candidate_limit_reached = False
         if terms:
             placeholders = ",".join("?" for _ in terms)
-            scopes = ["global"] if kind == "global" else ["project", "task"]
+            scopes = ["global"] if kind == "global" else (["project", "task"] if include_task else ["project"])
             scope_marks = ",".join("?" for _ in scopes)
             found = conn.execute(
                 f"""SELECT m.id,COUNT(DISTINCT st.term) score FROM search_terms st INDEXED BY search_term_term
@@ -1689,7 +1695,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 "SELECT id FROM memories WHERE kind IN ('preference','convention') AND status='active' ORDER BY CASE strength WHEN 'hard' THEN 0 ELSE 1 END,updated_at DESC LIMIT ?",
                 (max_candidates + 1,),
             ).fetchall())
-        if resume and kind == "project" and not active_task:
+        if include_task and resume and kind == "project" and not active_task:
             # Offer recent task candidates without silently binding an ambiguous
             # "continue" request to one task. Detail budgets still apply.
             selected_ids.update(row[0] for row in conn.execute(
@@ -1700,7 +1706,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                     (n.updated_at>m.updated_at OR (n.updated_at=m.updated_at AND n.id>m.id)))
                 ORDER BY m.updated_at DESC,m.id DESC LIMIT ?""", (min(3, max_candidates) + 1,),
             ).fetchall())
-        if active_task and kind == "project":
+        if include_task and active_task and kind == "project":
             selected_ids.update(row[0] for row in conn.execute(
                 "SELECT id FROM memories WHERE scope='task' AND task_id=? AND kind='checkpoint' AND status IN ('active','conflicted') ORDER BY updated_at DESC LIMIT 2",
                 (active_task,),
@@ -1780,7 +1786,8 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
 def recall(query: str, *, project_root: Path | None = None, global_root: Path | None = None,
            task_id: str | None = None, session_id: str | None = None, module: str | None = None,
            max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
-           force: bool = False, readonly: bool = False, resume: bool = False) -> dict[str, Any]:
+           force: bool = False, readonly: bool = False, resume: bool = False,
+           include_task: bool = True) -> dict[str, Any]:
     if project_root is None:
         limits = (max_candidates, max_details, max_chars)
         stores = [_recall_store("global", None, global_root, query, task_id=None, session_id=session_id,
@@ -1802,7 +1809,7 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
         project_result = _recall_store(
             "project", project_root, global_root, query, task_id=task_id, session_id=session_id, module=module,
             max_candidates=max_candidates - half_candidates, max_details=remaining_details,
-            max_chars=remaining_chars, force=force, readonly=readonly, resume=resume,
+            max_chars=remaining_chars, force=force, readonly=readonly, resume=resume, include_task=include_task,
         )
         stores = [global_result, project_result]
     return {

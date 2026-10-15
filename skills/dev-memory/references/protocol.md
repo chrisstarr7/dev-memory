@@ -1,5 +1,7 @@
 # Storage and CLI protocol
 
+The normal Skill workflow stores and recalls only global and project memories. It calls `context --exclude-task`; task scope, checkpoints and task recall remain in the CLI only for backward compatibility with existing data and direct legacy callers. The Skill does not read, create or maintain task records. Existing task data is preserved.
+
 ## Paths
 
 - Global data root defaults to `~/.dev-memory/`; the global store lives in `global/`.

@@ -31,30 +31,29 @@ User home
 
 Project A
 └── .dev-memory/
-    ├── memory.sqlite3       # A's project and task memory
+    ├── memory.sqlite3       # A's durable project rules; older task records may remain
     └── ...                  # A-only configuration, views and backups
 
 Project B
 └── .dev-memory/
-    ├── memory.sqlite3       # B's project and task memory
+    ├── memory.sqlite3       # B's durable project rules; older task records may remain
     └── ...                  # B-only configuration, views and backups
 ```
 
-There is no global database containing all projects. Recall opens the applicable global store and explicitly bound/current project, selecting the applicable task. It does not scan other projects. Task records have a task ID inside their owning project's database.
+There is no global database containing all projects. Normal Skill recall opens only the applicable global store and current project store; it passes `--exclude-task`, so session bindings and legacy task records do not enter context. It does not scan other projects. Existing task records and low-level task APIs are retained for backward compatibility, but the Skill neither reads nor writes them.
 
-The AI chooses scope from meaning and ownership; the CLI enforces declared scope, provenance and project identity. Explicit global habits require cross-project confirmation. Repeated, de-identified user feedback may be stored as a candidate and promoted to a soft preference after distinct task evidence. Business rules and one-time directions never become global habits. New project stores use `developer-first`: existing project records remain recallable, while new project/task writes are disabled until the user enables `full-project` mode. A user-level Codex activation shares only global habits across projects.
+The AI chooses between global habits and durable project rules; the CLI enforces declared scope, provenance and project identity. Explicit global habits require cross-project confirmation. Repeated, de-identified user feedback may be stored as a candidate and promoted to a soft preference after independent evidence, using an opaque task ID only to deduplicate signals. Business rules and one-time directions never become global habits. New project stores use `developer-first`: existing project records remain recallable, while new project writes are disabled until the user enables `full-project` mode. A user-level Codex activation shares only global habits across projects. Temporary task progress stays in the conversation.
 
 Each database contains its own records, evidence, revisions, retrieval terms, derivation edges and receipts. SQLite is authoritative; Markdown is a rebuildable view. `DEV_MEMORY_HOME` changes only the global data parent. Different clones/worktrees have independent project stores by default. AI hosts used by the same local user share that user's stores at these paths.
 
 ## Data flow
 
 1. **Check**: `doctor` reports capabilities without initializing stores. Plain installation copies programs only; `--user` authorizes Codex user-level global habits, while project setup binds a particular project and merges its automatically loaded host instructions. Startup instructions load the Skill without a chat invocation.
-2. **Recall**: one `context` call combines focused global/project/task recall with the pending-maintenance check. Normal startup does not probe host versions, initialize stores or create a receipt. `doctor` remains an environment/integration diagnostic. The AI compares memory with current instructions and authoritative project evidence.
+2. **Recall**: one `context --exclude-task` call combines focused global/project recall with the pending-maintenance check. Normal startup does not probe host versions, initialize stores or create a receipt. `doctor` remains an environment/integration diagnostic. The AI compares memory with current instructions and authoritative project evidence.
 3. **Judge**: within the current turn, the AI identifies new requirements, corrections, decisions or actual progress. Desired behavior, observed facts, preferences and hypotheses remain distinct.
 4. **Apply**: the AI submits structured operations and sources. The CLI validates, checks revision conflicts and deduplicates. A read-only `match` returns bounded related candidates when existing context is insufficient; identical text reuses a rule automatically, paraphrases require the current AI's semantic review. Global and project batches use separate transactions and results; one call can succeed in one store and fail in the other.
 5. **Acknowledge**: a write is reported only after its successful receipt. No extra write is required to report an unchanged turn. Missing checks and failed writes retain their actual status.
-6. **Maintain**: changed IDs queue within their owning store. Five pending IDs or a 1200-character body yield one bounded related pack in the successful apply response. The AI reviews at most one batch in the current turn; `MERGE_DUPLICATES`, `COMPACT` and `MAINTENANCE_REVIEW` use current revision guards. Task boundaries can prepare smaller pending topics. No background model, full-library sweep or recursive maintenance.
-7. **Continue**: checkpoints describe completed work, unfinished work, blockers, next steps and workspace/code boundaries. A new active checkpoint supersedes older active checkpoints of the same task in its transaction, retaining their audit history and invalidating dependent summaries. Other tasks keep their own checkpoints. New sessions recall the current checkpoint; ambiguous task continuation remains explicit.
+6. **Maintain**: changed global/project IDs queue within their owning store. Five pending IDs or a 1200-character body yield one bounded related pack in the successful apply response. The Skill's context maintenance excludes legacy task records. The AI reviews at most one batch in the current turn; `MERGE_DUPLICATES`, `COMPACT` and `MAINTENANCE_REVIEW` use current revision guards. No background model, full-library sweep or recursive maintenance.
 
 The AI maps applicable recalled rules to a concrete design/code decision and regression check before edits. Optional `USE` operations in the ordinary apply batch report the rule revision and action reference. They add no memory/evidence and are explicitly AI reports, not independent behavioral proof. Evaluation checks task outcomes separately. Candidate directories help choose relevant missing records without reading every unrelated body; omitted constraints remain marked incomplete.
 
@@ -71,9 +70,9 @@ Summaries refer to source IDs and expected revisions within one scope. Source re
 ## Lightweight operation
 
 - Recall at task start/resume, project/module/topic changes and relevant rule changes. Reuse context while query, task, workspace and store state remain valid.
-- Reuse loaded Skill/protocol instructions within the current runtime/context. Default recall reserves one third of its character budget for global memory and two thirds for the project; global preferences cannot consume the entire project budget. With the default five-detail budget, this means one global and four project/task details.
+- Reuse loaded Skill/protocol instructions within the current runtime/context. Default recall reserves one third of its character budget for global memory and two thirds for the project; global preferences cannot consume the entire project budget. With the default five-detail budget, this means one global and four project details.
 - Candidate SQL reads a sentinel beyond the limit. Overflow remains incomplete and cannot be cached as complete. Batch `show --ids ... --current` retrieves up to eight current records/12000 characters without old audit bodies. Full single-record `show` remains available for explicit provenance inspection.
-- Query-related rules rank before unrelated hard-rule fallback, while continuation checkpoints keep priority. Up to eight unloaded candidate descriptors use a separate 2000-character store budget; they contain directory metadata, not complete business constraints. Current records retain code/source references for targeted checks.
+- Query-related rules rank before unrelated hard-rule fallback. Up to eight unloaded candidate descriptors use a separate 2000-character store budget; they contain directory metadata, not complete business constraints. Current records retain code/source references for targeted checks.
 - Force recall after compaction/resume; inspect incomplete results before acting on key constraints. Cache metadata cannot prove that conversation content survived compaction.
 - Git dirty-path or bounded non-Git metadata traversal overflow makes the workspace fingerprint unknown. Unknown workspaces are not cached and are not labeled currently verified. The fingerprint is a bounded metadata check, not a cryptographic snapshot of every source file.
 - Recall and maintenance SQL have a 500 ms progress budget; term-led recall uses the term index and interruption returns deferred/incomplete. This does not bound process startup, SQLite lock waiting, Git calls or model reasoning. Failures never become successful recall or write claims.

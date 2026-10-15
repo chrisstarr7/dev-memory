@@ -24,10 +24,10 @@ BLOCK = f'''{BEGIN}
 
 For development tasks in this initialized project, use dev-memory automatically; the user need not name the Skill. Follow the loaded Skill and current user controls.
 - Read `.dev-memory/activation.json`; select this host's binding, load its `skill_file`, and use its configured runtime/store paths with the manifest's project root. If any required binding or runtime is unavailable, report that memory is not active.
-- At task start/resume or after a material project/module/topic change, make one bounded, task-focused `context` call; force resume when continuing without a known task ID. Reuse its relevant rules until context changes. Do not run separate startup doctor/recall/maintenance calls, scan other projects, or reload the full memory library each turn.
+- At task start/resume or after a material project/module/topic change, make one bounded `context --exclude-task` call for global and current-project rules; force recall after compaction or lost context. Reuse its relevant rules until context changes. Do not retrieve or write task memories/checkpoints, run separate startup doctor/recall/maintenance calls, scan other projects, or reload the full memory library each turn.
 - Apply only relevant rules after checking current code and instructions. Respect project capture mode and memory controls. Save explicit corrections before affected edits; batch only genuine new user evidence at task end. Check equivalent rules before adding; do not call `apply` for NOOP alone.
 - Run at most one already-returned, bounded maintenance pack at a natural task boundary. Never interrupt active work or poll for cleanup; defer when the queue says `pending_next_turn`.
-- Keep project facts in project scope, global habits de-identified, and secrets out of memory. Do not initialize another project or bypass pause, disable, read-only, or turn opt-out settings. Inspect store receipts before claiming a write succeeded.
+- Keep only durable project facts in project scope, global habits de-identified, and secrets out of memory. Temporary task progress stays in the conversation. Do not initialize another project or bypass pause, disable, read-only, or turn opt-out settings. Inspect store receipts before claiming a write succeeded.
 {END}
 '''
 
@@ -172,7 +172,7 @@ For development work in any project, use the user's global developer-habit store
 - Skill: `{skill / 'SKILL.md'}`; CLI: `{skill / 'scripts/dev_memory.py'}`; Python: `{python}`; global root: `{global_root}`.
 - Save explicit cross-project developer preferences promptly. Treat repeated feedback as a de-identified global candidate only when it reflects the user's visible feedback/choice; never count AI summaries or recall as evidence. Use `scope: global`, `kind: preference`, `claim_type: preference`, `strength: soft`, `status: candidate`, `cross_project_confirmed: false`, and short generic wording. Include only a short de-identified evidence excerpt. Never include project names, business entities, code, paths, customer data, raw dialogue, or logs.
 - A candidate needs an opaque task ID; the store counts at most one user-feedback signal per task. It becomes an active soft preference only after independent evidence from two tasks. Candidates are not instructions until promoted. Explicit user requirements and one-time instructions always take priority.
-- Respect global `capture off/disable`, read-only and turn opt-out controls. If the Skill, user instruction file, or store cannot be loaded, report that automation is unavailable; do not claim it ran. Ordinary coding does not run full-library maintenance or force a checkpoint.
+- Respect global `capture off/disable`, read-only and turn opt-out controls. If the Skill, user instruction file, or store cannot be loaded, report that automation is unavailable; do not claim it ran. Ordinary coding does not run full-library maintenance or create task checkpoints.
 {USER_END}'''
 
 

@@ -79,13 +79,14 @@ class SetupTests(unittest.TestCase):
         block = guide.split(setup.BEGIN, 1)[1].split(setup.END, 1)[0]
 
         self.assertIn('use dev-memory automatically', block)
-        self.assertIn('one bounded, task-focused `context` call', block)
+        self.assertIn('one bounded `context --exclude-task` call', block)
         self.assertIn('material project/module/topic change', block)
         self.assertIn('Save explicit corrections before affected edits', block)
         self.assertIn('at a natural task boundary', block)
         self.assertIn('`pending_next_turn`', block)
         self.assertIn('pause, disable, read-only, or turn opt-out settings', block)
-        self.assertIn('Keep project facts in project scope', block)
+        self.assertIn('Keep only durable project facts in project scope', block)
+        self.assertIn('Do not retrieve or write task memories/checkpoints', block)
         self.assertLess(len(block), 1800)
 
     def test_empty_override_does_not_hide_existing_team_instructions(self):

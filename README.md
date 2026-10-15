@@ -25,7 +25,7 @@ Dev Memory learns from the requirements, corrections, technical decisions and wo
 | “Across my projects, check existing code before adding another implementation.” | Confirmed global habit |
 | Repeatedly choosing evidence-based diagnosis in separate tasks | Candidate, then a soft preference when supported |
 | “Do not modify this project's payment module.” | Project constraint, when project capture is enabled |
-| “Skip tests this time.” | Temporary task instruction |
+| “Skip tests this time.” | Applies in the current conversation; not saved |
 
 ## Installation
 
@@ -66,14 +66,14 @@ Develop normally after setup. The assistant interprets visible user feedback in 
 | Exclude a turn | “Do not save memory from this turn.” |
 | Forget a habit | “Preview the deletion scope for this habit; delete it after I confirm.” |
 
-New project stores default to **`developer-first`**: global habits are the focus, existing project rules remain recallable, and new project business records and checkpoints are disabled. Ask the assistant to switch the installed CLI to `full-project` when you want those optional records; see the [mode instructions](docs/installation.md). Ordinary development uses bounded recall and batches new feedback rather than rebuilding the whole profile.
+The Skill recalls only global habits and durable rules for the current project. New project stores default to **`developer-first`**: existing project rules remain recallable, while new project records are disabled until the user enables `full-project` mode. Task progress and checkpoints are not part of the normal Skill workflow. Legacy task records are preserved but excluded from ordinary recall and maintenance.
 
 ## Local storage and control
 
 | Memory | Default location |
 | --- | --- |
 | Global developer habits | `~/.dev-memory/global/` |
-| Optional project rules and task checkpoints | `<project-root>/.dev-memory/` |
+| Project rules and decisions | `<project-root>/.dev-memory/` |
 
 SQLite stores atomic habits, evidence and revisions; the working profile consists of the current effective habits. The runtime supports idempotent writes, isolation, backup, read-only access and controlled forgetting. Global habit signals must be de-identified; project names, business data, code, paths and raw conversations do not belong there. The core uploads no memory and collects no telemetry; model processing follows the host's data policy.
 

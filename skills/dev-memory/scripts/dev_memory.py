@@ -170,11 +170,13 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
             task_id: str | None = None, session_id: str | None = None, module: str | None = None,
             turn_id: str | None = None,
             max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
-            force: bool = False, readonly: bool = False, resume: bool = False) -> dict[str, Any]:
+            force: bool = False, readonly: bool = False, resume: bool = False,
+            include_task: bool = True) -> dict[str, Any]:
     """One normal startup call: bounded recall and pending check, no host probes/init."""
     result = store.recall(query, project_root=project_root, global_root=global_root, task_id=task_id,
                           session_id=session_id, module=module, max_candidates=max_candidates,
-                          max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, resume=resume)
+                          max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, resume=resume,
+                          include_task=include_task)
     for bucket in result['stores']:
         if readonly:
             bucket['maintenance'] = {'status': 'not_requested_readonly'}
@@ -183,7 +185,8 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
         else:
             try:
                 bucket['maintenance'] = store.maintenance_prepare(bucket['scope'], project_root=project_root, global_root=global_root,
-                                                                  session_id=session_id, turn_id=turn_id)
+                                                                  session_id=session_id, turn_id=turn_id,
+                                                                  include_task=include_task)
             except (store.MemoryError, sqlite3.Error, OSError):
                 bucket['maintenance'] = {'status': 'deferred', 'reason': 'storage_unavailable'}
     project_activation = activation.status(project_root)
@@ -499,6 +502,7 @@ def _parser() -> argparse.ArgumentParser:
         p = sub.add_parser(name)
         p.add_argument("--query", default="")
         p.add_argument("--resume", action="store_true", help="Include recent checkpoint candidates when continuing without a task ID")
+        p.add_argument("--exclude-task", action="store_true", help="Exclude legacy task records from recall and context maintenance")
         p.add_argument("--project-root", type=Path)
         p.add_argument("--global-only", action="store_true", help="Use only the user global store, even inside a project")
         p.add_argument("--task-id")
@@ -616,6 +620,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.query, project_root=root, global_root=global_root, task_id=args.task_id,
                 session_id=args.session_id, module=args.module if args.module is not None else _module_label(root), max_candidates=args.max_candidates,
                 max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, resume=args.resume,
+                include_task=not args.exclude_task,
                 **({'turn_id':args.turn_id} if command == 'context' else {}),
             ))
         elif command == "show":

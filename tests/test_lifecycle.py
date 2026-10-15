@@ -110,6 +110,35 @@ class LifecycleTests(MemoryTestCase):
             self.assertEqual(len(detail['evidence']),1)
             self.assertEqual(len(detail['revisions']),1)
 
+    def test_context_can_recall_and_maintain_only_global_and_project_memory(self):
+        self.apply(scope='project', task='opaque-feedback-task', turn='project-rule-before-task', operations=[{
+            'op':'ADD', 'scope':'project', 'record':self.record(title='Durable project rule') }])
+        _, db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            self.assertIsNone(conn.execute("SELECT 1 FROM session_bindings WHERE session_id='session-test'").fetchone())
+        saved = self.apply(scope='task', task='legacy-task', operations=[{'op':'CHECKPOINT',
+            'record':self.record(kind='checkpoint', title='Legacy checkpoint', content='Old task progress.') }])
+        checkpoint_id = saved['stores'][0]['operations'][0]['id']
+        complete = store.recall('continue', project_root=self.project_a, global_root=self.global_root,
+                                session_id='session-test', resume=True, force=True)
+        self.assertIn(checkpoint_id, [r['id'] for r in complete['stores'][1]['records']])
+
+        current = dev_memory.context('continue', project_root=self.project_a, global_root=self.global_root,
+                                     session_id='session-test', resume=True, force=True, include_task=False)
+        self.assertNotIn(checkpoint_id, [r['id'] for r in current['stores'][1]['records']])
+        self.assertIsNone(current['stores'][1].get('task_id'))
+        self.assertEqual(current['stores'][1]['maintenance']['status'], 'waiting')
+        self.assertEqual(current['stores'][1]['maintenance']['pending_up_to_threshold'], 1)
+        self.assertEqual(store.show_record('project', checkpoint_id,
+                                          project_root=self.project_a)['record']['status'], 'active')
+        cli = subprocess.run([sys.executable, str(dev_memory.__file__), '--global-root', str(self.global_root),
+                              'context', '--project-root', str(self.project_a), '--query', 'continue',
+                              '--session-id', 'session-test', '--resume', '--exclude-task', '--force'],
+                             cwd=self.project_a, capture_output=True, text=True, encoding='utf-8', check=True)
+        response = json.loads(cli.stdout)
+        self.assertNotIn(checkpoint_id, [r['id'] for r in response['stores'][1]['records']])
+        self.assertEqual(response['stores'][1]['maintenance']['pending_up_to_threshold'], 1)
+
     def test_new_checkpoint_retires_only_its_own_task_and_invalidates_summary(self):
         ids={}
         for task in ('cycle','other'):
