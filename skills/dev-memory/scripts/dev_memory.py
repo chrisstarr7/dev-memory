@@ -491,7 +491,6 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser("setup", help="Initialize this project and configure automatic host instructions")
     p.add_argument("--project-root", type=Path, default=Path.cwd())
     p.add_argument("--agent", choices=tuple(AGENT_DIRS), default="codex")
-    p.add_argument("--user", action="store_true", help="Enable Codex user-level global habit recall across projects")
     p = sub.add_parser("mode", help="Set project memory capture mode")
     p.add_argument("capture_mode", choices=("developer-first", "full-project"))
     p.add_argument("--project-root", type=Path, default=Path.cwd())
@@ -593,8 +592,7 @@ def main(argv: list[str] | None = None) -> int:
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             _json_out(doctor(root, global_root))
         elif command == "setup":
-            result = (activation.setup_user(args.agent, PACKAGE_ROOT, sys.executable, global_root) if args.user
-                      else activation.setup(args.project_root, args.agent, PACKAGE_ROOT, sys.executable, global_root))
+            result = activation.setup(args.project_root, args.agent, PACKAGE_ROOT, sys.executable, global_root)
             _json_out(result)
             return 0 if result["status"] == "initialized" else 1
         elif command == "mode":

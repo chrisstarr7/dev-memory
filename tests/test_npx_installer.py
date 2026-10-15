@@ -15,6 +15,7 @@ import sqlite3
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'skills/dev-memory/scripts'))
 import dev_memory
+import dev_memory_setup as setup
 
 
 @unittest.skipUnless(shutil.which('node'), 'Optional npx entry requires Node.js')
@@ -42,6 +43,10 @@ class NpxTests(unittest.TestCase):
                 self.assertEqual(payload['project_setup']['project_root'],str(self.project))
                 self.assertEqual(payload['project_setup']['activation'],'configured')
                 self.assertEqual(payload['hooks']['status'],'not_requested')
+                if short == 'codex':
+                    self.assertEqual(payload['user_activation']['activation'], 'configured')
+                else:
+                    self.assertNotIn('user_activation', payload)
         config=self.project/'.dev-memory/config.json'
         value=json.loads(config.read_text(encoding="utf-8")); value.update(capture_enabled=False,recall_enabled=False)
         config.write_text(json.dumps(value), encoding="utf-8"); before=config.read_bytes()
@@ -51,6 +56,37 @@ class NpxTests(unittest.TestCase):
         bindings=json.loads((self.project/'.dev-memory/activation.json').read_text(encoding="utf-8"))['bindings']
         self.assertEqual(set(bindings),set(dev_memory.AGENT_DIRS))
         self.assertNotIn('node_modules',json.dumps(bindings))
+
+    def test_codex_default_preserves_global_controls_and_user_instructions(self):
+        first = self.run_cli('codex', '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        config = self.home / '.dev-memory/global/config.json'
+        state = json.loads(config.read_text(encoding='utf-8'))
+        state.update(capture_enabled=False, recall_enabled=False)
+        config.write_text(json.dumps(state), encoding='utf-8')
+        before = config.read_bytes()
+        guide = self.home / '.codex/AGENTS.md'
+        guide.write_text('Keep my user instructions.\n' + guide.read_text(encoding='utf-8'), encoding='utf-8')
+        user_before = guide.read_bytes()
+        repeated = self.run_cli('codex', '--json')
+        self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
+        result = json.loads(repeated.stdout)
+        self.assertEqual(result['project_setup']['activation'], 'configured')
+        self.assertEqual(result['user_activation']['activation'], 'configured')
+        self.assertEqual(config.read_bytes(), before)
+        self.assertEqual(guide.read_bytes(), user_before)
+
+    def test_invalid_user_guide_fails_before_install_or_project_initialization(self):
+        codex_home = self.home / '.codex'
+        codex_home.mkdir()
+        guide = codex_home / 'AGENTS.md'
+        guide.write_text(setup.USER_BEGIN, encoding='utf-8')
+        result = self.run_cli('codex', '--json')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)['error'], 'activation_conflict')
+        self.assertFalse((self.project / '.dev-memory').exists())
+        self.assertFalse((self.home / '.agents').exists())
+        self.assertFalse((self.home / '.dev-memory').exists())
 
     def test_deepseek_aliases_custom_home_and_repeat_preserve_project_controls(self):
         custom = self.home/'DSH custom home'

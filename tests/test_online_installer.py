@@ -83,6 +83,10 @@ class OnlineTests(unittest.TestCase):
                 self.assertEqual(result['runtime_check']['status'], 'passed')
                 self.assertEqual(result['online']['verified_files'], len(dev_memory.RELEASE_FILES))
                 self.assertEqual(result['hooks']['status'], 'not_requested')
+                if agent == 'codex':
+                    self.assertEqual(result['user_activation']['activation'], 'configured')
+                else:
+                    self.assertNotIn('user_activation', result)
                 self.assertTrue(Path(result['path']).is_relative_to(self.home))
         binding = json.loads((self.project / '.dev-memory/activation.json').read_text(encoding="utf-8"))
         self.assertEqual(set(binding['bindings']), set(dev_memory.AGENT_DIRS))
@@ -231,6 +235,20 @@ class OnlineTests(unittest.TestCase):
             code, result = self.run_online('codex')
             self.assertEqual(code, 1)
             self.assertEqual(result['project_setup'], payload['project_setup'])
+
+    def test_codex_success_requires_user_and_project_activation_receipts(self):
+        import subprocess
+        payload = {'status': 'installed', 'path': 'synthetic',
+                   'runtime_check': {'status': 'passed'},
+                   'project_setup': {'status': 'initialized', 'activation': 'configured',
+                                     'project_root': str(self.project),
+                                     'stores': [{'scope': 'global'}, {'scope': 'project'}]}}
+        with patch.object(install.subprocess, 'run', return_value=
+                subprocess.CompletedProcess([], 0, json.dumps(payload), '')):
+            code, result = self.run_online('codex')
+        self.assertEqual(code, 1)
+        self.assertEqual(result['status'], 'failed')
+        self.assertEqual(result['error'], 'online_install_failed')
 
     def test_source_temp_is_removed_after_execution(self):
         import subprocess

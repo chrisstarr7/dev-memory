@@ -12,17 +12,15 @@ npx -y --prefer-online chrisstarr7/dev-memory <agent>
 
 成功时显示程序、项目和引导文件。一条命令完成下载、运行检查、独立空库初始化和项目引导。新项目默认为 `developer-first`：优先学习全局习惯，读取已有项目规则，但不新增项目或任务记录。需要完整项目捕获时，让 AI 使用 `.dev-memory/activation.json` 中当前宿主的 `python` 和 `cli` 路径，调用 `mode full-project --project-root /项目路径`；同一命令接受 `developer-first` 以切回。重复执行复用相同的受管理程序，有变化时自动更新；已有记忆与配置不会清空。默认使用当前目录；其他目录执行时可加 `--project /项目绝对路径`。加 `--json` 获取机器回执。
 
-## Codex 用户级全局开发习惯
+## Codex 一次安装同时配置全局与项目
 
-要让新会话在不同项目自动召回同一份全局开发习惯，执行一次：
+上面的安装命令选择 `codex` 后，同时配置用户级全局记忆和当前项目引导，不需要额外参数或第二条安装命令。安装器初始化各自独立的全局库与项目库；已有记忆、暂停/只读设置和项目捕获模式保持原样。新项目仍默认采用 `developer-first`，不会因合并入口而扩大业务记忆捕获范围。
 
-```sh
-npx -y chrisstarr7/dev-memory codex --user
-```
+用户级引导写入 `$CODEX_HOME/AGENTS.override.md`（若存在且非空），否则写入 `$CODEX_HOME/AGENTS.md`，仅更新管理标记之间的内容。当前项目使用自己的引导与私有 activation 绑定。已有非空 override 会被优先使用，避免遮蔽实际引导。
 
-`--user` 不隐式初始化当前项目。安装器只更新 `$CODEX_HOME/AGENTS.override.md`（若存在且非空），否则更新 `$CODEX_HOME/AGENTS.md`，并只管理成对标记之间的内容。Codex 官方说明全局层只加载 `AGENTS.override.md` 或 `AGENTS.md` 中第一个非空文件；因此管理已有 override 可避免它遮蔽新增的 AGENTS.md。两种文件随后都按全局先于项目的顺序合并，项目约束仍可更具体。
+已初始化项目只进行一次有界全局＋项目召回，不重复执行用户级全局召回。其他项目通过用户级引导使用 `context --global-only --exclude-task`，初始化前不自动记录其业务信息。其他 AI 宿主暂无用户级适配器，继续使用项目适配器。
 
-此方式只初始化/使用全局 SQLite 库，不初始化任何项目库。全局指令要求一轮有界 `context --global-only` 召回；项目业务记忆需要项目自己的授权。其他 AI 宿主暂无用户级适配器，不能声称已自动激活。卸载受管理 Skill 会删除属于该安装路径的用户级管理块，并保留其他文字及记忆数据；重新打开 Codex 会话后生效。
+安装成功必须同时具备项目与用户级配置回执；部分成功会报告失败及已完成部分。卸载受管理 Skill 会删除属于该安装路径的用户级管理块，保留无关指令及记忆数据；重新打开 Codex 会话后生效。
 
 用户级激活可在隔离环境中检查文件、回执和全局库；程序回执不代表真实 Codex 对话已正确遵循。官方检查方法是在任意两个项目新会话中询问当前加载的指令，并确认全局文件在项目文件之前。见 [Codex AGENTS.md 指南](https://developers.openai.com/codex/guides/agents-md)。
 
@@ -36,7 +34,7 @@ npx -y chrisstarr7/dev-memory codex --user
 | `opencode` | `AGENTS.md` | `~/.config/opencode/skills/dev-memory/` |
 | `deepseek`（DSH） | `AGENTS.md` | `~/.dsh/skills/dev-memory/`；遵循 `DSH_HOME` |
 
-请在开发项目的根目录执行；不要在用户主目录或无关目录初始化。非 Git 项目同样可初始化。项目目录不可写时返回失败，不会将项目数据转存全局。初始化只配置这个项目，其他项目需各自初始化。
+请在开发项目的根目录执行；不要在用户主目录或无关目录初始化。非 Git 项目同样可初始化。项目目录不可写时返回失败，不会将项目数据转存全局。项目业务记忆只绑定当前项目，其他项目需各自初始化；Codex 用户级全局习惯可跨项目使用。
 
 新建该项目的 AI 会话后直接开发。宿主启动时加载引导，AI 读取安装的 Skill 并默认管理记忆；不需要聊天启用口令。已有会话可能缓存启动指令，需要新会话才能生效。宿主自己的信任和进程权限要求仍由宿主管理。
 

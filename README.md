@@ -65,13 +65,7 @@ npx -y --prefer-online chrisstarr7/dev-memory <agent>
 
 Requires Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The installer copies the runtime and configures the selected host's project instructions. **Start a new host session after setup.** Activated projects share the same user's global habits while keeping their project stores separate. DeepSeek here means the local DSH host; web and mobile chats cannot run the installer.
 
-**Codex also supports user-level activation:** run the following once to use global habits across projects without initializing each project:
-
-```sh
-npx -y --prefer-online chrisstarr7/dev-memory codex --user
-```
-
-User-level activation currently supports Codex only. Other hosts use their project adapters. Repeating the install command updates the managed runtime; local memories and unrelated user instructions are preserved. Offline installation, host paths and removal are in the [installation guide](docs/installation.md).
+**For Codex, that one command configures both user-level global habits and the current project.** In initialized projects, one combined recall reads global and project rules. Other projects recall only global habits until initialized; their business data is not captured automatically. Other hosts use their project adapters. Repeating the command updates the managed runtime and preserves memories, capture settings and unrelated instructions. Offline installation, host paths and removal are in the [installation guide](docs/installation.md).
 
 ## Everyday use
 

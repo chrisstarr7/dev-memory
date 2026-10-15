@@ -91,6 +91,21 @@ class InstallerTests(unittest.TestCase):
         config = json.loads((project / '.dev-memory/config.json').read_text(encoding='utf-8'))
         self.assertEqual(config['project_root'], str(project))
 
+    def test_user_activation_failure_keeps_actual_project_result(self) -> None:
+        import dev_memory_setup
+        project = self.home / 'project'
+        project.mkdir()
+        stdout = io.StringIO()
+        with patch.dict(os.environ, self.env), contextlib.redirect_stdout(stdout), \
+                patch.object(dev_memory_setup, 'setup_user', return_value={
+                    'status': 'failed', 'activation': 'failed'}):
+            code = installer.main(['codex', '--project', str(project), '--json'])
+        result = json.loads(stdout.getvalue())
+        self.assertEqual(code, 1)
+        self.assertEqual(result['error'], 'user_activation_failed')
+        self.assertEqual(result['project_setup']['activation'], 'configured')
+        self.assertEqual(result['user_activation']['activation'], 'failed')
+
     @unittest.skipUnless(sys.platform == 'win32', 'Actual Windows ACL regression')
     def test_windows_upgrade_inherits_public_acl_but_preserves_private_store_acl(self) -> None:
         parent = self.home / 'acl-parent'

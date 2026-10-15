@@ -49,7 +49,7 @@
     {"id":"S46","scenario":"断电模拟、进程中止、磁盘满","expected":"无半条正式记录，失败不假报保存","class":"program","coverage":"test_abrupt_process_exit_rolls_back_uncommitted_sqlite_transaction;disk_full_fault_injection_not_run"},
     {"id":"S47","scenario":"用户手工改 Markdown 视图","expected":"不静默改变权威数据库","class":"program","coverage":"test_markdown_export_is_on_demand_and_not_authoritative"},
     {"id":"S48","scenario":"在两个不同宿主间读取同一授权库","expected":"核心协议可复用；未测试宿主明确未验证","class":"host","coverage":"real_host_e2e_not_run"},
-    {"id":"S49","scenario":"用户级 Codex 激活后在两个独立项目启动","expected":"两项目都只召回同一全局习惯，不读彼此项目库","class":"host","coverage":"test_user_activation_reads_global_only_across_projects; isolated Codex E2E still required"},
+    {"id":"S49","scenario":"Codex 统一安装后进入已初始化项目与另一未初始化项目","expected":"前者一次召回全局与当前项目，后者仅召回同一全局习惯；不重复召回、不读取其他项目库","class":"host","coverage":"test_codex_default_preserves_global_controls_and_user_instructions; isolated Codex E2E still required"},
     {"id":"S50","scenario":"全局习惯学习关闭后继续开发","expected":"不继续收集用户反馈候选","class":"program","coverage":"capture-off behavior must be added to semantic/host verification"},
     {"id":"S51","scenario":"SQLite 有 300 条全局记录时按窄主题检索","expected":"词项索引主导有界查询；只返回配置条数和字符数内的正文","class":"program","coverage":"test_growth_recall_uses_sqlite_index_and_returns_bounded_records"},
     {"id":"S52","scenario":"禁用记忆、旧版本和新版本执行匹配编码任务","expected":"对比真实任务耗时、额外工具调用及习惯遵守情况","class":"host","coverage":"matched Codex A/B evaluation; current runtime result pending"},

@@ -23,7 +23,7 @@ const python = candidates.find(([command, ...prefix]) => {
   return !result.error && result.status === 0;
 });
 if (!python) fail('python_unavailable', '需要 Python 3.10+（含 sqlite3）。请安装后重试同一命令。');
-if (!args.includes('--user') && !args.some(arg => arg === '--project' || arg.startsWith('--project='))) {
+if (!args.some(arg => arg === '--project' || arg.startsWith('--project='))) {
   args.push('--project', project);
 }
 const [command, ...prefix] = python;

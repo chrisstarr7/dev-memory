@@ -3,7 +3,7 @@ name: dev-memory
 description: Local memory of developer coding habits. During development, recall relevant preferences and assess visible user feedback for durable cross-project habits; keep reusable habits atomic, traceable, and evidence-backed.
 license: MIT
 metadata:
-  version: "0.7.1"
+  version: "0.7.2"
   requires: "Python 3.10+ with sqlite3 and local file/process access; Git optional."
 ---
 
@@ -15,7 +15,7 @@ Use `python3 <absolute-skill-directory>/scripts/dev_memory.py` as the CLI. Resol
 
 A project initialized by `setup` or `install.py --project` has a host-native instruction block and a private `.dev-memory/activation.json` binding. That command is the user's authorization for routine memory in that project. Read the binding and use its runtime/global-root paths. Automatically perform this workflow on ordinary development requests; do not ask for an enable phrase, explicit Skill invocation, or a separate save/continue instruction. Existing capture/read-only/opt-out settings always win. A code-edit limit such as "only modify policy.py" scopes business code changes; the already authorized memory bookkeeping continues unless the user also forbids memory/state writes or all other filesystem changes. An explicit all-files prohibition is respected, never silently bypassed. Plain program installation alone does not activate a project.
 
-Codex can also be explicitly activated at user level with `install.py codex --user` (or `setup --user`). This manages a separate block in `~/.codex/AGENTS.md`, or in `AGENTS.override.md` when that file already controls user instructions. It shares only the global store across projects and never initializes or captures project memory. Other hosts have no user-level adapter unless a host-specific one is documented. If the block, Skill or store is unavailable, report the gap instead of claiming automatic use.
+The recommended `npx -y --prefer-online chrisstarr7/dev-memory codex` command enables both the current project and Codex user-level global habits in one installation. Source installation with `install.py codex --project PATH` does the same. The user-level block lives in `~/.codex/AGENTS.md`, or in `AGENTS.override.md` when that file already controls user instructions. In an activated project, use its binding for one combined recall; do not also recall globally. In other projects, user-level guidance uses only the global store and does not initialize or capture project memory. Other hosts have no user-level adapter unless documented. If the block, Skill or store is unavailable, report the gap instead of claiming automatic use.
 
 If host IDs are unavailable, generate one opaque local session ID per conversation and one local turn ID per user turn; reuse them for retries. Normal Skill use stores only global and project memories: call `context --exclude-task`, including after resume or compaction. Do not retrieve, create or update task memories/checkpoints. An opaque task ID may be supplied only as evidence-grouping metadata for independent global feedback; it is not a memory scope or progress record.
 

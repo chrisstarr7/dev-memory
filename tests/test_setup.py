@@ -258,15 +258,16 @@ class SetupTests(unittest.TestCase):
                 setup.setup_user('claude-code', self.skill, sys.executable, self.global_root)
             self.assertEqual(exc.exception.code, 'host_unsupported')
 
-    def test_install_user_mode_does_not_initialize_working_project(self):
+    def test_codex_project_install_also_enables_user_habits(self):
         env = {**os.environ, 'HOME': str(self.home), 'USERPROFILE': str(self.home),
                'CODEX_HOME': str(self.home / '.codex'), 'DEV_MEMORY_HOME': str(self.global_root)}
-        cmd = [sys.executable, '-B', str(ROOT / 'install.py'), 'codex', '--user', '--json']
+        cmd = [sys.executable, '-B', str(ROOT / 'install.py'), 'codex', '--project', str(self.project), '--json']
         run = subprocess.run(cmd, env=env, cwd=self.project, capture_output=True, text=True, timeout=15)
         self.assertEqual(run.returncode, 0, run.stderr + run.stdout)
         result = json.loads(run.stdout)
         self.assertEqual(result['user_activation']['activation'], 'configured')
-        self.assertFalse((self.project / '.dev-memory').exists())
+        self.assertEqual(result['project_setup']['activation'], 'configured')
+        self.assertTrue((self.project / '.dev-memory/activation.json').is_file())
         self.assertIn(setup.USER_BEGIN, (self.home / '.codex/AGENTS.md').read_text(encoding='utf-8'))
 
 
