@@ -58,7 +58,10 @@ def _merged(original: bytes, agent: str) -> bytes:
             raise store.MemoryError('activation_conflict', 'Managed Cursor rule is not alwaysApply: true.')
         start, finish = text.index(BEGIN), text.index(END) + len(END)
         # Preserve every byte outside our block, including unrelated whitespace.
-        text = text[:start] + BLOCK.rstrip('\n') + text[finish:]
+        managed = BLOCK.rstrip('\n')
+        if '\r\n' in text[start:finish]:
+            managed = managed.replace('\n', '\r\n')
+        text = text[:start] + managed + text[finish:]
     else:
         if agent == 'cursor' and original:
             raise store.MemoryError('activation_conflict', 'Existing dev-memory.mdc is not managed; refusing to overwrite.')
@@ -71,6 +74,7 @@ def _merged(original: bytes, agent: str) -> bytes:
 
 
 def _cursor_enabled(text: str) -> bool:
+    text = text.replace('\r\n', '\n')
     if not text.startswith('---\n') or '\n---' not in text[4:]:
         return False
     header = text[4:].split('\n---', 1)[0]
@@ -186,7 +190,10 @@ def _merge_user_guide(original: bytes, block: str) -> bytes:
         if text.count(USER_BEGIN) != 1 or text.count(USER_END) != 1 or text.index(USER_END) < text.index(USER_BEGIN):
             raise store.MemoryError('activation_conflict', 'Malformed dev-memory user block; repair it before setup.')
         start, finish = text.index(USER_BEGIN), text.index(USER_END) + len(USER_END)
-        text = text[:start] + block.rstrip('\n') + text[finish:]
+        managed = block.rstrip('\n')
+        if '\r\n' in text[start:finish]:
+            managed = managed.replace('\n', '\r\n')
+        text = text[:start] + managed + text[finish:]
     else:
         text = block + ('\n' + text if text else '')
     if len(text.encode('utf-8')) > 24 * 1024:

@@ -46,7 +46,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
-      "sha256": "138b043dbca3314fc220295e96b2fe0fa3e9756fc1875b5c35c7d058e5962eaf"
+      "sha256": "5b6e400d6643afd02e49daae2e745c41e102e2aad1ea8309c5b92a2e670b0621"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -114,11 +114,11 @@
     },
     {
       "path": "tests/test_efficiency.py",
-      "sha256": "a42bff324664cc3e7218183b23bc2ed14922c3bdb049e0f80f60e0f59f9a981f"
+      "sha256": "cdaea07f729ca34a613ed883c15ccd565154eec60afee7f17e9c3727f228c2a3"
     },
     {
       "path": "reports/optimization-0.8.0.md",
-      "sha256": "d30b2d26d600d77617aff2b6447e9795d4299fc4ef63dbd8812a71c1a5b51288"
+      "sha256": "4c5169abf6125a22010eb40982118e4aa66066649eb01958c7dc001f2f7b779a"
     },
     {
       "path": "evals/check_efficiency.py",
@@ -130,7 +130,7 @@
     },
     {
       "path": "reports/efficiency-host-0.8.0.json",
-      "sha256": "bde630d256be12206b39fab75ea19fde47694c4245bcbe26517691b8cd7c7357"
+      "sha256": "ba3d4e1c7b7794806abec9c660ccdb70367c98463bdcc9c9d61fa965576e2981"
     },
     {
       "path": "tests/test_dev_memory.py",

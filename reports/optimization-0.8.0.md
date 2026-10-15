@@ -39,7 +39,7 @@ Reclamation is an explicit cold operation: remove disposable old session cache a
 - [x] Essence: relevant, traceable memory with bounded foreground work.
 - [x] Challenge: eight assumptions checked against repository behavior.
 - [x] Ground truth and design: reuse existing local primitives.
-- [x] Validate: 231 local tests (2 native Windows checks skipped on macOS), package build, scale probe and independent review. Skill format validation passed in an isolated test-only PyYAML environment; runtime dependencies remain standard-library only.
+- [x] Validate: 232 local tests (2 native Windows checks skipped on macOS), package build, scale probe and independent review. Skill format validation passed in an isolated test-only PyYAML environment; runtime dependencies remain standard-library only.
 - Publication gate: push the reviewed revision, require the configured six-job Program checks matrix to pass, then publish the release. The release and its commit identify the authoritative CI result; remaining host limits are below.
 
 Inversion stress case: a short Chinese bug request arrives in a large store containing many unrelated recent preferences, one old pending rule, a paraphrased candidate and private-turn receipts. It must recall relevant current guidance, avoid unrelated maintenance bodies, preserve opt-outs and neither fabricate evidence nor silently delete history.
@@ -63,7 +63,7 @@ SQLite schema_version remains 1; no new authoritative database or service is int
 | `skills/dev-memory/SKILL.md`, `scripts/dev_memory_setup.py` | Focused task recall, explicit/inferred learning, action mapping, compact host activation and quiet maintenance |
 | `scripts/dev_memory_store.py`, `scripts/dev_memory.py` | Indexed intent/rareness retrieval, promotion/dedup/provenance, metadata-only hot path, RETAG, storage/backup validation and CLI input |
 | `scripts/codex_hook.py`, hook/protocol references | Remove ordinary-prompt probing and Stop recovery; document current contracts |
-| `tests/test_efficiency.py` plus existing test adaptations | Twenty-one targeted regressions without dropping legacy maintenance coverage |
+| `tests/test_efficiency.py` plus existing test adaptations | Twenty-two targeted regressions without dropping legacy maintenance coverage |
 | `evals/check_efficiency.py`, measurement JSON | Reproducible isolated program and explicitly requested host probes |
 | Root and translated READMEs, architecture/installation/contributing, package metadata/manifest | Actual behavior, limits, upgrade path and 0.8.0 packaging |
 
@@ -84,7 +84,7 @@ Reproduce program measurements with `python3 evals/check_efficiency.py --output 
 
 ## Independent adversarial review
 
-An independent read-only reviewer reproduced three defects during development: promoted habits missing from candidate matching; caller-supplied revision evidence faking a second task; and schema-incomplete files counting as retained backups. All were fixed and regression-tested; the reviewer reproduced closure. A second malformed backup containing only sampled core columns revealed another retention hole; validation now derives the complete stable core-column set from the canonical schema, while preserving supported older optional fields and absent maintenance tables. The independent reviewer reproduced closure of the malformed-core case, passed 21/21 efficiency tests and verified the old-backup-without-maintenance-tables restoration test. The complete local suite passed 231 tests in 39.712 seconds, with two native Windows tests skipped on macOS.
+An independent read-only reviewer reproduced three defects during development: promoted habits missing from candidate matching; caller-supplied revision evidence faking a second task; and schema-incomplete files counting as retained backups. All were fixed and regression-tested; the reviewer reproduced closure. A second malformed backup containing only sampled core columns revealed another retention hole; validation now derives the complete stable core-column set from the canonical schema, while preserving supported older optional fields and absent maintenance tables. The independent reviewer reproduced closure of the malformed-core case, passed 21/21 efficiency tests and verified the old-backup-without-maintenance-tables restoration test. The final complete local suite passed 232 tests in 38.024 seconds, with two native Windows tests skipped on macOS. The portable CRLF regression is included; native Windows execution is verified separately by CI.
 
 ## Host evidence and remaining limits
 
@@ -102,6 +102,10 @@ All nine implementations passed the independent positive-integer, retry-count, o
 
 The final A session loaded three relevant habits and saved the explicit new preference as active/confirmed. Final B had no project setup, loaded the user-level guide, retrieved that same habit, wrote no duplicate and added/reran unit tests. It attempted a missing project activation lookup and used a combined context call instead of the advised global-only flag; global recall still succeeded without creating project memory.
 
-Compliance is **partial**, not a universal success: final A used inline assertions despite the recalled persistent-unit-test habit; final B omitted the required headings while that rule was unloaded. The stronger action-mapping instruction reduced some earlier failures but does not enforce model behavior. No further runtime gate or compulsory reviewer was added to conceal this limitation. The final host snapshot predates only a further cold-backup validation hardening and a verification-document link; exact differences appear in the JSON. The complete semantic scenario inventory was not rerun on a model in this change, and no statistical speed/accuracy claim is made.
+Compliance is **partial**, not a universal success: final A used inline assertions despite the recalled persistent-unit-test habit; final B omitted the required headings while that rule was unloaded. The stronger action-mapping instruction reduced some earlier failures but does not enforce model behavior. No further runtime gate or compulsory reviewer was added to conceal this limitation. The final host snapshot predates cold-backup validation hardening, CRLF-preserving activation merging and a verification-document link; exact differences appear in the JSON. The complete semantic scenario inventory was not rerun on a model in this change, and no statistical speed/accuracy claim is made.
 
  Other-host installation adapters are covered by program tests, not by real model sessions. Trusted hook event delivery is not claimed. The primary AI must still judge semantic equivalence, project de-identification, applicability and genuine task independence; typed source fields and successful commands cannot prove those judgments.
+
+## Windows CI compatibility
+
+The prior main commit's [Program checks failure](https://github.com/chrisstarr7/dev-memory/actions/runs/38747850976) was a byte-preservation assertion on both Windows Python versions: a repeated install rewrote CRLF inside the owned user block as LF. Replacement now keeps the existing managed block's line endings; unrelated bytes remain unchanged. Cursor header detection also accepts CRLF without rewriting it. A portable regression checks exact bytes for user, project and Cursor guides. The six-job matrix remains intact; no failing check was removed or relaxed.

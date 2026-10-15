@@ -54,6 +54,16 @@ class EfficiencyTests(MemoryTestCase):
         self.assertIn('status: candidate', inferred)
         self.assertIn('cross_project_confirmed: false', inferred)
 
+    def test_repeated_activation_preserves_crlf_bytes(self):
+        import dev_memory_setup
+        block = dev_memory_setup._user_block(Path('/synthetic/skill'), sys.executable, self.global_root)
+        user = ('Keep my instructions.\r\n' + block.replace('\n','\r\n') + '\r\n').encode()
+        self.assertEqual(dev_memory_setup._merge_user_guide(user,block),user)
+        project = ('Keep team instructions.\r\n' + dev_memory_setup.BLOCK.replace('\n','\r\n')).encode()
+        self.assertEqual(dev_memory_setup._merged(project,'codex'),project)
+        cursor = b'---\r\nalwaysApply: true\r\n---\r\n' + project
+        self.assertEqual(dev_memory_setup._merged(cursor,'cursor'),cursor)
+
     def test_paraphrase_and_evidence_only_paths_promote_without_duplicate_bodies(self):
         saved = self.apply(scope='global', task='task-a', operations=[{'op':'ADD', 'record':self.habit()}])
         memory_id = saved['stores'][0]['operations'][0]['id']

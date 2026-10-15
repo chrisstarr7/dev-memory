@@ -592,7 +592,8 @@
     }
   ],
   "final_source_differences": {
-    "skills/dev-memory/references/verification.md": "Changed after host snapshot: cold backup schema validation or verification-report link only.",
-    "skills/dev-memory/scripts/dev_memory_store.py": "Changed after host snapshot: cold backup schema validation or verification-report link only."
+    "skills/dev-memory/references/verification.md": "Changed after host snapshot: cold backup validation, CRLF-preserving activation merge, or verification-report link; task recall/capture instructions are unchanged.",
+    "skills/dev-memory/scripts/dev_memory_setup.py": "Changed after host snapshot: cold backup validation, CRLF-preserving activation merge, or verification-report link; task recall/capture instructions are unchanged.",
+    "skills/dev-memory/scripts/dev_memory_store.py": "Changed after host snapshot: cold backup validation, CRLF-preserving activation merge, or verification-report link; task recall/capture instructions are unchanged."
   }
 }
