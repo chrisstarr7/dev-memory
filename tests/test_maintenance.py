@@ -14,6 +14,10 @@ from test_dev_memory import MemoryTestCase, store
 
 
 class MaintenanceTests(MemoryTestCase):
+    def apply(self, **kwargs):
+        # These tests exercise full maintenance packs, which are now explicitly requested.
+        return super().apply(maintenance='prepare', include_task=True, **kwargs)
+
     def test_batch_snapshot_revisions_and_single_compact_form_are_resolved_by_program(self):
         first = self.add_project_rule(content='Require all stated conditions.')
         duplicate = self.add_project_rule(turn='duplicate',content='Every stated condition must hold.')

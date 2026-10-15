@@ -1,20 +1,15 @@
-# Codex adapter behavior
+# Optional Codex adapter
 
-The adapter targets the documented command-hook protocol and does not install itself unless explicitly requested.
+Hooks are not installed by default. Normal automatic use comes from host-native project/user instructions and the primary AI following the Skill.
 
 | Event | Work |
 | --- | --- |
-| `SessionStart` (`startup`) | Returns only the short protocol; avoids a pre-prompt recall that would consume the new session's cache. |
-| `SessionStart` (`resume`, `compact`) | Forces a bounded recall of global preferences, hard project constraints, and task checkpoints. |
-| `UserPromptSubmit` | Checks current module/worktree/data revision and retrieves from global plus only the bound current project when the signature changed. Unchanged contexts return a cached receipt without re-reading memory rows. The query is an empty, stable baseline; the AI explicitly queries a new task/topic. Prompt text is inspected only for conservative private-turn suppression and is not persisted. |
-| `Stop` | Checks receipts only for initialized, writable stores. Missing receipt yields at most one block/continuation; `stop_hook_active` prevents recursion. No recovery occurs in capture-disabled stores. |
+| `SessionStart` startup | Returns concise workflow guidance; no store read. |
+| `SessionStart` resume/compact | Tells the primary AI to force one focused recall after context loss; the adapter does not retrieve task checkpoints. |
+| `UserPromptSubmit` ordinary prompt | No lookup, Git probe, cache write or receipt. |
+| `UserPromptSubmit` recognized private-turn request | Saves only opaque suppression IDs in applicable initialized stores. Unknown IDs/storage are reported honestly; no prompt is retained. |
+| Old `Stop` registrations | Harmless no-op. Reconfiguration removes only this adapter's old Stop handler. No compulsory NOOP or recovery turn. |
 
-An explicit opt-out phrase can create a receipt containing only opaque session/turn IDs; this blocks recovery without saving prompt text. The phrase match is conservative and may mark quoted examples as private for that turn; this only suppresses memory capture.
+`hooks configure` merges owned SessionStart/UserPromptSubmit handlers into `$CODEX_HOME/hooks.json` and preserves unrelated configuration. It refuses malformed JSON or conflicting inline TOML hooks. The host must support these events, enable the feature and trust the command; configuration alone proves none of those. `hooks remove` removes only owned handlers.
 
-## Configure
-
-`python3 <installed-skill>/scripts/dev_memory.py hooks configure` adds only this adapter's `SessionStart`, `UserPromptSubmit`, and `Stop` handlers to `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). It preserves other JSON fields/handlers, refuses malformed configuration and refuses to merge when inline TOML hooks are present. It does not enable the Codex hooks feature or trust the scripts. Review exact commands and approve trust through the host's `/hooks` flow. Only then can this be described as configured automatic mode; a successful end-to-end session is still separately required before claiming verified automation.
-
-The handler timeout is 2 seconds. On storage/query errors, the adapter emits no successful receipt and does not block normal work. Stop recovery is one retry per hook cycle, not a background worker. If the host omits required session/turn IDs or does not support these events, use basic/manual mode and don't report automatic coverage.
-
-No hook integration was installed during this build. The CLI version inspected was Codex `0.155.1`; real hook delivery, trust UI, event ordering and token/context latency remain unverified on this machine.
+Handlers have a two-second host timeout. The conservative phrase recognizer may suppress a quoted opt-out example; semantic opt-outs are also handled by the primary AI. Capture completion and successful per-store receipts remain the primary AI's responsibility. There is no transcript monitor or background worker. Real trusted hook delivery for 0.8.0 has not been verified by configuration/program tests.

@@ -48,7 +48,7 @@ npx -y chrisstarr7/dev-memory deepseek
 
 `deepseek`、`dsh`、`deepseek-harness` 指向同一个 DSH 安装目标。默认安装到 `~/.dsh/skills/dev-memory/`；设置 `DSH_HOME` 时使用 `$DSH_HOME/skills/dev-memory/`，显式 `--target` 优先。若 DSH 配置文件另行覆盖了 Skill 的 `dshHome`，用 `--target` 指定该目录下的 `skills/dev-memory/`。
 
-安装器合并项目 `AGENTS.md`，保留原指令，写入私有绑定并初始化空库。新建 DSH 项目会话后，按相同流程召回、纠错、去重、整理和保存断点。已有记忆和暂停状态在重复安装时保留。不会修改 DSH 模型配置、API 密钥、权限或 profiles。
+安装器合并项目 `AGENTS.md`，保留原指令，写入私有绑定并初始化空库。新建 DSH 项目会话后，按相同流程召回、纠错、去重、整理和保存开发习惯。已有记忆和暂停状态在重复安装时保留。不会修改 DSH 模型配置、API 密钥、权限或 profiles。
 
 这是给**已安装的 DeepSeek Harness**配置 dev-memory；本命令不安装 DSH 本身。通过 OpenCode 等工具调用 DeepSeek 模型时，应使用实际宿主的安装参数，例如 `opencode`。DeepSeek 网页和手机 App 无法直接执行本机 CLI。
 

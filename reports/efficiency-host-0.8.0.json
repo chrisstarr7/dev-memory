@@ -1,0 +1,598 @@
+{
+  "kind": "exploratory_real_codex_tasks",
+  "synthetic_only": true,
+  "status": "completed_exploratory",
+  "runs": [
+    {
+      "baseline_ref": "9ecc959",
+      "synthetic_only": true,
+      "repetitions": 1,
+      "kind": "real_codex_tasks",
+      "cells": [
+        {
+          "label": "off-a",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 116.556,
+          "first_tool_action_seconds": 30.057,
+          "command_calls": 6,
+          "tool_calls": 6,
+          "usage": {
+            "input_tokens": 272595,
+            "cached_input_tokens": 231168,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3012,
+            "reasoning_output_tokens": 1341
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "off",
+          "project": "a",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 0,
+          "test_command_observed": false,
+          "active_habits": [
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            },
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            },
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            }
+          ]
+        }
+      ],
+      "limitations": [
+        "One host trial per cell is exploratory, not a latency/accuracy guarantee."
+      ],
+      "runtime_source_sha256": {
+        "install.py": "a1903db95ed2613c22a8485481384b43b128daca81d50151a2fccc2bdaabd4ce",
+        "skills/dev-memory/.dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+        "skills/dev-memory/LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+        "skills/dev-memory/SKILL.md": "ef88982f788a8d4a4d8bf1cc76b6f3aec508fc9ef3c518673d46080c3be249b8",
+        "skills/dev-memory/agents/openai.yaml": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30",
+        "skills/dev-memory/assets/config.example.json": "09b312ea57647122b9b42959a7260991eb70a09904ea3a3d2cbae71f7bcfb656",
+        "skills/dev-memory/references/codex-hooks.md": "148b1397fdd80f522e3a6694300c1f2600b4f5a6545f7269fa030f25bef3bef1",
+        "skills/dev-memory/references/protocol.md": "c52c499c49b725924e4886539bbefb9a10f355edab72ce50b83f3b6d6ec647ed",
+        "skills/dev-memory/references/setup.md": "6d5825dd8d40dbe460191f6a6a16e4e63c12c64e8851e150b1afec8c25f626da",
+        "skills/dev-memory/references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+        "skills/dev-memory/scripts/codex_hook.py": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344",
+        "skills/dev-memory/scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24",
+        "skills/dev-memory/scripts/dev_memory.py": "bc2392e669bd61a72960883bba658707b60898656552112c58ef7cd9832a735a",
+        "skills/dev-memory/scripts/dev_memory_setup.py": "4eb51431b673c68503ad44283ffdd4b74f123dee507a0ebf85170145b2e7c71c",
+        "skills/dev-memory/scripts/dev_memory_store.py": "30537a4c9daccdf92cd7fd19c3563ba7e6375db1b1e4371821dd33c76132e803"
+      },
+      "model": "gpt-6-luna",
+      "reasoning": "high",
+      "host": "codex-cli 0.155.1",
+      "phase": "off_control",
+      "status": "off_cell_completed_following_harness_setup_failed",
+      "harness_note": "The following baseline directory collided with an existing source directory; resumed after repairing the harness. No completed off result was dropped."
+    },
+    {
+      "status": "completed",
+      "baseline_ref": "9ecc959",
+      "synthetic_only": true,
+      "repetitions": 1,
+      "kind": "real_codex_tasks",
+      "cells": [
+        {
+          "label": "baseline-a",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 166.835,
+          "first_tool_action_seconds": 33.495,
+          "command_calls": 10,
+          "tool_calls": 10,
+          "usage": {
+            "input_tokens": 509308,
+            "cached_input_tokens": 410368,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4515,
+            "reasoning_output_tokens": 1251
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "baseline",
+          "project": "a",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 6,
+          "test_command_observed": false,
+          "active_habits": [
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            },
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            },
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            }
+          ]
+        },
+        {
+          "label": "baseline-b",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 169.829,
+          "first_tool_action_seconds": 18.015,
+          "command_calls": 26,
+          "tool_calls": 28,
+          "usage": {
+            "input_tokens": 711757,
+            "cached_input_tokens": 661504,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 9111,
+            "reasoning_output_tokens": 3008
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "baseline",
+          "project": "b",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 16,
+          "test_command_observed": true,
+          "active_habits": [
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            },
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            },
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            }
+          ]
+        },
+        {
+          "label": "current-a",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 100.36,
+          "first_tool_action_seconds": 18.869,
+          "command_calls": 13,
+          "tool_calls": 14,
+          "usage": {
+            "input_tokens": 334014,
+            "cached_input_tokens": 296448,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4822,
+            "reasoning_output_tokens": 994
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "current",
+          "project": "a",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 7,
+          "test_command_observed": true,
+          "active_habits": [
+            {
+              "title": "Clarify retry counts",
+              "content": "When describing retry limits, clearly distinguish the total number of attempts from the number of additional retries to avoid ambiguity."
+            },
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            },
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            },
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            }
+          ]
+        },
+        {
+          "label": "current-b",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 54.287,
+          "first_tool_action_seconds": 14.849,
+          "command_calls": 6,
+          "tool_calls": 7,
+          "usage": {
+            "input_tokens": 106225,
+            "cached_input_tokens": 92672,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1921,
+            "reasoning_output_tokens": 549
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "current",
+          "project": "b",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 1,
+          "test_command_observed": false,
+          "active_habits": [
+            {
+              "title": "Clarify retry counts",
+              "content": "When describing retry limits, clearly distinguish the total number of attempts from the number of additional retries to avoid ambiguity."
+            },
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            },
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            },
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            }
+          ]
+        }
+      ],
+      "limitations": [
+        "One host trial per cell is exploratory, not a latency/accuracy guarantee."
+      ],
+      "runtime_source_sha256": {
+        "install.py": "a1903db95ed2613c22a8485481384b43b128daca81d50151a2fccc2bdaabd4ce",
+        "skills/dev-memory/.dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+        "skills/dev-memory/LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+        "skills/dev-memory/SKILL.md": "ef88982f788a8d4a4d8bf1cc76b6f3aec508fc9ef3c518673d46080c3be249b8",
+        "skills/dev-memory/agents/openai.yaml": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30",
+        "skills/dev-memory/assets/config.example.json": "09b312ea57647122b9b42959a7260991eb70a09904ea3a3d2cbae71f7bcfb656",
+        "skills/dev-memory/references/codex-hooks.md": "148b1397fdd80f522e3a6694300c1f2600b4f5a6545f7269fa030f25bef3bef1",
+        "skills/dev-memory/references/protocol.md": "c52c499c49b725924e4886539bbefb9a10f355edab72ce50b83f3b6d6ec647ed",
+        "skills/dev-memory/references/setup.md": "6d5825dd8d40dbe460191f6a6a16e4e63c12c64e8851e150b1afec8c25f626da",
+        "skills/dev-memory/references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+        "skills/dev-memory/scripts/codex_hook.py": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344",
+        "skills/dev-memory/scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24",
+        "skills/dev-memory/scripts/dev_memory.py": "bc2392e669bd61a72960883bba658707b60898656552112c58ef7cd9832a735a",
+        "skills/dev-memory/scripts/dev_memory_setup.py": "4ed25029c3ffb15372c4a5a806aceb74333686686f55395dfb052321aba25c8b",
+        "skills/dev-memory/scripts/dev_memory_store.py": "8598d070f9290b773e65a2f5c4a591f09754f57ceee0a2864b085740ca36c6e5"
+      },
+      "model": "gpt-6-luna",
+      "reasoning": "high",
+      "host": "codex-cli 0.155.1",
+      "phase": "initial_diagnostic"
+    },
+    {
+      "status": "completed",
+      "baseline_ref": "9ecc959",
+      "synthetic_only": true,
+      "repetitions": 1,
+      "kind": "real_codex_tasks",
+      "cells": [
+        {
+          "label": "current-a",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 88.785,
+          "first_tool_action_seconds": 28.715,
+          "command_calls": 11,
+          "tool_calls": 12,
+          "usage": {
+            "input_tokens": 179175,
+            "cached_input_tokens": 151552,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4166,
+            "reasoning_output_tokens": 981
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "current",
+          "project": "a",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 5,
+          "test_command_observed": true,
+          "active_habits": [
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            },
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            },
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            }
+          ]
+        },
+        {
+          "label": "current-b",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 85.145,
+          "first_tool_action_seconds": 27.133,
+          "command_calls": 7,
+          "tool_calls": 8,
+          "usage": {
+            "input_tokens": 160263,
+            "cached_input_tokens": 141312,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3471,
+            "reasoning_output_tokens": 1151
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "current",
+          "project": "b",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 2,
+          "test_command_observed": true,
+          "active_habits": [
+            {
+              "title": "Clarify retry count semantics",
+              "content": "When discussing or implementing retries, clearly state whether a count means total attempts or additional retries, and avoid ambiguous count terminology."
+            },
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            },
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            },
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            }
+          ]
+        }
+      ],
+      "limitations": [
+        "One host trial per cell is exploratory, not a latency/accuracy guarantee."
+      ],
+      "runtime_source_sha256": {
+        "install.py": "a1903db95ed2613c22a8485481384b43b128daca81d50151a2fccc2bdaabd4ce",
+        "skills/dev-memory/.dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+        "skills/dev-memory/LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+        "skills/dev-memory/SKILL.md": "338695413538523a5cfffe551c2ef5e74a73b67f380c055767e783703eff4c7b",
+        "skills/dev-memory/agents/openai.yaml": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30",
+        "skills/dev-memory/assets/config.example.json": "09b312ea57647122b9b42959a7260991eb70a09904ea3a3d2cbae71f7bcfb656",
+        "skills/dev-memory/references/codex-hooks.md": "148b1397fdd80f522e3a6694300c1f2600b4f5a6545f7269fa030f25bef3bef1",
+        "skills/dev-memory/references/protocol.md": "f6e21dae6d0c31f5909edbdb1ae9183f6f25fb6b556f2c9ea72a5df680fb512d",
+        "skills/dev-memory/references/setup.md": "6d5825dd8d40dbe460191f6a6a16e4e63c12c64e8851e150b1afec8c25f626da",
+        "skills/dev-memory/references/verification.md": "98558415eb8aa60db84b85497b38fcb3ab7b58659fc2e5ab8028af0e6d77f8c1",
+        "skills/dev-memory/scripts/codex_hook.py": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344",
+        "skills/dev-memory/scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24",
+        "skills/dev-memory/scripts/dev_memory.py": "9ad14897ae79eda71b543b13bf728f5850975896ba57aa21beb48d8b8954c157",
+        "skills/dev-memory/scripts/dev_memory_setup.py": "4ed25029c3ffb15372c4a5a806aceb74333686686f55395dfb052321aba25c8b",
+        "skills/dev-memory/scripts/dev_memory_store.py": "ab084d7d63ecc170d330e1c86025907e2c6ac94c53c06ac7b255ab67ba18bd41"
+      },
+      "model": "gpt-6-luna",
+      "reasoning": "high",
+      "host": "codex-cli 0.155.1",
+      "phase": "intermediate_retest"
+    },
+    {
+      "status": "completed",
+      "baseline_ref": "9ecc959",
+      "synthetic_only": true,
+      "repetitions": 1,
+      "kind": "real_codex_tasks",
+      "cells": [
+        {
+          "label": "current-a",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 81.762,
+          "first_tool_action_seconds": 25.959,
+          "command_calls": 10,
+          "tool_calls": 11,
+          "usage": {
+            "input_tokens": 222475,
+            "cached_input_tokens": 193024,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3236,
+            "reasoning_output_tokens": 900
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "current",
+          "project": "a",
+          "activation": "project_and_user_level",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 4,
+          "test_command_observed": false,
+          "active_habits": [
+            {
+              "title": "Clarify retry counts",
+              "content": "When implementing retry behavior, state whether a count means total attempts or additional retries so the number of executions is unambiguous."
+            },
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            },
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            },
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            }
+          ]
+        },
+        {
+          "label": "current-b",
+          "exit_code": 0,
+          "timed_out": false,
+          "seconds": 68.877,
+          "first_tool_action_seconds": 19.759,
+          "command_calls": 6,
+          "tool_calls": 8,
+          "usage": {
+            "input_tokens": 150257,
+            "cached_input_tokens": 111616,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2610,
+            "reasoning_output_tokens": 781
+          },
+          "memory_use_reported_ids": [],
+          "host_errors": [],
+          "version": "current",
+          "project": "b",
+          "activation": "user_level_only",
+          "correctness": {
+            "passed": true
+          },
+          "memory_calls": 1,
+          "test_command_observed": true,
+          "active_habits": [
+            {
+              "title": "Clarify retry counts",
+              "content": "When implementing retry behavior, state whether a count means total attempts or additional retries so the number of executions is unambiguous."
+            },
+            {
+              "title": "Boundary regressions",
+              "content": "For bug fixes, add and run standard-library unit tests for success, exhausted attempts and nonretryable errors."
+            },
+            {
+              "title": "Delivery order",
+              "content": "For development tasks, report in three headings: 结果, 验证, 遗留."
+            },
+            {
+              "title": "Evidence for fixes",
+              "content": "For bug fixes, inspect the existing implementation and establish the cause before editing."
+            }
+          ]
+        }
+      ],
+      "limitations": [
+        "One host trial per cell is exploratory, not a latency/accuracy guarantee."
+      ],
+      "runtime_source_sha256": {
+        "install.py": "a1903db95ed2613c22a8485481384b43b128daca81d50151a2fccc2bdaabd4ce",
+        "skills/dev-memory/.dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+        "skills/dev-memory/LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+        "skills/dev-memory/SKILL.md": "b7d302c6c75c83472003cf445aa21c2b8ee5bac94514f0cc8e0cd9a458cde869",
+        "skills/dev-memory/agents/openai.yaml": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30",
+        "skills/dev-memory/assets/config.example.json": "09b312ea57647122b9b42959a7260991eb70a09904ea3a3d2cbae71f7bcfb656",
+        "skills/dev-memory/references/codex-hooks.md": "148b1397fdd80f522e3a6694300c1f2600b4f5a6545f7269fa030f25bef3bef1",
+        "skills/dev-memory/references/protocol.md": "c54b234674e288e593f189e5f3b9ccdf3c9a7f99827ed3a22589f4cfd9546771",
+        "skills/dev-memory/references/setup.md": "6d5825dd8d40dbe460191f6a6a16e4e63c12c64e8851e150b1afec8c25f626da",
+        "skills/dev-memory/references/verification.md": "f18927d46137b9ca2937b4058f22c1d33241024adc1dc7d302a5b9c748416aac",
+        "skills/dev-memory/scripts/codex_hook.py": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344",
+        "skills/dev-memory/scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24",
+        "skills/dev-memory/scripts/dev_memory.py": "9ad14897ae79eda71b543b13bf728f5850975896ba57aa21beb48d8b8954c157",
+        "skills/dev-memory/scripts/dev_memory_setup.py": "138b043dbca3314fc220295e96b2fe0fa3e9756fc1875b5c35c7d058e5962eaf",
+        "skills/dev-memory/scripts/dev_memory_store.py": "9edcabc1a9af9b43fe6b52b60e555159d589e0284e07bf42588d669039b641e5"
+      },
+      "model": "gpt-6-luna",
+      "reasoning": "high",
+      "host": "codex-cli 0.155.1",
+      "phase": "release_workflow_probe"
+    }
+  ],
+  "limitations": [
+    "Sequential exploratory trials, not a randomized repeated latency benchmark.",
+    "Only a named Codex CLI/model was exercised; other hosts and trusted hook events are unverified.",
+    "Source hashes identify each diagnostic snapshot; later fixes must not be credited to earlier runs.",
+    "Memory use receipts and successful commands do not independently establish semantic compliance.",
+    "Host emitted catalog/plugin fetch warnings; raw stderr may contain signed URLs and is intentionally not published."
+  ],
+  "semantic_review": [
+    {
+      "phase": "off_control",
+      "cell": "off-a",
+      "implementation_passed": true,
+      "persistent_unit_tests": false,
+      "required_report_headings": false,
+      "habit_capture": "Wrote a synthetic shared instruction file; no Dev Memory store was accessible."
+    },
+    {
+      "phase": "initial_diagnostic",
+      "cell": "baseline-a",
+      "implementation_passed": true,
+      "persistent_unit_tests": false,
+      "required_report_headings": false,
+      "habit_capture": "Explicit cross-project habit incorrectly stored as inactive candidate; repaired missing task provenance after a failed write."
+    },
+    {
+      "phase": "initial_diagnostic",
+      "cell": "baseline-b",
+      "implementation_passed": true,
+      "persistent_unit_tests": true,
+      "required_report_headings": false,
+      "habit_capture": "Explicit cross-project habit still reported as candidate."
+    },
+    {
+      "phase": "initial_diagnostic",
+      "cell": "current-a",
+      "implementation_passed": true,
+      "persistent_unit_tests": true,
+      "required_report_headings": true,
+      "habit_capture": "Confirmed active rule saved; two avoidable match-input failures diagnosed."
+    },
+    {
+      "phase": "initial_diagnostic",
+      "cell": "current-b",
+      "implementation_passed": true,
+      "persistent_unit_tests": false,
+      "required_report_headings": false,
+      "habit_capture": "Existing confirmed habit reused without another write; recalled unit-test habit not fully followed."
+    },
+    {
+      "phase": "intermediate_retest",
+      "cell": "current-a",
+      "implementation_passed": true,
+      "persistent_unit_tests": true,
+      "required_report_headings": true,
+      "habit_capture": "Explicit habit downgraded to candidate; ambiguous user-level instruction block diagnosed."
+    },
+    {
+      "phase": "intermediate_retest",
+      "cell": "current-b",
+      "implementation_passed": true,
+      "persistent_unit_tests": true,
+      "required_report_headings": true,
+      "habit_capture": "Confirmed habit added; candidate comparison did not expose the earlier candidate, diagnosed and fixed."
+    },
+    {
+      "phase": "release_workflow_probe",
+      "cell": "current-a",
+      "implementation_passed": true,
+      "persistent_unit_tests": false,
+      "required_report_headings": true,
+      "habit_capture": "Explicit global rule saved active/confirmed. Inline assertions passed but did not satisfy the recalled persistent-unit-test habit."
+    },
+    {
+      "phase": "release_workflow_probe",
+      "cell": "current-b",
+      "implementation_passed": true,
+      "persistent_unit_tests": true,
+      "required_report_headings": false,
+      "habit_capture": "User-level instructions loaded in an uninitialized second project; existing active habit reused without another write. Reporting rule remained unloaded."
+    }
+  ],
+  "final_source_differences": {
+    "skills/dev-memory/references/verification.md": "Changed after host snapshot: cold backup schema validation or verification-report link only.",
+    "skills/dev-memory/scripts/dev_memory_store.py": "Changed after host snapshot: cold backup schema validation or verification-report link only."
+  }
+}

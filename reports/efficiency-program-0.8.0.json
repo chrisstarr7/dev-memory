@@ -1,0 +1,97 @@
+{
+  "status": "completed",
+  "baseline_ref": "9ecc959",
+  "synthetic_only": true,
+  "repetitions": 10,
+  "kind": "local_program_operations",
+  "cells": [
+    {
+      "version": "baseline",
+      "measurements": [
+        {
+          "records": 1000,
+          "median_ms": 32.465,
+          "max_ms": 34.269,
+          "response_characters": 11906,
+          "body_records": 1,
+          "maintenance_bodies": 8,
+          "query_plan": [
+            "SEARCH st USING COVERING INDEX search_term_term (term=?)",
+            "SEARCH m USING INDEX sqlite_autoindex_memories_1 (id=?)",
+            "USE TEMP B-TREE FOR GROUP BY",
+            "USE TEMP B-TREE FOR count(DISTINCT)",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ]
+        },
+        {
+          "records": 10000,
+          "median_ms": 128.211,
+          "max_ms": 139.179,
+          "response_characters": 11946,
+          "body_records": 1,
+          "maintenance_bodies": 8,
+          "query_plan": [
+            "SEARCH st USING COVERING INDEX search_term_term (term=?)",
+            "SEARCH m USING INDEX sqlite_autoindex_memories_1 (id=?)",
+            "USE TEMP B-TREE FOR GROUP BY",
+            "USE TEMP B-TREE FOR count(DISTINCT)",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "current",
+      "measurements": [
+        {
+          "records": 1000,
+          "median_ms": 23.871,
+          "max_ms": 25.679,
+          "response_characters": 4789,
+          "body_records": 3,
+          "maintenance_bodies": 0,
+          "query_plan": [
+            "SEARCH st USING COVERING INDEX search_term_term (term=?)",
+            "SEARCH m USING INDEX sqlite_autoindex_memories_1 (id=?)",
+            "USE TEMP B-TREE FOR GROUP BY",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ]
+        },
+        {
+          "records": 10000,
+          "median_ms": 32.92,
+          "max_ms": 33.423,
+          "response_characters": 4823,
+          "body_records": 3,
+          "maintenance_bodies": 0,
+          "query_plan": [
+            "SEARCH st USING COVERING INDEX search_term_term (term=?)",
+            "SEARCH m USING INDEX sqlite_autoindex_memories_1 (id=?)",
+            "USE TEMP B-TREE FOR GROUP BY",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Bulk synthetic index seeding omits evidence; local program timing is not AI task latency."
+  ],
+  "runtime_source_sha256": {
+    "install.py": "a1903db95ed2613c22a8485481384b43b128daca81d50151a2fccc2bdaabd4ce",
+    "skills/dev-memory/.dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+    "skills/dev-memory/LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+    "skills/dev-memory/SKILL.md": "b7d302c6c75c83472003cf445aa21c2b8ee5bac94514f0cc8e0cd9a458cde869",
+    "skills/dev-memory/agents/openai.yaml": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30",
+    "skills/dev-memory/assets/config.example.json": "09b312ea57647122b9b42959a7260991eb70a09904ea3a3d2cbae71f7bcfb656",
+    "skills/dev-memory/references/codex-hooks.md": "148b1397fdd80f522e3a6694300c1f2600b4f5a6545f7269fa030f25bef3bef1",
+    "skills/dev-memory/references/protocol.md": "c54b234674e288e593f189e5f3b9ccdf3c9a7f99827ed3a22589f4cfd9546771",
+    "skills/dev-memory/references/setup.md": "6d5825dd8d40dbe460191f6a6a16e4e63c12c64e8851e150b1afec8c25f626da",
+    "skills/dev-memory/references/verification.md": "f18927d46137b9ca2937b4058f22c1d33241024adc1dc7d302a5b9c748416aac",
+    "skills/dev-memory/scripts/codex_hook.py": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344",
+    "skills/dev-memory/scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24",
+    "skills/dev-memory/scripts/dev_memory.py": "9ad14897ae79eda71b543b13bf728f5850975896ba57aa21beb48d8b8954c157",
+    "skills/dev-memory/scripts/dev_memory_setup.py": "138b043dbca3314fc220295e96b2fe0fa3e9756fc1875b5c35c7d058e5962eaf",
+    "skills/dev-memory/scripts/dev_memory_store.py": "9edcabc1a9af9b43fe6b52b60e555159d589e0284e07bf42588d669039b641e5"
+  }
+}

@@ -56,9 +56,10 @@ class MemoryTestCase(unittest.TestCase):
 
     def apply(self, *, scope: str, operations: list[dict], project: Path | None = None,
               turn: str = "turn-1", idem: str | None = None, task: str | None = None,
-              global_root: Path | None = None) -> dict:
+              global_root: Path | None = None, maintenance: str = 'defer', include_task: bool = False) -> dict:
         payload = {"schema_version": 1, "scope": scope, "session_id": "session-test", "turn_id": turn,
-                   "idempotency_key": idem or f"idem-{turn}", "task_id": task, "operations": operations}
+                   "idempotency_key": idem or f"idem-{turn}", "task_id": task, "operations": operations,
+                   'maintenance': maintenance, 'include_task': include_task}
         return store.apply_payload(payload, project_root=project or self.project_a,
                                    global_root=global_root or self.global_root)
 
@@ -677,14 +678,14 @@ class StoreTests(MemoryTestCase):
 
 
 class IntegrationTests(MemoryTestCase):
-    def test_hook_stop_has_bounded_recovery_and_private_skip(self) -> None:
+    def test_hook_stop_does_not_require_noop_and_private_skip_is_preserved(self) -> None:
         script = SCRIPTS / "codex_hook.py"
         env = {**os.environ, "DEV_MEMORY_HOME": str(self.global_root)}
         event = {"hook_event_name": "Stop", "cwd": str(self.project_a), "session_id": "s1", "turn_id": "t1",
                  "stop_hook_active": False}
         missing = subprocess.run([sys.executable, str(script)], input=json.dumps(event), text=True, encoding="utf-8",
                                  capture_output=True, env=env, cwd=self.project_a, check=True)
-        self.assertEqual(json.loads(missing.stdout)["decision"], "block")
+        self.assertEqual(missing.stdout, '')
         event["stop_hook_active"] = True
         limited = subprocess.run([sys.executable, str(script)], input=json.dumps(event), text=True, encoding="utf-8",
                                  capture_output=True, env=env, cwd=self.project_a, check=True)

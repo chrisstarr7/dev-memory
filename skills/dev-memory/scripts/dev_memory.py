@@ -32,6 +32,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "README.md", "LICENSE", ".gitignore", "install.py", "package.json", "bin/install.cjs", "CONTRIBUTING.md", "SECURITY.md",
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
     "docs/readme/README.zh-CN.md", "docs/readme/README.ja.md", "docs/readme/README.ko.md",
+    "tests/test_efficiency.py", "reports/optimization-0.8.0.md", "evals/check_efficiency.py", "reports/efficiency-program-0.8.0.json", "reports/efficiency-host-0.8.0.json",
     "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/benchmark-0.7.0.md", "reports/project-isolation-demo.json",
@@ -40,7 +41,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
               "gemini-cli": ".gemini/skills", "github-copilot": ".copilot/skills", "opencode": ".config/opencode/skills",
               "deepseek-harness": ".dsh/skills"}
-CODEX_EVENTS = ("SessionStart", "UserPromptSubmit", "Stop")
+CODEX_EVENTS = ("SessionStart", "UserPromptSubmit")
 
 def _json_out(value: Any) -> None:
     print(json.dumps(value, ensure_ascii=False, sort_keys=True))
@@ -171,12 +172,13 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
             turn_id: str | None = None,
             max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
             force: bool = False, readonly: bool = False, resume: bool = False,
-            include_task: bool = True) -> dict[str, Any]:
+            include_task: bool = True, intent: str | None = None,
+            with_maintenance: bool = False) -> dict[str, Any]:
     """One normal startup call: bounded recall and pending check, no host probes/init."""
     result = store.recall(query, project_root=project_root, global_root=global_root, task_id=task_id,
                           session_id=session_id, module=module, max_candidates=max_candidates,
                           max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, resume=resume,
-                          include_task=include_task)
+                          include_task=include_task, intent=intent)
     for bucket in result['stores']:
         if readonly:
             bucket['maintenance'] = {'status': 'not_requested_readonly'}
@@ -186,7 +188,7 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
             try:
                 bucket['maintenance'] = store.maintenance_prepare(bucket['scope'], project_root=project_root, global_root=global_root,
                                                                   session_id=session_id, turn_id=turn_id,
-                                                                  include_task=include_task)
+                                                                  include_task=include_task, include_records=with_maintenance)
             except (store.MemoryError, sqlite3.Error, OSError):
                 bucket['maintenance'] = {'status': 'deferred', 'reason': 'storage_unavailable'}
     project_activation = activation.status(project_root)
@@ -232,7 +234,6 @@ def _hook_config(target: Path) -> dict[str, Any]:
     return {
         "SessionStart": [{"matcher": "startup|resume|compact", "hooks": [handler(1200)]}],
         "UserPromptSubmit": [{"hooks": [handler(1200)]}],
-        "Stop": [{"hooks": [handler()]}],
     }
 
 def _merge_hook_config(target: Path) -> dict[str, Any]:
@@ -256,6 +257,21 @@ def _merge_hook_config(target: Path) -> dict[str, Any]:
     if not isinstance(hooks, dict):
         raise store.MemoryError("config_invalid", "Codex hooks must be an object.")
     command = _hook_command(target)
+    # Remove only our obsolete receipt gate; retain other Stop hooks and unknown shapes.
+    old_stop = hooks.get('Stop')
+    if isinstance(old_stop, list):
+        cleaned = []
+        for group in old_stop:
+            if not isinstance(group, dict) or not isinstance(group.get('hooks'), list):
+                cleaned.append(group)
+                continue
+            handlers = [h for h in group['hooks'] if not (isinstance(h, dict) and h.get('command') == command)]
+            if handlers:
+                cleaned.append({**group, 'hooks': handlers})
+        if cleaned:
+            hooks['Stop'] = cleaned
+        else:
+            hooks.pop('Stop', None)
     for event, groups in _hook_config(target).items():
         old = hooks.setdefault(event, [])
         if not isinstance(old, list):
@@ -468,8 +484,12 @@ def _scope_arg(args: argparse.Namespace) -> tuple[str, Path | None]:
         raise store.MemoryError("project_root_required", "Use --project-root or run inside a Git worktree.")
     return scope, root
 
-def _read_payload() -> dict[str, Any]:
-    raw = sys.stdin.read(1_000_001)
+def _read_payload(path: Path | None = None) -> dict[str, Any]:
+    if path is None or path == Path('-'):
+        raw = sys.stdin.read(1_000_001)
+    else:
+        with path.open(encoding='utf-8') as source:
+            raw = source.read(1_000_001)
     if len(raw) > 1_000_000:
         raise store.MemoryError("validation_error", "Structured apply input exceeds the 1 MB limit.")
     if not raw.strip():
@@ -500,6 +520,7 @@ def _parser() -> argparse.ArgumentParser:
     for name in ("recall", "context"):
         p = sub.add_parser(name)
         p.add_argument("--query", default="")
+        p.add_argument('--intent', choices=tuple(store.INTENTS), help='Task intent expands recall across topic wording/languages; never filters categories')
         p.add_argument("--resume", action="store_true", help="Include recent checkpoint candidates when continuing without a task ID")
         p.add_argument("--exclude-task", action="store_true", help="Exclude legacy task records from recall and context maintenance")
         p.add_argument("--project-root", type=Path)
@@ -508,6 +529,7 @@ def _parser() -> argparse.ArgumentParser:
         p.add_argument("--session-id")
         if name == 'context':
             p.add_argument("--turn-id", help="Suppress repeated maintenance packs and honor a turn opt-out")
+            p.add_argument('--with-maintenance', action='store_true', help='Load one due maintenance pack at a quiet boundary; default returns metadata only')
         p.add_argument("--module")
         p.add_argument("--max-candidates", type=int, default=20)
         p.add_argument("--max-details", type=int, default=5)
@@ -529,7 +551,7 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser("apply")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--module")
-    p.add_argument("--input", type=Path, help="Read structured JSON from file; stdin by default.")
+    p.add_argument("--input", type=Path, help="Read structured JSON from file; '-' or omitted uses stdin.")
     p = sub.add_parser("match", help="Read-only duplicate candidates before adding a record")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--input", type=Path)
@@ -539,6 +561,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="Review pending records below the threshold at a task boundary")
     p.add_argument("--session-id")
     p.add_argument("--turn-id")
+    p.add_argument('--exclude-task', action='store_true', help='Exclude legacy task records from maintenance')
     p = sub.add_parser("skip")
     p.add_argument("--scope", choices=("global", "project", "both"), default="project")
     p.add_argument("--project-root", type=Path)
@@ -569,6 +592,11 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("action", choices=("on", "off", "readonly", "disable"))
     p.add_argument("--scope", required=True)
     p.add_argument("--project-root", type=Path)
+    p = sub.add_parser('storage', help='Cold-path storage accounting and explicit safe reclamation')
+    p.add_argument('--scope', choices=('global', 'project'), required=True)
+    p.add_argument('--project-root', type=Path)
+    p.add_argument('--reclaim', action='store_true', help='Remove disposable cache/index rows and VACUUM; never run during coding')
+    p.add_argument('--backup-keep', type=int, help='Preview or explicitly reclaim all but N validated same-store backups')
     p = sub.add_parser("install")
     p.add_argument("--target", type=Path)
     p.add_argument("--agent", choices=tuple(AGENT_DIRS), default="codex")
@@ -618,8 +646,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.query, project_root=root, global_root=global_root, task_id=args.task_id,
                 session_id=args.session_id, module=args.module if args.module is not None else _module_label(root), max_candidates=args.max_candidates,
                 max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, resume=args.resume,
-                include_task=not args.exclude_task,
-                **({'turn_id':args.turn_id} if command == 'context' else {}),
+                include_task=not args.exclude_task, intent=args.intent,
+                **({'turn_id':args.turn_id, 'with_maintenance':args.with_maintenance} if command == 'context' else {}),
             ))
         elif command == "show":
             scope, root = _scope_arg(args)
@@ -635,7 +663,7 @@ def main(argv: list[str] | None = None) -> int:
             _json_out(store.list_records(scope, project_root=root, global_root=global_root,
                                          status=args.status, limit=args.limit))
         elif command == "apply":
-            payload = json.loads(args.input.read_text(encoding="utf-8")) if args.input else _read_payload()
+            payload = _read_payload(args.input)
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             branch = _git_info(root) if root else {}
             payload.setdefault("branch", branch.get("branch"))
@@ -648,7 +676,7 @@ def main(argv: list[str] | None = None) -> int:
             _json_out(result)
             return 2 if result["status"] == "failed" else (3 if result["status"] == "partial_success" else 0)
         elif command == "match":
-            payload = json.loads(args.input.read_text(encoding="utf-8")) if args.input else _read_payload()
+            payload = _read_payload(args.input)
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             _json_out(store.match_payload(payload, project_root=root, global_root=global_root))
         elif command == "maintain":
@@ -659,7 +687,8 @@ def main(argv: list[str] | None = None) -> int:
                 try:
                     results.append(store.maintenance_prepare(kind, project_root=root if kind == "project" else None,
                                                             global_root=global_root, force=args.force,
-                                                            session_id=args.session_id, turn_id=args.turn_id))
+                                                            session_id=args.session_id, turn_id=args.turn_id,
+                                                            include_task=not args.exclude_task))
                 except (store.MemoryError, sqlite3.Error, OSError) as exc:
                     results.append({"scope": kind, "status": "failed", "error": getattr(exc, "code", "storage_unavailable")})
             failures = sum(r["status"] == "failed" for r in results)
@@ -667,7 +696,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2 if failures == len(results) else (3 if failures else 0)
         elif command == "skip":
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
-            if root is None:
+            if root is None and args.scope != 'global':
                 raise store.MemoryError("project_root_required", "A project store is required to record a private skip.")
             _json_out(store.record_private_skip(args.scope, session_id=args.session_id, turn_id=args.turn_id,
                                                 project_root=root, global_root=global_root))
@@ -701,6 +730,10 @@ def main(argv: list[str] | None = None) -> int:
             if scope == "task":
                 scope = "project"
             _json_out(store.restore_store(scope, args.backup, project_root=root, global_root=global_root))
+        elif command == 'storage':
+            scope, root = _scope_arg(args)
+            _json_out(store.storage_report(scope, project_root=root, global_root=global_root,
+                                           reclaim=args.reclaim, backup_keep=args.backup_keep))
         elif command == "capture":
             scope, root = _scope_arg(args)
             if scope == "task":

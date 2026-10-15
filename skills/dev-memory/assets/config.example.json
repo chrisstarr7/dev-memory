@@ -10,5 +10,6 @@
     "max_context_chars": 4000
   },
   "excluded": false,
-  "maintenance_enabled": true
+  "maintenance_enabled": true,
+  "maintenance_interval_days": 7
 }
