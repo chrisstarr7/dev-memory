@@ -16,7 +16,7 @@ Dev Memory learns from the requirements, corrections, technical decisions and wo
 
 ## How it works
 
-1. **Learn from your feedback.** Explicit cross-project preferences can become confirmed rules. Repeated feedback first forms a candidate; evidence from two distinct task IDs can promote it to an active soft preference. The assistant must judge whether those tasks and feedback are genuinely independent and reusable.
+1. **Assess feedback.** The assistant judges whether a user message signals a durable cross-project habit. If the host offers non-blocking subagents, one read-only reviewer can assess an implicit signal while the main task continues. Explicit cross-project rules remain direct evidence; inferred feedback stays a candidate until two independent task IDs support it.
 2. **Recall for the task.** The assistant retrieves a small set of relevant active habits and applies their conditions and exceptions. It reuses valid context within the task; current user instructions take priority over soft preferences.
 3. **Revise with evidence.** Corrections update existing habits, preserving their sources and revision history. Exact duplicates are detected locally; the current assistant judges equivalent wording. AI summaries and retrieval hits add no user evidence.
 
@@ -26,6 +26,19 @@ Dev Memory learns from the requirements, corrections, technical decisions and wo
 | Repeatedly choosing evidence-based diagnosis in separate tasks | Candidate, then a soft preference when supported |
 | “Do not modify this project's payment module.” | Project constraint, when project capture is enabled |
 | “Skip tests this time.” | Applies in the current conversation; not saved |
+
+```mermaid
+flowchart LR
+    U[User message] --> R[Inline bounded recall]
+    R --> T[Main task continues]
+    U -. host has non-blocking reviewer .-> A[Async read-only global-signal assessment]
+    U -. no reviewer available .-> N[No inferred global candidate]
+    A --> C{Result ready at normal capture point?}
+    C -- no or uncertain --> S[Skip this turn; do not wait]
+    C -- yes --> V[Primary assistant checks scope, privacy, controls and evidence]
+    V --> M[Normal local apply]
+    T --> M
+```
 
 ## Installation
 
@@ -57,7 +70,7 @@ User-level activation currently supports Codex only. Other hosts use their proje
 
 ## Everyday use
 
-Develop normally after setup. The assistant interprets visible user feedback in the current conversation and submits supported habits to the local program. There is no background conversation monitor or separate learning model.
+Develop normally after setup. An available host subagent may asynchronously assess a possible global habit; the coding task never waits for it, and only the primary assistant can validate and save its result. If no result is ready at the normal capture point, no inferred global candidate is saved from that turn. This uses the host's existing model capability and account usage. Recall remains inline before edits; project-memory writes and maintenance remain bounded local operations. There is no always-running conversation monitor, daemon or separate learning service.
 
 | To control memory | Tell your assistant |
 | --- | --- |

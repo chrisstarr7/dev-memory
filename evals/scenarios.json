@@ -6,9 +6,9 @@
     {"id":"S03","scenario":"用户明确要求跨项目复用实现","expected":"保存为全局明确软/硬习惯，换项目后可检索","class":"semantic","coverage":"global-habit explicit user-evidence review"},
     {"id":"S04","scenario":"项目内明确退款业务条件","expected":"仅写本项目，保留所有条件与例外","class":"semantic","coverage":"requires_model_review"},
     {"id":"S05","scenario":"同一句包含通用规范和项目限制","expected":"拆分到正确库，证据也不混存","class":"semantic","coverage":"requires_model_review"},
-    {"id":"S06","scenario":"项目外讨论尚未绑定的业务","expected":"不落盘到 global，不全盘搜索项目","class":"mixed","coverage":"test_project_recall_never_reads_other_project;test_global_requires_explicit_confirmation_and_global_kind;semantic_review_not_run"},
+    {"id":"S06","scenario":"项目外讨论尚未绑定的业务","expected":"只读评估应判为项目/业务信息，不落盘到 global，不全盘搜索项目","class":"mixed","coverage":"test_project_recall_never_reads_other_project;test_global_requires_explicit_confirmation_and_global_kind;async semantic scope review"},
     {"id":"S07","scenario":"用户说“这次不要运行测试”","expected":"只应用于本任务，不成为全局永久习惯","class":"semantic","coverage":"single-turn preference semantic review"},
-    {"id":"S08","scenario":"开发者在多个独立任务中纠正为先复用现有实现","expected":"形成去业务化候选，两个任务证据后晋升为软习惯","class":"mixed","coverage":"test_inferred_global_habit_needs_two_independent_user_tasks_and_is_shared"},
+    {"id":"S08","scenario":"开发者在多个独立任务中纠正为先复用现有实现","expected":"AI 对可见反馈独立评估；宿主支持时异步复核，形成去业务化候选，两个任务证据后晋升为软习惯","class":"mixed","coverage":"test_inferred_global_habit_needs_two_independent_user_tasks_and_is_shared;async semantic review"},
     {"id":"S09","scenario":"项目 A/B 业务与版本相反","expected":"默认检索不打开不相关项目库","class":"program","coverage":"test_project_recall_never_reads_other_project"},
     {"id":"S10","scenario":"项目特有业务规则尝试写 global","expected":"拒绝业务数据污染全局库","class":"program","coverage":"test_global_habit_candidates_reject_model_summaries_and_project_content"},
     {"id":"S11","scenario":"项目库只读、全局可写","expected":"项目正文不转存全局、日志或全局 pending","class":"program","coverage":"test_unavailable_project_content_is_not_promoted_to_global"},
@@ -52,6 +52,7 @@
     {"id":"S49","scenario":"用户级 Codex 激活后在两个独立项目启动","expected":"两项目都只召回同一全局习惯，不读彼此项目库","class":"host","coverage":"test_user_activation_reads_global_only_across_projects; isolated Codex E2E still required"},
     {"id":"S50","scenario":"全局习惯学习关闭后继续开发","expected":"不继续收集用户反馈候选","class":"program","coverage":"capture-off behavior must be added to semantic/host verification"},
     {"id":"S51","scenario":"SQLite 有 300 条全局记录时按窄主题检索","expected":"词项索引主导有界查询；只返回配置条数和字符数内的正文","class":"program","coverage":"test_growth_recall_uses_sqlite_index_and_returns_bounded_records"},
-    {"id":"S52","scenario":"禁用记忆、旧版本和新版本执行匹配编码任务","expected":"对比真实任务耗时、额外工具调用及习惯遵守情况","class":"host","coverage":"matched Codex A/B evaluation; current runtime result pending"}
+    {"id":"S52","scenario":"禁用记忆、旧版本和新版本执行匹配编码任务","expected":"对比真实任务耗时、额外工具调用及习惯遵守情况","class":"host","coverage":"matched Codex A/B evaluation; current runtime result pending"},
+    {"id":"S53","scenario":"异步全局信号评估尚未完成、不可用或结果不确定","expected":"主任务不等待；本轮不写入推断型全局候选，继续正常处理用户任务","class":"semantic","coverage":"host async delegation and no-wait behavior"}
   ]
 }
