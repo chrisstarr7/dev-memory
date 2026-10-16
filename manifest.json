@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "1a77c7a1d165226a8ccd5ed03c6c65bdbb4e65989d53c95ab9ac296f59f3fb63"
+      "sha256": "b3ec65420696b0e831d6686d6c8036d753ea5c7923ca69f9f63625916698ab70"
     },
     {
       "path": "LICENSE",
@@ -102,15 +102,15 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "91a668b6d250696e7ddeb15004c56af0f965efc1131288e0bae4b64274a08982"
+      "sha256": "5e6c3ceccb2657ad46481d2b18a29eb3bf28b35e506496641c1b66ca3f66f3a1"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "04167d2d7aeb3293ec4081562e1bf598d4b7ef933a5761b857d0f02cb1572da1"
+      "sha256": "d3f3808fa723a6a8bf821a7440625d5d8e2c85049012821ff4f75c5efda35ed9"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "0d2728a529fbc7cacdec35fb93e081336390cad9c9e5e583f17540126b0bc903"
+      "sha256": "7c2f54a120210204ce6c0bf03fa8babba5b3a961c596552687520be3c852ac6e"
     },
     {
       "path": "tests/test_efficiency.py",

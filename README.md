@@ -13,19 +13,21 @@
 
 Dev Memory is a developer-centered local memory system for AI-assisted development. It learns traceable, correctable habits and reasoning preferences from visible requirements, corrections, technical choices and working methods, then recalls them for later tasks and projects. Optional project rules stay isolated; SQLite stores the records, evidence and revisions.
 
+[Quick start](#quick-start) · [Workflow](#how-learning-and-recall-work) · [Memory controls](#control-memory) · [Privacy](#storage-and-privacy)
+
 ## What it does
 
-- Learns traceable, correctable habits that can be reused in later sessions and projects.
+- Learns your preferences for requirements analysis, implementation, debugging, verification and delivery.
 - Recalls a small set of relevant habits and authorized project rules for the current task.
 - Keeps one-time directions in the conversation; new project memory is off by default.
 - Runs as a host-guided Skill with a local Python CLI. It has no daemon, telemetry or external memory service.
 
 ## Quick start
 
-Run this from the root of the project you want to configure. Replace `codex` with the host parameter in the table below:
+Run this from your project root. Replace `<agent>` with the parameter for your AI host from the table below:
 
 ```sh
-npx -y --prefer-online chrisstarr7/dev-memory codex
+npx -y --prefer-online chrisstarr7/dev-memory <agent>
 ```
 
 | AI host | Parameter |
@@ -42,6 +44,8 @@ Requirements: Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. Afte
 
 For Codex, the command configures both user-level global habits and the current project's binding. Other hosts need project setup for automatic use; only Codex currently supports user-level guidance across uninitialized projects. DeepSeek here means the local DSH host.
 
+**After installation:** Start a new session and describe tasks and corrections normally. No personal habits are pre-seeded; they accumulate from actual feedback. To inspect use, ask the assistant which relevant habits it recalled and how they affected its work. An empty initial result is normal; an unavailable store must be reported.
+
 ## Memory scope and defaults
 
 | Memory | Examples | Scope and default |
@@ -56,21 +60,36 @@ Codex user-level guidance can use global habits in an uninitialized project with
 
 ## How learning and recall work
 
+```mermaid
+flowchart TD
+    A["Developer request or feedback"] --> B["Recall relevant memories"]
+    B --> C["Work under the current request"]
+    C --> D{"Eligible durable information?"}
+    D -- "Yes" --> E["Deduplicate, revise and save"]
+    D -- "No" --> F["Deliver the result"]
+    E --> F
+```
+
+This shows the ordinary task path. Important corrections are saved before affected edits; valid context is reused within the task. Pending organization is handled at a suitable interaction boundary, as described below.
+
 1. **Recall for the task:** One focused lookup uses task terms and optional intent, with indexed English/Chinese wording and code entities. Default combined recall allows five record bodies/4000 characters: three global habits and two project rules. Tags help ranking but never restrict discovery. Reuse valid context while working.
 2. **Learn:** Explicit cross-project preferences can become confirmed habits. Repeated feedback starts as an inactive candidate; two genuinely independent tasks can promote it to a soft preference. AI summaries and repeated retrieval do not count as user evidence.
 3. **Correct without duplication:** Compare existing records before adding; revise a corrected habit, retaining its evidence and history. Exact and reviewed paraphrase reuse both support candidate promotion. Current instructions always take priority.
 4. **Organize at quiet boundaries:** Changed records become due after five pending records, a 1200-character body, or seven days unreviewed. Ordinary calls return only a due notice. At a quiet boundary, review one related pack (at most eight records/12000 characters), merge equivalents, shorten redundant prose and correct tags. Due work resumes on later interactions; no timer runs in the background.
 
-The primary assistant assesses user feedback in its existing task reasoning and batches eligible writes before final delivery. No new information means no write or NOOP call. A separate reviewer is optional when useful work can overlap; pending capture review must finish before delivery. Important corrections are saved before affected edits. All saves require actual store receipts. The Skill has no continuous conversation monitor or default extra model call.
+The primary assistant assesses user feedback in its existing task reasoning and batches eligible writes before final delivery. No new information means no write or NOOP call. Important corrections are saved before affected edits; saves require actual store receipts. There is no continuous conversation monitor or default extra model call.
 
 ## Control memory
 
 | Goal | Tell the assistant |
 | --- | --- |
+| Express an ongoing habit | “Across all projects, check for suitable existing code before adding an implementation.” |
 | Enable project records | “Switch this project to full-project memory capture.” |
 | Return to the default mode | “Switch this project to developer-first.” |
 | Correct a habit | “Revise that habit: reuse existing code when it fits the requirement.” |
 | Pause global learning, keep recall | “Pause global habit writes, but keep recall.” |
+| Disable global memory | “Stop both reading and writing global habits.” |
+| Resume global memory | “Resume reading and learning global habits.” |
 | Exclude this turn | “Do not save memory from this turn.” |
 | Organize pending records | “At a quiet boundary, group related habits and shorten duplicates without losing conditions.” |
 | Inspect or forget a record | “Show relevant memories.” / “Preview deletion scope, then delete after I confirm.” |
