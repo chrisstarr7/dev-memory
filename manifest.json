@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "b7d302c6c75c83472003cf445aa21c2b8ee5bac94514f0cc8e0cd9a458cde869"
+      "sha256": "33398884a160daed717b204f553b9a6dadea5349a2b709e4b4c56488857dee3c"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -46,7 +46,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
-      "sha256": "5b6e400d6643afd02e49daae2e745c41e102e2aad1ea8309c5b92a2e670b0621"
+      "sha256": "5a6f6ae47e94b2da133ccf26e630b722bf5273c1ff418ae7977d242330e78cf4"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -74,7 +74,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "0edf9a6280c598e78c83e8f63f1942cd89bc262264d216b0db9796d6369fe6fc"
+      "sha256": "a3b1a3b6f220d1f16c16e1aa536140ff21578ef2517b9005887e874806ade5a2"
     },
     {
       "path": "bin/install.cjs",
@@ -154,7 +154,7 @@
     },
     {
       "path": "tests/test_setup.py",
-      "sha256": "c18b04136c1ecee31e3979e5202df421c2cb8439d200fc841cbb0126dc394f50"
+      "sha256": "cec4edcda331a635d8fd292383153ca05a1f85f0519bca8dd446827857c5de4b"
     },
     {
       "path": "tests/test_online_installer.py",
@@ -222,7 +222,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "b83817631b7b6f75612f8b075b5cd6413cac512a12ab3b6ccb7dc235c7073eb8"
+      "sha256": "cbc8d89625a4a78c0b4a7da80cdf92353944e4ed1b37c72fcad5e1206de1e4dc"
     },
     {
       "path": "reports/online-installation.json",
@@ -262,7 +262,7 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "43edc1659cf653cd9583f2bd2e78ab4f379f37dd13119e2bb8823147dd144deb"
+      "sha256": "a2b4fa71761bfa0e0ae9e22c4df22390947e6e6498c2811dc991709b43ada31f"
     },
     {
       "path": "evals/check_deepseek.py",
@@ -287,5 +287,5 @@
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.8.0"
+  "version": "0.8.1"
 }

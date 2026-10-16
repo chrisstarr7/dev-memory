@@ -252,6 +252,17 @@ class SetupTests(unittest.TestCase):
         self.assertTrue(store.global_paths(self.global_root)[1].is_file())
         self.assertFalse((self.project / '.dev-memory').exists())
 
+    def test_user_instruction_budget_matches_codex_default(self):
+        block = setup._user_block(self.skill, sys.executable, self.global_root)
+        block_bytes = len(block.encode('utf-8'))
+        base = b'x' * (setup.CODEX_USER_INSTRUCTION_MAX_BYTES - block_bytes - 1)
+        merged = setup._merge_user_guide(base, block)
+        self.assertEqual(len(merged), setup.CODEX_USER_INSTRUCTION_MAX_BYTES)
+        self.assertTrue(merged.endswith(base))
+        with self.assertRaises(store.MemoryError) as exc:
+            setup._merge_user_guide(base + b'x', block)
+        self.assertEqual(exc.exception.code, 'instruction_budget')
+
     def test_user_setup_prefers_override_and_refuses_other_host(self):
         with patch.dict(os.environ, {'CODEX_HOME': str(self.home / '.codex')}):
             with self.assertRaises(store.MemoryError) as exc:

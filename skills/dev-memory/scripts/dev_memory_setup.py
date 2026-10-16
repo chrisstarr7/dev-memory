@@ -13,6 +13,7 @@ BEGIN = '<!-- dev-memory:managed:start -->'
 END = '<!-- dev-memory:managed:end -->'
 USER_BEGIN = '<!-- dev-memory:user-managed:start -->'
 USER_END = '<!-- dev-memory:user-managed:end -->'
+CODEX_USER_INSTRUCTION_MAX_BYTES = 32 * 1024
 GUIDES = {
     'codex': 'AGENTS.md', 'claude-code': 'CLAUDE.local.md',
     'cursor': '.cursor/rules/dev-memory.mdc', 'gemini-cli': 'GEMINI.md',
@@ -196,8 +197,8 @@ def _merge_user_guide(original: bytes, block: str) -> bytes:
         text = text[:start] + managed + text[finish:]
     else:
         text = block + ('\n' + text if text else '')
-    if len(text.encode('utf-8')) > 24 * 1024:
-        raise store.MemoryError('instruction_budget', 'Codex user instructions exceed the managed size limit.')
+    if len(text.encode('utf-8')) > CODEX_USER_INSTRUCTION_MAX_BYTES:
+        raise store.MemoryError('instruction_budget', 'Codex user instructions exceed the default 32 KiB limit.')
     return text.encode('utf-8')
 
 
