@@ -13,3 +13,9 @@ Inspect overall `status`, `project_setup`, its store results and `activation`, a
 `doctor --project-root ...` reports `project_activation` separately from event hooks. Configuration never certifies actual host loading, per-turn execution, or model compliance. Initializing another project is a separate explicit action. Enabling memory in A does not authorize capture in B or make A's business global.
 
 The low-level `init --global --project-root ...` command only creates stores; it does not install host instructions. It remains available for programmatic tests and specialized integrations. Read-only recall creates neither store nor instruction files.
+
+## User-only activation and missing records
+
+If diagnosing missing learning, run the installed CLI's `doctor` once. Check its `skill_version`, `skill_path`, user/project activation, capture controls and `candidate_count`; an empty active list can still have saved candidates. Updating the source repository alone does not upgrade the installed runtime or a running session's cached instructions.
+
+After an authorized program upgrade, Codex can enable only its global user guidance with `setup --user --agent codex` on that installed CLI. This does not initialize any project, does not enable project business capture, and preserves existing capture controls. Other hosts require their project adapter. Start a fresh AI session after setup. Read [protocol](protocol.md#missing-capture-diagnosis-082) for diagnostic details; ordinary turns need no repeated doctor/list call.

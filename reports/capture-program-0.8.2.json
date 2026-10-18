@@ -1,0 +1,95 @@
+{
+  "status": "completed",
+  "baseline_ref": "ecc9744",
+  "synthetic_only": true,
+  "repetitions": 10,
+  "kind": "local_program_operations",
+  "cells": [
+    {
+      "version": "baseline",
+      "measurements": [
+        {
+          "records": 1000,
+          "median_ms": 24.243,
+          "max_ms": 28.144,
+          "response_characters": 4789,
+          "body_records": 3,
+          "maintenance_bodies": 0,
+          "query_plan": [
+            "SEARCH st USING COVERING INDEX search_term_term (term=?)",
+            "SEARCH m USING INDEX sqlite_autoindex_memories_1 (id=?)",
+            "USE TEMP B-TREE FOR GROUP BY",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ]
+        },
+        {
+          "records": 10000,
+          "median_ms": 31.843,
+          "max_ms": 36.499,
+          "response_characters": 4823,
+          "body_records": 3,
+          "maintenance_bodies": 0,
+          "query_plan": [
+            "SEARCH st USING COVERING INDEX search_term_term (term=?)",
+            "SEARCH m USING INDEX sqlite_autoindex_memories_1 (id=?)",
+            "USE TEMP B-TREE FOR GROUP BY",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "current",
+      "measurements": [
+        {
+          "records": 1000,
+          "median_ms": 23.755,
+          "max_ms": 26.933,
+          "response_characters": 4790,
+          "body_records": 3,
+          "maintenance_bodies": 0,
+          "query_plan": [
+            "SEARCH st USING COVERING INDEX search_term_term (term=?)",
+            "SEARCH m USING INDEX sqlite_autoindex_memories_1 (id=?)",
+            "USE TEMP B-TREE FOR GROUP BY",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ]
+        },
+        {
+          "records": 10000,
+          "median_ms": 31.228,
+          "max_ms": 34.941,
+          "response_characters": 4823,
+          "body_records": 3,
+          "maintenance_bodies": 0,
+          "query_plan": [
+            "SEARCH st USING COVERING INDEX search_term_term (term=?)",
+            "SEARCH m USING INDEX sqlite_autoindex_memories_1 (id=?)",
+            "USE TEMP B-TREE FOR GROUP BY",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Bulk synthetic index seeding omits evidence; local program timing is not AI task latency."
+  ],
+  "runtime_source_sha256": {
+    "install.py": "a1903db95ed2613c22a8485481384b43b128daca81d50151a2fccc2bdaabd4ce",
+    "skills/dev-memory/.dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+    "skills/dev-memory/LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+    "skills/dev-memory/SKILL.md": "a139aa9c4e6c0331b8849fa75a8f5a6f47d05360e95166bfc3d2537d8c2a009e",
+    "skills/dev-memory/agents/openai.yaml": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30",
+    "skills/dev-memory/assets/config.example.json": "09b312ea57647122b9b42959a7260991eb70a09904ea3a3d2cbae71f7bcfb656",
+    "skills/dev-memory/references/codex-hooks.md": "148b1397fdd80f522e3a6694300c1f2600b4f5a6545f7269fa030f25bef3bef1",
+    "skills/dev-memory/references/protocol.md": "53296c4929a35ec6a67b7f3adf6d59d2a93a142debb6ffb134b3f20ee1563dca",
+    "skills/dev-memory/references/setup.md": "f855c5a6069fffa6f32d5e35192ae55c9801b0e56a8386674e04922b347444f5",
+    "skills/dev-memory/references/verification.md": "f097b6bf9c3f2dc60d2af26cf95c187618f4aa21353b2110d0aab905a66d4bef",
+    "skills/dev-memory/scripts/codex_hook.py": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344",
+    "skills/dev-memory/scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24",
+    "skills/dev-memory/scripts/dev_memory.py": "c062b972d77d76e0a6e0f92b31cc398529a17adb0eba8012028cf8341f41f852",
+    "skills/dev-memory/scripts/dev_memory_setup.py": "9a63343e964b76721d32357c513e8a7634abc2e383158c795e9def4f8f1d9660",
+    "skills/dev-memory/scripts/dev_memory_store.py": "039ffa866dd31fe67dc400a6e2b7fff845dd46fcae14f6b4698933ddac9990a7"
+  }
+}

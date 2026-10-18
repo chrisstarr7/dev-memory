@@ -24,10 +24,10 @@ BLOCK = f'''{BEGIN}
 ## Development memory (enabled by project initialization)
 
 For development tasks in this initialized project, use dev-memory automatically; the user need not name the Skill. Follow the loaded Skill and current user controls.
-- Read `.dev-memory/activation.json`; select this host's binding, load its `skill_file`, and use its configured runtime/store paths with the manifest's project root. If any required binding or runtime is unavailable, report that memory is not active.
+- Read `.dev-memory/activation.json`; load this host's `skill_file` and use its runtime/store paths and project root. Report unavailable bindings or runtimes.
 - At task start/resume or after a material project/module/topic change, make one bounded `context --exclude-task` call with task terms and optional `--intent` for global/current-project rules. Force recall after context loss; otherwise reuse results. Do not retrieve or write task memories/checkpoints, run separate startup doctor/maintain calls, scan other projects, or reload all memory each turn.
-- Apply only relevant rules after checking current code and instructions. Respect project capture mode and memory controls. Save explicit corrections before affected edits; batch only genuine new user evidence at task end. Check equivalent rules before adding; do not call `apply` for NOOP alone.
-- Context/apply return maintenance status only. At a quiet task boundary, fetch at most one `maintain --exclude-task` pack; respect `pending_next_turn`. Never interrupt coding or poll. Capture assessment stays in the primary AI by default.
+- Apply relevant rules below current instructions. Save explicit corrections before affected edits. At each development turn's close, save genuine new evidence: a first reusable choice can be a candidate; repetition is for promotion. Check equivalents; no NOOP-only `apply`.
+- Context/apply return maintenance status only. At a quiet task boundary, fetch one `maintain --exclude-task` pack; respect `pending_next_turn`. Do not poll or interrupt coding. Assess capture in the primary AI.
 - Keep only durable project facts in project scope, global habits de-identified, and secrets out of memory. Temporary task progress stays in the conversation. Do not initialize another project or bypass pause, disable, read-only, or turn opt-out settings. Inspect store receipts before claiming a write succeeded.
 {END}
 '''
@@ -176,7 +176,7 @@ def _user_block(skill: Path, python: str, global_root: Path) -> str:
 For development work in any project, use the user's global developer-habit store. Load the Skill once. When this project has an active host binding, follow its guide and make one bounded combined `context --exclude-task --project-root ...` call; do not also run global-only recall. Otherwise make one topic-focused `context --global-only --exclude-task --intent INTENT --query TASK_TERMS` call at task start or when relevant context changes. Apply active habits below the current request. Do not initialize or capture project business from this user-level binding.
 - Skill: `{skill / 'SKILL.md'}`; CLI: `{skill / 'scripts/dev_memory.py'}`; Python: `{python}`; global root: `{global_root}`.
 - Explicit ongoing cross-project instructions (such as “以后所有项目都适用”) are confirmed global rules: `status: active`, `cross_project_confirmed: true`, `source.type: user_statement`. Preserve the user's stated strength. Do not downgrade an explicit cross-project instruction to a candidate or wait for repetition; follow the Skill's basic ADD example.
-- Only inferred reusable feedback starts as a candidate: `scope: global`, `kind: preference`, `claim_type: preference`, `strength: soft`, `status: candidate`, `cross_project_confirmed: false`, `source.type: user_feedback`. Supply an opaque task ID; one signal per task counts, and two genuinely independent tasks promote it. AI summaries/recall are not evidence. Candidates are not instructions. Current and one-time requests always win.
+- At every development turn's close, capture eligible user choices/corrections, even their first occurrence: `kind: preference`, `claim_type: preference`, `strength: soft`, `status: candidate`, `cross_project_confirmed: false`. Use the actual user source type and an opaque stable task ID; see the Skill's candidate example. Two independent tasks promote a candidate; do not wait for repetition to create it. Candidates are stored but not instructions. Temporary requests and project business are not global habits. AI summaries/recall are not evidence.
 - De-identify every global record and its short evidence excerpt. Never include project names, business entities, code, paths, customer data, raw dialogue, or logs.
 - Respect global `capture off/disable`, read-only and turn opt-out controls. If the Skill, user instruction file, or store cannot be loaded, report that automation is unavailable; do not claim it ran. Ordinary coding does not run full-library maintenance or create task checkpoints.
 {USER_END}'''
@@ -259,6 +259,35 @@ def remove_user(agent: str, skill: Path | None = None) -> dict[str, Any]:
     else:
         guide.unlink()
     return {'status': 'removed', 'guide': str(guide), 'memory_data_preserved': True}
+
+
+def user_status(skill: Path, global_root: Path | None = None) -> dict[str, Any]:
+    """Inspect our user-level block only; configuration is not host compliance."""
+    try:
+        _, guide = user_guide_path('codex')
+        text = guide.read_text(encoding='utf-8') if guide.is_file() else ''
+        if USER_BEGIN not in text and USER_END not in text:
+            return {'status': 'not_configured', 'guide': str(guide)}
+        if text.count(USER_BEGIN) != 1 or text.count(USER_END) != 1 or text.index(USER_END) < text.index(USER_BEGIN):
+            return {'status': 'failed', 'error': 'activation_conflict'}
+        block = text[text.index(USER_BEGIN):text.index(USER_END)]
+        skill = skill.resolve()
+        if any(f'`{path}`' not in block for path in (skill / 'SKILL.md', skill / 'scripts/dev_memory.py')):
+            return {'status': 'binding_mismatch', 'reason': 'runtime_path_mismatch', 'guide': str(guide)}
+        bound_root = re.search(r'global root: `([^`\r\n]+)`', block)
+        python = re.search(r'Python: `([^`\r\n]+)`', block)
+        if not bound_root or not python:
+            return {'status': 'failed', 'error': 'activation_conflict', 'guide': str(guide)}
+        bound_root = Path(bound_root[1]).expanduser().resolve()
+        if global_root is not None and bound_root != global_root.expanduser().resolve():
+            return {'status': 'binding_mismatch', 'reason': 'global_root_mismatch', 'guide': str(guide),
+                    'global_root': str(bound_root), 'diagnosed_global_root': str(global_root.expanduser().resolve())}
+        ready = all(path.is_file() for path in (skill / 'SKILL.md', skill / 'scripts/dev_memory.py', Path(python[1])))
+        return {'status': 'configured' if ready else 'unavailable', 'guide': str(guide),
+                'global_root': str(bound_root),
+                'host_e2e_verified': False, 'per_turn_event_enforcement': False}
+    except (store.MemoryError, OSError, ValueError) as exc:
+        return {'status': 'failed', 'error': getattr(exc, 'code', 'activation_unavailable')}
 
 
 def status(root: Path | None) -> dict[str, Any]:

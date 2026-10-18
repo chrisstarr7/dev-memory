@@ -10,6 +10,10 @@ S01–S55 mapping is `evals/scenarios.json`. Semantic/host claims, including opt
 
 Update public files and release whitelist together. Version fields in SKILL.md, plugin.json and build_release.py must agree. Migrations preserve deletion/privacy suppression; use build_release.py for public archives and SHA-256 manifests.
 
+## Ordinary habit capture evaluation
+
+`python3 -B evals/check_capture.py --model MODEL --reasoning high --output /outside/repository/capture.json` compares the Git baseline's first ordinary request with three current-runtime sessions: first reusable choice, equivalent choice in another task, and a temporary/project-specific request. It uses synthetic projects, isolated homes and locally copied login material that is removed afterward. No prompt asks the AI to remember anything. Check actual candidate/evidence/promotion states and code reuse, not exit codes alone. This consumes host usage; it is not a runtime dependency or CI step. Publish sanitized aggregates only. The [0.8.2 review](reports/capture-review-0.8.2.md) records the failed intermediate iteration as well as the final outcomes.
+
 ## Default activation end-to-end check
 
 `python3 evals/check_automatic.py --output /outside/repository/automatic.json` executes three real Codex CLI sessions using the existing login, `gpt-6-astra` and medium reasoning. It uses synthetic projects, an isolated temporary home and empty stores; no user's instructions, Skill configuration or memory are modified. Temporary login material is copied locally for this explicit test and removed with the scratch directory. Ordinary user prompts never invoke the Skill. Model calls use the host account and take time; this is not a default CI step or an additional runtime service.

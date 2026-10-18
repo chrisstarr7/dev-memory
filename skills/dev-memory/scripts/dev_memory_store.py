@@ -34,6 +34,7 @@ CLAIM_TYPES = {"desired", "observed", "preference", "hypothesis"}
 STATUSES = {"candidate", "active", "superseded", "archived", "conflicted", "stale"}
 STRENGTHS = {"informational", "soft", "hard"}
 SOURCES = {"user_statement", "user_confirmation", "user_feedback", "code_observation", "tool_result", "external_reference", "model_inference"}
+USER_SOURCES = ("user_statement", "user_confirmation", "user_feedback")
 MAX_EVIDENCE_CHARS = 500
 PROJECT_DIR_NAME = ".dev-memory"
 MANAGED_EXCLUDE_BEGIN = "# dev-memory managed begin"
@@ -613,16 +614,14 @@ def _validate_global(record: dict[str, Any], source: dict[str, Any], *, inferred
     if any(record.get(key) for key in ("task_id", "workspace_id", "project_id")):
         raise MemoryError("scope_error", "Global records cannot carry project, workspace, or task identifiers.")
     explicit = record.get("cross_project_confirmed") is True
-    inferred_candidate = (record.get("status") == "candidate" and record.get("claim_type") == "preference"
+    inferred_candidate = (record.get('kind') == 'preference' and record.get("status") == "candidate" and record.get("claim_type") == "preference"
                           and record.get("strength") == "soft" and record.get("cross_project_confirmed") is False)
-    inferred_active_rule = (inferred_active and record.get("status") == "active" and record.get("claim_type") == "preference"
+    inferred_active_rule = (inferred_active and record.get('kind') == 'preference' and record.get("status") == "active" and record.get("claim_type") == "preference"
                             and record.get("strength") == "soft" and record.get("cross_project_confirmed") is False)
     if not (explicit or inferred_candidate or inferred_active_rule):
         raise MemoryError("scope_error", "Global rules need explicit cross-project scope or a de-identified soft-preference candidate.")
-    if source.get("type") not in {"user_statement", "user_confirmation", "user_feedback"}:
+    if source.get("type") not in USER_SOURCES:
         raise MemoryError("provenance_error", "A global rule needs explicit user evidence.")
-    if (inferred_candidate or inferred_active_rule) and source.get("type") != "user_feedback":
-        raise MemoryError("provenance_error", "Inferred global habits require direct user feedback, not an AI summary.")
     text = json.dumps({"record": record, "source": source}, ensure_ascii=False)
     if _project_marker(text):
         raise MemoryError("scope_error", "Global body or evidence contains a project-specific marker.")
@@ -1035,7 +1034,7 @@ def match_payload(payload: dict[str, Any], *, project_root: Path | None = None, 
                 records.append(candidate); used += size
         return {'scope': scope, 'status': 'matched' if exact else 'compare', 'exact_id': exact[0] if exact else None,
                 'records': records, 'remaining_ids': remaining, 'context_incomplete': bool(remaining),
-                'instruction': 'Similarity is not equivalence. Reuse an equivalent record with ADD duplicate_of/expected_revision/equivalent=true; preserve protected fields. Different conditions or versions require separate records or a correction.'}
+                'instruction': 'Read-only comparison: no evidence was saved. Similarity is not equivalence. For new user evidence of an equivalent candidate, finish with apply: ADD duplicate_of/expected_revision/equivalent=true, preserve protected record fields and use the new minimized user source plus current task_id. The program decides promotion. Different conditions or versions require separate records or a correction.'}
     except sqlite3.OperationalError:
         return {'scope': scope, 'status': 'deferred', 'context_incomplete': True, 'reason': 'query_budget_or_storage_failure'}
     finally:
@@ -1164,7 +1163,7 @@ def _promote_habit(conn: sqlite3.Connection, memory_id: str) -> tuple[bool, int 
     record = _select_record(conn, memory_id)
     if not _is_inferred_habit(record):
         return False, None
-    signals = conn.execute("SELECT COUNT(DISTINCT ingestion_id) FROM evidence WHERE memory_id=? AND source_type='user_feedback' AND ingestion_origin='generated_by_dev_memory' AND ingestion_id LIKE 'habit:%' AND length(ingestion_id)=70", (memory_id,)).fetchone()[0]
+    signals = conn.execute("SELECT COUNT(DISTINCT ingestion_id) FROM evidence WHERE memory_id=? AND source_type IN (?,?,?) AND ingestion_origin='generated_by_dev_memory' AND ingestion_id LIKE 'habit:%' AND length(ingestion_id)=70", (memory_id, *USER_SOURCES)).fetchone()[0]
     if record['status'] != 'candidate' or signals < 2:
         return False, signals
     conn.execute('INSERT INTO revisions VALUES(?,?,?,?)', (memory_id, record['revision'], _snapshot(record), utc_now()))
@@ -1238,7 +1237,7 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
             promoted, signals = _promote_habit(conn, duplicate_of) if scope == 'global' else (False, None)
             current = _select_record(conn, duplicate_of)
             return {'status': 'saved' if changed or promoted else 'duplicate_evidence', 'id': duplicate_of,
-                    'revision': current['revision'], 'duplicate_merged': True,
+                    'revision': current['revision'], 'memory_status': current['status'], 'duplicate_merged': True,
                     'habit_promoted': promoted, 'independent_task_signals': signals,
                     'body_written': False, 'semantic_review': 'ai_claim_not_program_verified'}, bool(changed or promoted)
         memory_id, changed = _store_record(conn, data)
@@ -1257,7 +1256,8 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
             changed = changed or bool(retired)
         current = _select_record(conn, memory_id)
         return {"status": "saved" if changed else "duplicate_evidence", "id": memory_id,
-                "revision": current["revision"] if current else 1, "duplicate_merged": memory_id != data["id"],
+                "revision": current["revision"] if current else 1, "memory_status": current['status'] if current else data['status'],
+                "duplicate_merged": memory_id != data["id"],
                 "habit_promoted": promoted, "independent_task_signals": independent,
                 "superseded_checkpoint_ids": retired}, changed
     memory_id = op.get("id")
@@ -1294,8 +1294,9 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
             conn.execute("UPDATE memories SET revision=revision+1,updated_at=? WHERE id=?", (utc_now(), memory_id))
             _invalidate_derived(conn, memory_id)
         promoted, signals = _promote_habit(conn, memory_id) if scope == 'global' else (False, None)
+        current = _select_record(conn, memory_id)
         return {"status": "saved" if inserted or promoted else "duplicate_evidence", "id": memory_id,
-                "revision": _select_record(conn, memory_id)['revision'], 'habit_promoted': promoted,
+                "revision": current['revision'], 'memory_status': current['status'], 'habit_promoted': promoted,
                 'independent_task_signals': signals}, inserted or promoted
     if action in {"ARCHIVE", "MARK_CONFLICT"}:
         status = "archived" if action == "ARCHIVE" else "conflicted"
@@ -1332,7 +1333,8 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
         _store_record(conn, revised, dedupe=False)
         _invalidate_derived(conn, memory_id)
         promoted, signals = _promote_habit(conn, memory_id) if scope == 'global' else (False, None)
-        return {"status": "saved", "id": memory_id, "revision": _select_record(conn, memory_id)['revision'],
+        current = _select_record(conn, memory_id)
+        return {"status": "saved", "id": memory_id, "revision": current['revision'], 'memory_status': current['status'],
                 'habit_promoted': promoted, 'independent_task_signals': signals}, True
     if action == "SUPERSEDE":
         data = op.get("record")
@@ -1404,9 +1406,9 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
                             "message": "A habit candidate needs an opaque task ID to count independent user evidence."}
                 record = dict(record)
                 source = dict(record.get("source") or {})
-                if source.get("type") != "user_feedback":
+                if source.get("type") not in USER_SOURCES:
                     return {"scope": target_scope, "status": "failed", "error": "provenance_error",
-                            "message": "Habit candidates require direct user feedback."}
+                            "message": "Habit candidates require a direct user statement, confirmation or feedback."}
                 source.pop("message_id", None)
                 digest = hashlib.sha256(f"{config['namespace_id']}\0{task_id}".encode()).hexdigest()
                 source["ingestion_id"] = "habit:" + digest
@@ -2443,7 +2445,7 @@ def get_store_status(kind: str, *, project_root: Path | None = None, global_root
         base, db, config = _config_for(kind, project_root, global_root)
         conn = _connect(db, readonly=True)
         integrity = conn.execute("PRAGMA quick_check").fetchone()[0]
-        count = conn.execute("SELECT COUNT(*) FROM memories WHERE status IN ('active','conflicted','candidate')").fetchone()[0]
+        counts = dict(conn.execute("SELECT status,COUNT(*) FROM memories GROUP BY status"))
         revisions = {row[0]: row[1] for row in conn.execute("SELECT key,value FROM meta WHERE key IN ('data_revision','view_revision')")}
         conn.close()
         current_revision = int(revisions.get("data_revision", 0))
@@ -2454,7 +2456,9 @@ def get_store_status(kind: str, *, project_root: Path | None = None, global_root
             "capture_enabled": config.get("capture_enabled", True) and config.get("excluded") is not True,
             "recall_enabled": config.get("recall_enabled", True) and config.get("excluded") is not True,
             "excluded": config.get("excluded") is True,
-            "namespace_id": config["namespace_id"], "data_revision": current_revision, "active_count": count,
+            "namespace_id": config["namespace_id"], "data_revision": current_revision,
+            "active_count": counts.get('active', 0), "candidate_count": counts.get('candidate', 0),
+            "record_counts": {status: counts.get(status, 0) for status in sorted(STATUSES)},
             "view_revision": view_revision,
             "view_status": "current" if view_revision == current_revision else ("not_exported" if view_revision is None else "stale"),
             "integrity": integrity,

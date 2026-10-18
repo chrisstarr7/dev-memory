@@ -1,0 +1,352 @@
+{
+  "synthetic_only": true,
+  "host": "codex-cli 0.155.1",
+  "model": "gpt-6-luna",
+  "reasoning": "high",
+  "baseline_ref": "ecc9744",
+  "initial_iteration": {
+    "outcome": "first signal persisted; independent task matched but omitted apply",
+    "cells": [
+      {
+        "label": "baseline-first",
+        "exit_code": 0,
+        "timed_out": false,
+        "seconds": 39.285,
+        "first_tool_action_seconds": 19.973,
+        "command_calls": 3,
+        "tool_calls": 3,
+        "usage": {
+          "input_tokens": 71035,
+          "cached_input_tokens": 50176,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 950,
+          "reasoning_output_tokens": 152
+        },
+        "memory_use_reported_ids": [],
+        "host_errors": [],
+        "version": "baseline",
+        "stage": "first",
+        "implementation": {
+          "passed": true,
+          "existing_helper_reused": true
+        },
+        "records_before": 0,
+        "memories": [],
+        "memory_commands": 1
+      },
+      {
+        "label": "current-first",
+        "exit_code": 0,
+        "timed_out": false,
+        "seconds": 46.082,
+        "first_tool_action_seconds": 15.948,
+        "command_calls": 7,
+        "tool_calls": 8,
+        "usage": {
+          "input_tokens": 128119,
+          "cached_input_tokens": 105728,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1996,
+          "reasoning_output_tokens": 598
+        },
+        "memory_use_reported_ids": [],
+        "host_errors": [],
+        "version": "current",
+        "stage": "first",
+        "implementation": {
+          "passed": true,
+          "existing_helper_reused": true
+        },
+        "records_before": 0,
+        "memories": [
+          {
+            "title": "Reuse suitable existing code",
+            "content": "When a requirement may already be met by existing code, inspect and reuse a suitable implementation before adding another.",
+            "conditions": "When an existing implementation may satisfy the requirement.",
+            "do": "Check the existing behavior and reuse a suitable path.",
+            "dont": "Do not add a parallel implementation without checking reuse.",
+            "exceptions": "Use a different approach when the current requirement needs it.",
+            "status": "candidate",
+            "strength": "soft",
+            "cross_project_confirmed": false,
+            "evidence_count": 1,
+            "source_types": [
+              "user_statement"
+            ],
+            "independent_signals": 1
+          }
+        ],
+        "memory_commands": 3
+      },
+      {
+        "label": "current-independent",
+        "exit_code": 0,
+        "timed_out": false,
+        "seconds": 37.091,
+        "first_tool_action_seconds": 11.895,
+        "command_calls": 6,
+        "tool_calls": 7,
+        "usage": {
+          "input_tokens": 128485,
+          "cached_input_tokens": 117376,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1726,
+          "reasoning_output_tokens": 666
+        },
+        "memory_use_reported_ids": [],
+        "host_errors": [],
+        "version": "current",
+        "stage": "independent",
+        "implementation": {
+          "passed": true,
+          "existing_helper_reused": true
+        },
+        "records_before": 1,
+        "memories": [
+          {
+            "title": "Reuse suitable existing code",
+            "content": "When a requirement may already be met by existing code, inspect and reuse a suitable implementation before adding another.",
+            "conditions": "When an existing implementation may satisfy the requirement.",
+            "do": "Check the existing behavior and reuse a suitable path.",
+            "dont": "Do not add a parallel implementation without checking reuse.",
+            "exceptions": "Use a different approach when the current requirement needs it.",
+            "status": "candidate",
+            "strength": "soft",
+            "cross_project_confirmed": false,
+            "evidence_count": 1,
+            "source_types": [
+              "user_statement"
+            ],
+            "independent_signals": 1
+          }
+        ],
+        "memory_commands": 2
+      },
+      {
+        "label": "current-temporary",
+        "exit_code": 0,
+        "timed_out": false,
+        "seconds": 33.408,
+        "first_tool_action_seconds": 15.926,
+        "command_calls": 2,
+        "tool_calls": 3,
+        "usage": {
+          "input_tokens": 70299,
+          "cached_input_tokens": 50816,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 792,
+          "reasoning_output_tokens": 173
+        },
+        "memory_use_reported_ids": [],
+        "host_errors": [],
+        "version": "current",
+        "stage": "temporary",
+        "implementation": {
+          "passed": true
+        },
+        "records_before": 1,
+        "memories": [
+          {
+            "title": "Reuse suitable existing code",
+            "content": "When a requirement may already be met by existing code, inspect and reuse a suitable implementation before adding another.",
+            "conditions": "When an existing implementation may satisfy the requirement.",
+            "do": "Check the existing behavior and reuse a suitable path.",
+            "dont": "Do not add a parallel implementation without checking reuse.",
+            "exceptions": "Use a different approach when the current requirement needs it.",
+            "status": "candidate",
+            "strength": "soft",
+            "cross_project_confirmed": false,
+            "evidence_count": 1,
+            "source_types": [
+              "user_statement"
+            ],
+            "independent_signals": 1
+          }
+        ],
+        "memory_commands": 1
+      }
+    ],
+    "runtime_source_sha256": {
+      "SKILL.md": "1a43ba26740d5d0ca0dbdcbff1d4f8576f28700986eb2f85eb99161ef0f810b9",
+      "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+      ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+      "agents/openai.yaml": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30",
+      "assets/config.example.json": "09b312ea57647122b9b42959a7260991eb70a09904ea3a3d2cbae71f7bcfb656",
+      "references/protocol.md": "53296c4929a35ec6a67b7f3adf6d59d2a93a142debb6ffb134b3f20ee1563dca",
+      "references/codex-hooks.md": "148b1397fdd80f522e3a6694300c1f2600b4f5a6545f7269fa030f25bef3bef1",
+      "references/verification.md": "f097b6bf9c3f2dc60d2af26cf95c187618f4aa21353b2110d0aab905a66d4bef",
+      "references/setup.md": "f855c5a6069fffa6f32d5e35192ae55c9801b0e56a8386674e04922b347444f5",
+      "scripts/dev_memory.py": "2556dd3f542150df7cb0bc4f184192544fd19fa58c3063de7d9f1b0d520a64f2",
+      "scripts/dev_memory_store.py": "cc1288ab0da3c1a692d7cfced0a82e010f683107e8c63b071e4f797ce88d53ba",
+      "scripts/dev_memory_setup.py": "1abde6c7ce63b14f3f06e968d757c901832ff87d75e8857abfe1254062cbb38e",
+      "scripts/codex_hook.py": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344",
+      "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+    }
+  },
+  "final_iteration": {
+    "outcome": "passed recorded synthetic predicates",
+    "cells": [
+      {
+        "label": "current-first",
+        "exit_code": 0,
+        "timed_out": false,
+        "seconds": 45.96,
+        "first_tool_action_seconds": 14.906,
+        "command_calls": 7,
+        "tool_calls": 8,
+        "usage": {
+          "input_tokens": 147111,
+          "cached_input_tokens": 123264,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2206,
+          "reasoning_output_tokens": 553
+        },
+        "memory_use_reported_ids": [],
+        "host_errors": [],
+        "version": "current",
+        "stage": "first",
+        "implementation": {
+          "passed": true,
+          "existing_helper_reused": true
+        },
+        "records_before": 0,
+        "memories": [
+          {
+            "title": "Reuse suitable existing code",
+            "content": "Inspect suitable existing code before adding another implementation.",
+            "conditions": "When an existing implementation may satisfy the requirement.",
+            "do": "Check for and reuse a suitable existing implementation.",
+            "dont": "Do not add a parallel implementation without checking for reuse.",
+            "exceptions": "",
+            "status": "candidate",
+            "strength": "soft",
+            "cross_project_confirmed": false,
+            "evidence_count": 1,
+            "source_types": [
+              "user_statement"
+            ],
+            "independent_signals": 1
+          }
+        ],
+        "memory_commands": 3
+      },
+      {
+        "label": "current-independent",
+        "exit_code": 0,
+        "timed_out": false,
+        "seconds": 34.284,
+        "first_tool_action_seconds": 7.811,
+        "command_calls": 10,
+        "tool_calls": 11,
+        "usage": {
+          "input_tokens": 161548,
+          "cached_input_tokens": 134528,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2077,
+          "reasoning_output_tokens": 544
+        },
+        "memory_use_reported_ids": [],
+        "host_errors": [],
+        "version": "current",
+        "stage": "independent",
+        "implementation": {
+          "passed": true,
+          "existing_helper_reused": true
+        },
+        "records_before": 1,
+        "memories": [
+          {
+            "title": "Reuse suitable existing code",
+            "content": "Inspect suitable existing code before adding another implementation.",
+            "conditions": "When an existing implementation may satisfy the requirement.",
+            "do": "Check for and reuse a suitable existing implementation.",
+            "dont": "Do not add a parallel implementation without checking for reuse.",
+            "exceptions": "",
+            "status": "active",
+            "strength": "soft",
+            "cross_project_confirmed": false,
+            "evidence_count": 2,
+            "source_types": [
+              "user_statement"
+            ],
+            "independent_signals": 2
+          }
+        ],
+        "memory_commands": 3
+      },
+      {
+        "label": "current-temporary",
+        "exit_code": 0,
+        "timed_out": false,
+        "seconds": 29.027,
+        "first_tool_action_seconds": 8.23,
+        "command_calls": 3,
+        "tool_calls": 4,
+        "usage": {
+          "input_tokens": 92028,
+          "cached_input_tokens": 70400,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 837,
+          "reasoning_output_tokens": 277
+        },
+        "memory_use_reported_ids": [],
+        "host_errors": [],
+        "version": "current",
+        "stage": "temporary",
+        "implementation": {
+          "passed": true
+        },
+        "records_before": 1,
+        "memories": [
+          {
+            "title": "Reuse suitable existing code",
+            "content": "Inspect suitable existing code before adding another implementation.",
+            "conditions": "When an existing implementation may satisfy the requirement.",
+            "do": "Check for and reuse a suitable existing implementation.",
+            "dont": "Do not add a parallel implementation without checking for reuse.",
+            "exceptions": "",
+            "status": "active",
+            "strength": "soft",
+            "cross_project_confirmed": false,
+            "evidence_count": 2,
+            "source_types": [
+              "user_statement"
+            ],
+            "independent_signals": 2
+          }
+        ],
+        "memory_commands": 1
+      }
+    ],
+    "acceptance": {
+      "business_tasks_passed": true,
+      "existing_helpers_reused": true,
+      "first_signal_saved_inactive": true,
+      "independent_evidence_promoted_same_body": true,
+      "temporary_and_business_request_added_no_memory": true
+    },
+    "runtime_source_sha256": {
+      "SKILL.md": "a139aa9c4e6c0331b8849fa75a8f5a6f47d05360e95166bfc3d2537d8c2a009e",
+      "LICENSE": "601e5c25c2e9faaafe4f05554d5f46e7c13d56eb1a016e79363a56780dbdf71c",
+      ".dev-memory-skill-install": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f",
+      "agents/openai.yaml": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30",
+      "assets/config.example.json": "09b312ea57647122b9b42959a7260991eb70a09904ea3a3d2cbae71f7bcfb656",
+      "references/protocol.md": "53296c4929a35ec6a67b7f3adf6d59d2a93a142debb6ffb134b3f20ee1563dca",
+      "references/codex-hooks.md": "148b1397fdd80f522e3a6694300c1f2600b4f5a6545f7269fa030f25bef3bef1",
+      "references/verification.md": "f097b6bf9c3f2dc60d2af26cf95c187618f4aa21353b2110d0aab905a66d4bef",
+      "references/setup.md": "f855c5a6069fffa6f32d5e35192ae55c9801b0e56a8386674e04922b347444f5",
+      "scripts/dev_memory.py": "c062b972d77d76e0a6e0f92b31cc398529a17adb0eba8012028cf8341f41f852",
+      "scripts/dev_memory_store.py": "039ffa866dd31fe67dc400a6e2b7fff845dd46fcae14f6b4698933ddac9990a7",
+      "scripts/dev_memory_setup.py": "9a63343e964b76721d32357c513e8a7634abc2e383158c795e9def4f8f1d9660",
+      "scripts/codex_hook.py": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344",
+      "scripts/dev-memory": "603b86ad31de614321f3092b54e29bacd50bba9421c4fc1710e9e50fb07cdc24"
+    }
+  },
+  "limitations": [
+    "Exploratory sequential semantic probe, not a repeated latency benchmark.",
+    "A typed user source or receipt alone does not prove correct semantic capture.",
+    "One baseline task and two current iterations; no randomized repeated latency estimate.",
+    "Final deployed source differs from the final host snapshot in release whitelist and reference documentation only.",
+    "No claim of reliable capture in every model, desktop session, host or private user conversation."
+  ]
+}

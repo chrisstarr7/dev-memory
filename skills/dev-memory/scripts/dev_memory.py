@@ -33,6 +33,8 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
     "docs/readme/README.zh-CN.md", "docs/readme/README.ja.md", "docs/readme/README.ko.md",
     "tests/test_efficiency.py", "reports/optimization-0.8.0.md", "evals/check_efficiency.py", "reports/efficiency-program-0.8.0.json", "reports/efficiency-host-0.8.0.json",
+    "tests/test_capture_learning.py", "evals/check_capture.py", "reports/capture-review-0.8.2.md",
+    "reports/capture-host-0.8.2.json", "reports/capture-program-0.8.2.json",
     "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/benchmark-0.7.0.md", "reports/project-isolation-demo.json",
@@ -150,8 +152,12 @@ def doctor(project_root: Path | None, global_root: Path | None) -> dict[str, Any
             "exclude_path_available": bool(gitdir and gitdir.returncode == 0),
         }
     project_activation = activation.status(project_root)
+    user_activation = activation.user_status(PACKAGE_ROOT, global_root or store.default_global_root())
     if mode == "base" and project_activation["status"] == "configured":
         mode = "project_guided"
+    elif mode == "base" and user_activation['status'] == 'configured':
+        mode = 'user_guided'
+    runtime_version = _release_version(PACKAGE_ROOT)
     return {
         "status": "ok", "python": sys.version.split()[0], "python_minimum": "3.10",
         "sqlite": sqlite3.sqlite_version, "git_version": _command_version("git", ["--version"]),
@@ -164,6 +170,9 @@ def doctor(project_root: Path | None, global_root: Path | None) -> dict[str, Any
         "project_data_default": str(project_root / ".dev-memory") if project_root else "unbound",
         "stores": stores, "git": project_git,
         "read_only": True, "project_activation": project_activation,
+        "user_activation": user_activation,
+        "skill_version": '.'.join(map(str, runtime_version)) if runtime_version else None,
+        "skill_path": str(PACKAGE_ROOT),
         "real_host_e2e_verified": False,
     }
 
@@ -509,7 +518,9 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser("doctor")
     p.add_argument("--project-root", type=Path)
     p = sub.add_parser("setup", help="Initialize this project and configure automatic host instructions")
-    p.add_argument("--project-root", type=Path, default=Path.cwd())
+    group = p.add_mutually_exclusive_group()
+    group.add_argument("--project-root", type=Path)
+    group.add_argument('--user', action='store_true', help='Configure Codex global habits without initializing any project')
     p.add_argument("--agent", choices=tuple(AGENT_DIRS), default="codex")
     p = sub.add_parser("mode", help="Set project memory capture mode")
     p.add_argument("capture_mode", choices=("developer-first", "full-project"))
@@ -620,7 +631,8 @@ def main(argv: list[str] | None = None) -> int:
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             _json_out(doctor(root, global_root))
         elif command == "setup":
-            result = activation.setup(args.project_root, args.agent, PACKAGE_ROOT, sys.executable, global_root)
+            result = (activation.setup_user(args.agent, PACKAGE_ROOT, sys.executable, global_root) if args.user else
+                      activation.setup(args.project_root or Path.cwd(), args.agent, PACKAGE_ROOT, sys.executable, global_root))
             _json_out(result)
             return 0 if result["status"] == "initialized" else 1
         elif command == "mode":

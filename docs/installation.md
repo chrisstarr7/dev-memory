@@ -200,3 +200,9 @@ python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py uninstall --agent code
 数据库、Markdown 视图和备份写入前检查当前项目的 `.dev-memory` 路径；不扫描其他项目。若初始化后被 `git add -f` 强制跟踪，返回 `tracked_memory_path`，停止新增私有写入，不修改 Git 历史。检查后由用户处理已跟踪文件；仅重新执行初始化无法抹去已提交内容。
 
 若本地排除规则被移除，返回 `git_exclude_failed`，重新执行本页初始化命令恢复该项目的排除。无法检查 Git 状态时返回 `git_protection_unavailable`，修复 Git 环境后重试。项目失败不会把内容转写全局，独立全局结果仍单独报告。只读召回不增加这些写入检查。
+
+## 全局学习没有启动或未看到记录
+
+更新源码不会升级旧安装副本，也不会刷新已打开会话的指令。用安装回执中的实际 Python 和 CLI 运行一次 `doctor`，查看 `skill_version`、`skill_path`、`user_activation`、`project_activation` 和每种状态的记录数。`active_count` 仅统计生效规则；`candidate_count` 是已经保存但尚未采用的习惯，普通召回不会加载其正文。确需查看时使用 `list --scope global --status candidate`，不要求日常每轮运行诊断。
+
+已经授权用户级学习、但不想初始化项目时，先升级程序，再用安装副本的 CLI 执行 `setup --user --agent codex`。这只配置全局用户引导并保留原捕获开关，不新建项目库。它不能与 `--project-root` 同时使用，其他宿主仍需各自项目适配器。完成后新建 AI 会话。安装或激活回执只证明配置状态，不证明 AI 已经记录或实际采用了习惯。

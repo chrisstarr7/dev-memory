@@ -47,7 +47,7 @@ class EfficiencyTests(MemoryTestCase):
     def test_user_activation_separates_confirmed_instructions_from_candidates(self):
         import dev_memory_setup
         block = dev_memory_setup._user_block(Path('/synthetic/skill'), sys.executable, self.global_root)
-        explicit, inferred = block.split('- Only inferred reusable feedback', 1)
+        explicit, inferred = block.split('- At every development turn', 1)
         self.assertIn('status: active', explicit)
         self.assertIn('cross_project_confirmed: true', explicit)
         self.assertNotIn('status: candidate', explicit)

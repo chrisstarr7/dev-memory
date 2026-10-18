@@ -91,3 +91,5 @@ Upgrade/removal preserves global and project data. Hosts control Skill discovery
 See [installation](installation.md), [protocol](../skills/dev-memory/references/protocol.md), [verification](../reports/verification.md) and [security](../SECURITY.md).
 
 The 0.8.0 review and validation evidence is in [workflow optimization](../reports/optimization-0.8.0.md).
+
+The [0.8.2 capture review](../reports/capture-review-0.8.2.md) separates first-signal persistence from automatic adoption. Direct user requirements, confirmations and corrections can start a candidate; one controlled task reference counts once across source types. A read-only match never saves evidence. Runtime/version, user binding and candidate/active counts are available through an explicit diagnostic, without adding calls to the normal task path.

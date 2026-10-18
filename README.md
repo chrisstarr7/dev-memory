@@ -73,7 +73,7 @@ flowchart TD
 This shows the ordinary task path. Important corrections are saved before affected edits; valid context is reused within the task. Pending organization is handled at a suitable interaction boundary, as described below.
 
 1. **Recall for the task:** One focused lookup uses task terms and optional intent, with indexed English/Chinese wording and code entities. Default combined recall allows five record bodies/4000 characters: three global habits and two project rules. Tags help ranking but never restrict discovery. Reuse valid context while working.
-2. **Learn:** Explicit cross-project preferences can become confirmed habits. Repeated feedback starts as an inactive candidate; two genuinely independent tasks can promote it to a soft preference. AI summaries and repeated retrieval do not count as user evidence.
+2. **Learn:** Explicit cross-project preferences can become confirmed habits. A reusable user requirement, choice or correction can be saved as an inactive candidate on its first occurrence; two genuinely independent tasks can promote it to a soft preference. Repetition is needed for adoption, not for the first record. AI summaries and retrieval do not count as user evidence.
 3. **Correct without duplication:** Compare existing records before adding; revise a corrected habit, retaining its evidence and history. Exact and reviewed paraphrase reuse both support candidate promotion. Current instructions always take priority.
 4. **Organize at quiet boundaries:** Changed records become due after five pending records, a 1200-character body, or seven days unreviewed. Ordinary calls return only a due notice. At a quiet boundary, review one related pack (at most eight records/12000 characters), merge equivalents, shorten redundant prose and correct tags. Due work resumes on later interactions; no timer runs in the background.
 
@@ -104,6 +104,12 @@ The primary assistant assesses user feedback in its existing task reasoning and 
 SQLite is authoritative; exported Markdown is a reading view. The workflow excludes project names, business details, code, paths, credentials and raw conversations from global records. The program rejects known sensitive and project-specific markers, but semantic de-identification remains the assistant's responsibility. The core does not upload stores or collect telemetry. Excerpts processed by a hosted model follow that host's data policy.
 
 For an explicit storage review, ask the assistant to run `storage --scope global` (or `project`). `--reclaim` clears disposable old caches, retired search terms and free pages. `--backup-keep N` previews retention; adding `--reclaim` removes only validated same-store backup copies. These commands stay off the coding path. Evidence, revisions and privacy/idempotency receipts remain until explicit forget; unique history can still grow, so there is no fixed lossless disk cap.
+
+## If memory is not being recorded
+
+Ask the assistant to run the installed CLI's `doctor` once: check `skill_version`, user/project activation, capture controls and separate active/candidate counts. Updating this GitHub repository alone does not upgrade an installed Skill or a running session. A saved candidate is stored memory even though ordinary recall does not apply it; inspect `list --scope global --status candidate` when needed.
+
+For authorized Codex use without project setup, the current installed CLI supports `setup --user`; start a new AI session afterward. This initializes no project and preserves paused/disabled controls. Project business rules still require their own scope and capture mode. See the [0.8.2 capture review](reports/capture-review-0.8.2.md) for reproduced causes, fixes and actual verification.
 
 ## Upgrade and verification
 
