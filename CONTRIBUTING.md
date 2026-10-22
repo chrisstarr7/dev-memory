@@ -2,7 +2,7 @@
 
 Python 3.10+ standard library only. Runtime lives under `skills/dev-memory`; tests/evals/docs belong at the repository root. Never add real stores, personal workflows, unrelated Skills, a background service or default paid model calls.
 
-Ground behavior in README, SKILL.md and protocol.md. Installer changes must preserve noninteractive explicit host selection, installed-runtime checks, cancellation and data/configuration safety. Add synthetic regressions and run `python3 -m unittest discover -s tests -v`. Tests use temporary stores/fake homes. Optional real installer smoke: `python3 tests/install_smoke.py --output ../install-smoke.json`; downloads npm code into a temporary cache and does not alter real Skill directories.
+Ground behavior in README, SKILL.md and protocol.md. Installer changes must preserve noninteractive explicit host selection, installed-runtime checks, cancellation and data/configuration safety. Add synthetic regressions and run `python3 -m unittest discover -s tests -v`. Tests use temporary stores/fake homes. On Windows PowerShell set `$env:PYTHONUTF8="1"` before running the suite so child-process JSON uses UTF-8 consistently. Optional real installer smoke: `python3 tests/install_smoke.py --output ../install-smoke.json`; downloads npm code into a temporary cache and does not alter real Skill directories.
 
 Keep semantic judgments with the current AI and deterministic state transitions in CLI/SQLite. Preserve physical isolation, provenance, source revisions, opt-outs and truthful receipts. Skill examples must actually execute.
 

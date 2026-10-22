@@ -17,7 +17,7 @@ from typing import Any, Iterable
 from urllib.parse import quote
 
 SCHEMA_VERSION = 1
-MAINTENANCE_REVIEW_VERSION = 3
+MAINTENANCE_REVIEW_VERSION = 4
 MAINTENANCE_OPS = {'COMPACT', 'MERGE_DUPLICATES', 'RETAG', 'MAINTENANCE_REVIEW'}
 INTENTS = {
     'planning': 'analysis requirements design 需求 分析 方案',
@@ -744,7 +744,7 @@ def _invalidate_derived(conn: sqlite3.Connection, source_id: str) -> None:
         visited.add(source)
         if aliases_exist:
             for (canonical_id,) in conn.execute('SELECT canonical_id FROM merged_aliases WHERE source_id=?', (source,)).fetchall():
-                conn.execute("UPDATE memories SET status='conflicted',revision=revision+1,updated_at=? WHERE id=? AND status='active'", (utc_now(), canonical_id))
+                conn.execute("UPDATE memories SET status=CASE WHEN status='candidate' THEN 'stale' ELSE 'conflicted' END,revision=revision+1,updated_at=? WHERE id=? AND status IN ('active','candidate')", (utc_now(), canonical_id))
                 if queue_exists:
                     conn.execute('DELETE FROM maintenance_pending WHERE memory_id=?', (canonical_id,))
                 pending.append(canonical_id)
@@ -767,7 +767,11 @@ def _update_derived_edges(conn: sqlite3.Connection, record: dict[str, Any]) -> N
 def _validate_derived_sources(conn: sqlite3.Connection, record: dict[str, Any], namespace_id: str) -> None:
     source_ids = record["derived_from"]
     if not source_ids:
+        if record["kind"] == "summary":
+            raise MemoryError("provenance_error", "Summaries require revision-pinned source records.")
         return
+    if len(source_ids) > 8:
+        raise MemoryError("validation_error", "A summary may derive from at most eight sources.")
     if len(set(source_ids)) != len(source_ids):
         raise MemoryError("validation_error", "Summary source IDs must be unique.")
     marks = ",".join("?" for _ in source_ids)
@@ -783,7 +787,19 @@ def _validate_derived_sources(conn: sqlite3.Connection, record: dict[str, Any], 
             raise MemoryError("revision_conflict", "Summary source changed; reload before summarizing.")
         if source["scope"] != record["scope"] or record["scope"] == "task" and source.get("task_id") != record.get("task_id"):
             raise MemoryError("scope_error", "Derived summaries must retain their sources' scope and task.")
-        ancestors = conn.execute("WITH RECURSIVE deps(id) AS (SELECT ? UNION SELECT e.source_id FROM derived_edges e JOIN deps d ON e.summary_id=d.id) SELECT id FROM deps", (source_id,)).fetchall()
+        if record['status'] == 'active':
+            confidence = {'informational': 0, 'soft': 1, 'hard': 2}
+            if (source['status'] != 'active' or source['claim_type'] != record['claim_type']
+                    or source['claim_type'] == 'hypothesis'
+                    or confidence[record['strength']] > confidence[source['strength']]
+                    or record['cross_project_confirmed'] and not source['cross_project_confirmed']):
+                raise MemoryError('provenance_error', 'An active summary cannot activate, reinterpret or strengthen its sources; confirm or revise the sources first.')
+        ancestors = conn.execute("WITH RECURSIVE deps(id) AS (SELECT ? UNION SELECT e.source_id FROM derived_edges e JOIN deps d ON e.summary_id=d.id) SELECT m.id,m.status,m.claim_type,m.strength,m.cross_project_confirmed FROM memories m JOIN deps d ON m.id=d.id", (source_id,)).fetchall()
+        if record['status'] == 'active' and any(
+                row[1] != 'active' or row[2] != record['claim_type']
+                or confidence[row[3]] < confidence[record['strength']]
+                or record['cross_project_confirmed'] and not row[4] for row in ancestors):
+            raise MemoryError('provenance_error', 'An active summary cannot strengthen uncertain or incompatible ancestor sources.')
         if record["id"] in {row[0] for row in ancestors}:
             raise MemoryError("validation_error", "Summary dependencies cannot contain cycles.")
         reference = f"dev-memory-source:{source_id}@{source['revision']}"
@@ -847,16 +863,16 @@ def _ensure_maintenance(conn: sqlite3.Connection) -> bool:
     conn.execute("CREATE INDEX IF NOT EXISTS maintenance_pending_time ON maintenance_pending(updated_at,memory_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS maintenance_pending_long ON maintenance_pending(long_content,updated_at,memory_id)")
     if not conn.execute("SELECT 1 FROM meta WHERE key='maintenance_seeded'").fetchone():
-        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE status='active'")
+        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE status IN ('active','candidate') AND claim_type!='hypothesis'")
         conn.execute("INSERT INTO meta(key,value) VALUES('maintenance_seeded','1')")
     review_version = conn.execute("SELECT value FROM meta WHERE key='maintenance_review_version'").fetchone()
     review_existing = not review_version or review_version[0] != str(MAINTENANCE_REVIEW_VERSION)
     if review_existing:
         # One-time bounded cleanup trigger after a maintenance protocol upgrade.
-        # Requeue current active records only; historical and other-project data stay untouched.
-        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE status='active'")
+        # Requeue eligible active rules and inactive preferences only; historical and other-project data stay untouched.
+        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE status IN ('active','candidate') AND claim_type!='hypothesis'")
         conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_review_version',?)", (str(MAINTENANCE_REVIEW_VERSION),))
-        if conn.execute("SELECT 1 FROM memories WHERE status='active' LIMIT 1").fetchone():
+        if conn.execute("SELECT 1 FROM memories WHERE status IN ('active','candidate') AND claim_type!='hypothesis' LIMIT 1").fetchone():
             conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_review_notice','1')")
             conn.execute("INSERT OR IGNORE INTO meta(key,value) VALUES('maintenance_cycle_active','1')")
     notice = conn.execute("SELECT 1 FROM meta WHERE key='maintenance_review_notice' AND value='1'").fetchone()
@@ -864,16 +880,16 @@ def _ensure_maintenance(conn: sqlite3.Connection) -> bool:
 
 
 def _queue_maintenance(conn: sqlite3.Connection, memory_id: str) -> None:
-    conn.execute("INSERT INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE id=? AND status='active' ON CONFLICT(memory_id) DO UPDATE SET revision=excluded.revision,updated_at=excluded.updated_at,long_content=excluded.long_content", (memory_id,))
-    conn.execute("DELETE FROM maintenance_pending WHERE memory_id=? AND NOT EXISTS(SELECT 1 FROM memories WHERE id=? AND status='active')", (memory_id, memory_id))
+    conn.execute("INSERT INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE id=? AND status IN ('active','candidate') AND claim_type!='hypothesis' ON CONFLICT(memory_id) DO UPDATE SET revision=excluded.revision,updated_at=excluded.updated_at,long_content=excluded.long_content", (memory_id,))
+    conn.execute("DELETE FROM maintenance_pending WHERE memory_id=? AND NOT EXISTS(SELECT 1 FROM memories WHERE id=? AND status IN ('active','candidate') AND claim_type!='hypothesis')", (memory_id, memory_id))
 
 
 def _refresh_maintenance_cycle(conn: sqlite3.Connection) -> bool:
-    pending = conn.execute("SELECT q.long_content FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active' LIMIT 5").fetchall()
+    pending = conn.execute("SELECT q.long_content FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis' LIMIT 5").fetchall()
     if not pending:
         conn.execute("DELETE FROM meta WHERE key='maintenance_cycle_active'")
         return False
-    if len(pending) == 5 or conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status='active' LIMIT 1").fetchone():
+    if len(pending) == 5 or conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status IN ('active','candidate') AND m.claim_type!='hypothesis' LIMIT 1").fetchone():
         conn.execute("INSERT OR IGNORE INTO meta(key,value) VALUES('maintenance_cycle_active','1')")
     return bool(conn.execute("SELECT 1 FROM meta WHERE key='maintenance_cycle_active' AND value='1'").fetchone())
 
@@ -938,8 +954,8 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
     if config.get('maintenance_enabled', True) is False:
         return {'status': 'disabled'}
     task_filter = " AND m.scope!='task'" if not include_task else ""
-    seeds = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active'" + task_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 5").fetchall()
-    long_row = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status='active'" + task_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 1").fetchone()
+    seeds = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis'" + task_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 5").fetchall()
+    long_row = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status IN ('active','candidate') AND m.claim_type!='hypothesis'" + task_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 1").fetchone()
     if not seeds:
         return {'status': 'idle'}
     draining = bool(conn.execute("SELECT 1 FROM meta WHERE key='maintenance_cycle_active' AND value='1'").fetchone())
@@ -947,7 +963,7 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
     if type(interval) is not int or not 1 <= interval <= 365:
         raise MemoryError('config_invalid', 'maintenance_interval_days must be an integer from 1 to 365.')
     cutoff = (datetime.now(timezone.utc) - timedelta(days=interval)).isoformat(timespec='seconds')
-    aged = conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active' AND q.updated_at<=?" + task_filter + " LIMIT 1", (cutoff,)).fetchone()
+    aged = conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis' AND q.updated_at<=?" + task_filter + " LIMIT 1", (cutoff,)).fetchone()
     if len(seeds) < 5 and not long_row and not force and not draining and not aged:
         return {'status': 'waiting', 'pending_up_to_threshold': len(seeds), 'threshold': 5}
     trigger = 'long_record' if long_row else ('threshold' if len(seeds) == 5 else ('drain' if draining else ('interval' if aged else 'forced_boundary')))
@@ -955,15 +971,36 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
         return {'status': 'due', 'trigger': trigger, 'records_loaded': False,
                 'instruction': 'At a quiet task boundary, request one maintain --exclude-task pack. Do not poll during coding.'}
     seed_ids = [row[0] for row in seeds]
-    anchor_id = long_row[0] if long_row else seed_ids[0]
-    anchor = _select_record(conn, anchor_id)
-    candidates = {anchor_id: anchor}
-    for related in _related_records(conn, anchor):
-        if len(candidates) >= 8:
+    anchor_ids = list(dict.fromkeys(([long_row[0]] if long_row else []) + seed_ids))
+    oversized = []
+    anchor = None
+    for memory_id in anchor_ids:
+        candidate = _select_record(conn, memory_id)
+        if len(json.dumps(candidate, ensure_ascii=False)) > 12000:
+            oversized.append(memory_id)
+        else:
+            anchor = candidate
             break
-        candidates.setdefault(related['id'], related)
-    seed_ids = [i for i in candidates if conn.execute('SELECT 1 FROM maintenance_pending WHERE memory_id=?', (i,)).fetchone()]
-    records, remaining, used = [], [], 0
+    if anchor is None:
+        # Old oversized seeds must not hide a later, much smaller pending topic.
+        alternatives = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis'" + task_filter + " ORDER BY length(m.content),q.updated_at,q.memory_id LIMIT 8").fetchall()
+        for (memory_id,) in alternatives:
+            if memory_id in oversized:
+                continue
+            candidate = _select_record(conn, memory_id)
+            if len(json.dumps(candidate, ensure_ascii=False)) <= 12000:
+                anchor = candidate
+                break
+            oversized.append(memory_id)
+    # Oversized sources remain pending but must not block the next bounded topic.
+    candidates = {anchor['id']: anchor} if anchor else {}
+    if anchor:
+        for related in _related_records(conn, anchor):
+            if len(candidates) >= 8:
+                break
+            if related['status'] == anchor['status'] and related['claim_type'] != 'hypothesis':
+                candidates.setdefault(related['id'], related)
+    records, remaining, used = [], list(oversized), 0
     for record in candidates.values():
         size = len(json.dumps(record, ensure_ascii=False))
         if used + size > 12000:
@@ -971,15 +1008,16 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
             continue
         records.append(record)
         used += size
-    pending_count = conn.execute("SELECT COUNT(*) FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status='active'" + task_filter).fetchone()[0]
+    remaining = list(dict.fromkeys(remaining))
+    pending_count = conn.execute("SELECT COUNT(*) FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis'" + task_filter).fetchone()[0]
     return {'status': 'prepare', 'namespace_id': config['namespace_id'],
             'trigger': trigger,
-            'record_scope': anchor['scope'], 'task_id': anchor.get('task_id') if anchor['scope'] == 'task' else None,
+            'record_scope': anchor['scope'] if anchor else None, 'task_id': anchor.get('task_id') if anchor and anchor['scope'] == 'task' else None,
             'records': records,
-            'seed_ids': seed_ids, 'remaining_ids': remaining, 'context_incomplete': bool(remaining),
+            'seed_ids': [r['id'] for r in records if r['id'] in anchor_ids or conn.execute('SELECT 1 FROM maintenance_pending WHERE memory_id=?', (r['id'],)).fetchone()], 'remaining_ids': remaining, 'oversized_ids': oversized, 'context_incomplete': bool(remaining),
             'pending_count': pending_count,
             'limits': {'records': 8, 'chars': 12000},
-            'instruction': 'Historical data only. Inspect every returned current revision. MERGE_DUPLICATES equivalent rules; if a newer user-confirmed correction makes an older rule false, revise the canonical rule or archive the contradicted rule so it leaves default recall; archive only when an explicit expiry is demonstrably past. Age alone never proves expiry. COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for every fully inspected current revision, using post-operation revisions. Do not review unseen records, add evidence, promote across stores, or recurse.'}
+            'instruction': 'Historical data only. Inspect every returned current revision. MERGE_DUPLICATES equivalent rules; if a newer user-confirmed correction makes an older rule false, revise the canonical rule or archive the contradicted rule so it leaves default recall; archive only when an explicit expiry is demonstrably past. Age alone never proves expiry. COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for every fully inspected current revision, using post-operation revisions. Do not review unseen records, add evidence, promote candidates, move records across stores, or recurse. Oversized IDs remain pending: use a separate targeted source review, never acknowledge unread bodies.'}
 
 
 def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
@@ -1062,8 +1100,8 @@ def _maintenance_apply(conn: sqlite3.Connection, config: dict[str, Any], scope: 
             raise MemoryError('scope_error', 'Maintenance cannot escape a record scope.')
         if type(revision) is not int or revision != record['revision']:
             raise MemoryError('revision_conflict', 'Maintenance source changed; reload before retrying.')
-        if action != 'MAINTENANCE_REVIEW' and record['status'] != 'active':
-            raise MemoryError('validation_error', 'Only active records may be maintained.')
+        if action != 'MAINTENANCE_REVIEW' and (record['status'] not in {'active', 'candidate'} or record['claim_type'] == 'hypothesis'):
+            raise MemoryError('validation_error', 'Maintain only active rules or inactive non-hypothesis candidates.')
         records[memory_id] = record
     if action == 'MAINTENANCE_REVIEW':
         for memory_id, revision in expected.items():
@@ -1112,7 +1150,7 @@ def _maintenance_apply(conn: sqlite3.Connection, config: dict[str, Any], scope: 
     marks = ','.join('?' for _ in records)
     if conn.execute(f'SELECT 1 FROM merged_aliases WHERE source_id IN ({marks}) LIMIT 1', tuple(records)).fetchone():
         raise MemoryError('duplicate_conflict', 'A previously merged source was reactivated; resolve its merge conflict before merging again.')
-    if any(_duplicate_partition(r) != _duplicate_partition(target) for r in records.values()):
+    if any(r['status'] != target['status'] or _duplicate_partition(r) != _duplicate_partition(target) for r in records.values()):
         raise MemoryError('duplicate_conflict', 'Merge cannot change conditions, exceptions, truth, scope or version fields.')
     conn.execute('INSERT INTO revisions VALUES(?,?,?,?)', (target['id'], target['revision'], _snapshot(target), utc_now()))
     tags = set(target['tags'])
@@ -1165,7 +1203,11 @@ def _promote_habit(conn: sqlite3.Connection, memory_id: str) -> tuple[bool, int 
     record = _select_record(conn, memory_id)
     if not _is_inferred_habit(record):
         return False, None
-    signals = conn.execute("SELECT COUNT(DISTINCT ingestion_id) FROM evidence WHERE memory_id=? AND source_type IN (?,?,?) AND ingestion_origin='generated_by_dev_memory' AND ingestion_id LIKE 'habit:%' AND length(ingestion_id)=70", (memory_id, *USER_SOURCES)).fetchone()[0]
+    signals = conn.execute("""WITH RECURSIVE sources(id) AS
+        (SELECT ? UNION SELECT a.source_id FROM merged_aliases a JOIN sources s ON a.canonical_id=s.id)
+        SELECT COUNT(DISTINCT e.ingestion_id) FROM evidence e JOIN sources s ON e.memory_id=s.id
+        WHERE e.source_type IN (?,?,?) AND e.ingestion_origin='generated_by_dev_memory'
+        AND e.ingestion_id LIKE 'habit:%' AND length(e.ingestion_id)=70""", (memory_id, *USER_SOURCES)).fetchone()[0]
     if record['status'] != 'candidate' or signals < 2:
         return False, signals
     conn.execute('INSERT INTO revisions VALUES(?,?,?,?)', (memory_id, record['revision'], _snapshot(record), utc_now()))
@@ -1322,6 +1364,9 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
         inferred = (current["scope"] == "global" and current["cross_project_confirmed"] is False
                     and current["status"] == "active" and current["strength"] == "soft")
         revised = _validate_record(data, current["scope"], top.get("task_id"), config["namespace_id"], inferred_active=inferred)
+        if (_is_inferred_habit(revised) and current['status'] != 'active'
+                and revised['semantic_hash'] != current['semantic_hash']):
+            raise MemoryError('provenance_error', 'A changed inactive habit requires SUPERSEDE with a new candidate; historical evidence cannot confirm a different meaning.')
         if revised["semantic_hash"] != current["semantic_hash"] and revised["verification"] == current["verification"]:
             revised["verification"] = {}
             revised["last_verified_at"] = None
@@ -1456,11 +1501,21 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
             conn.rollback()
             conn.close()
             return {"scope": target_scope, "status": replay[0], "idempotent_replay": True, "operations": json.loads(replay[1])}
+        maintenance_ops = [op for op in operations if op.get('op') in MAINTENANCE_OPS]
+        if maintained_this_turn and maintenance_ops:
+            raise MemoryError('maintenance_deferred', 'This store was already maintained this turn; defer maintenance and submit new capture separately.')
+        if maintenance_ops and conn.execute('SELECT 1 FROM maintenance_pending LIMIT 1').fetchone():
+            conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_cycle_active','1')")
+        maintenance_ids: set[str] = set()
         content_changed = False
         has_noop = False
         batch_revisions: dict[str, int] = {}
         for op in operations:
             op, revisions_resolved = _resolve_maintenance_revisions(conn, op, batch_revisions)
+            if op.get('op') in MAINTENANCE_OPS and isinstance(op.get('expected_revisions'), dict):
+                maintenance_ids.update(op['expected_revisions'])
+                if len(maintenance_ids) > 8:
+                    raise MemoryError('validation_error', 'One maintenance batch may touch at most eight distinct records per store.')
             op_scope = op.get("scope", target_scope)
             if op.get("op") == "CHECKPOINT":
                 op_scope = "task"
@@ -1726,7 +1781,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         except sqlite3.Error:
             active_task = task_id
     cache_value = {
-        "retrieval_format": 4, "intent": intent,
+        "retrieval_format": 5, "intent": intent,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
         "revision": current_revision, "task": active_task, "module": module, "resume": resume,
         "include_task": include_task,
@@ -1828,6 +1883,18 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         records = []
         for memory_id in selected_ids:
             record = _select_record(conn, memory_id)
+            if record and record['kind'] == 'summary':
+                pins = {}
+                for ref in record['source_refs']:
+                    if ref.startswith('dev-memory-source:'):
+                        source_id, _, revision = ref[len('dev-memory-source:'):].rpartition('@')
+                        if revision.isdecimal():
+                            pins[source_id] = max(pins.get(source_id, 0), int(revision))
+                try:
+                    _validate_derived_sources(conn, {**record, 'expected_source_revisions': pins,
+                                                    'source_refs': list(record['source_refs'])}, record['namespace_id'])
+                except MemoryError:
+                    continue  # Legacy derived claims must pass the same source checks as new summaries.
             if record:
                 record["_score"] = scores.get(memory_id, 0)
                 record['_lexical'] = memory_id in lexical_matches
@@ -2479,17 +2546,29 @@ def config_path_for(kind: str, root: Path | None = None, global_root: Path | Non
 
 def consolidate_sources(kind: str, source_ids: list[str], *, project_root: Path | None = None,
                         global_root: Path | None = None) -> dict[str, Any]:
-    if not source_ids or len(set(source_ids)) != len(source_ids):
-        raise MemoryError("validation_error", "Provide unique source record IDs.")
+    if (not isinstance(source_ids, list) or not 1 <= len(source_ids) <= 8
+            or any(not _valid_local_id(i) for i in source_ids) or len(set(source_ids)) != len(source_ids)):
+        raise MemoryError("validation_error", "Provide 1..8 unique local source record IDs.")
     _, db, config = _config_for(kind, project_root, global_root)
+    if not config.get('recall_enabled', True) or config.get('excluded'):
+        return {'status':'skipped_private', 'scope':kind}
     conn = _connect(db, readonly=True)
-    records = []
-    for memory_id in source_ids:
-        record = _select_record(conn, memory_id)
-        if not record or record["namespace_id"] != config["namespace_id"] or record["scope"] == "task":
-            conn.close()
-            raise MemoryError("scope_error", "Consolidation sources must be existing records from this same namespace.")
-        records.append(_context_record(record))
-    conn.close()
-    return {"status": "prepare", "scope": kind, "namespace_id": config["namespace_id"], "sources": records,
-            "instruction": "Return a proposed summary preserving conditions, exceptions, negative constraints, and source revisions; do not write until reviewed."}
+    try:
+        records, remaining, used = [], [], 0
+        for memory_id in source_ids:
+            record = _select_record(conn, memory_id)
+            if not record or record["namespace_id"] != config["namespace_id"] or record["scope"] != kind:
+                raise MemoryError("scope_error", "Consolidation sources must exist in this same storage scope.")
+            shaped = _context_record(record)
+            size = len(json.dumps(shaped, ensure_ascii=False))
+            if used + size > 12000:
+                remaining.append(memory_id)
+            else:
+                records.append(shaped)
+                used += size
+        return {"status":"prepare", "scope":kind, "namespace_id":config['namespace_id'],
+                "sources":records, 'remaining_ids':remaining, 'context_incomplete':bool(remaining),
+                'limits':{'records':8, 'chars':12000},
+                "instruction":"Proposal only: preserve scope, claims, strength, conditions, exceptions, negative constraints and source revisions. Never activate candidate/uncertain sources through a summary. Do not write or acknowledge unread sources."}
+    finally:
+        conn.close()

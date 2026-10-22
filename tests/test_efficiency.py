@@ -96,7 +96,7 @@ class EfficiencyTests(MemoryTestCase):
     def test_revised_candidate_cannot_forge_or_repeat_independent_task_evidence(self):
         memory_id = self.apply(scope='global',task='one',operations=[{'op':'ADD','record':self.habit()}])['stores'][0]['operations'][0]['id']
         revised = self.habit()
-        revised['content'] = 'Prefer a suitable existing implementation.'
+        revised['title'] = 'Reuse suitable existing code'  # Source/title revision preserves the candidate meaning.
         revised['source']['ingestion_id'] = 'habit:caller-supplied'
         missing = self.apply(scope='global',turn='missing-task',operations=[{
             'op':'REVISE','id':memory_id,'expected_revision':1,'record':revised}])

@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "baec04f1875c8c223cd85d578d3915fd736c24ea51d493312229399793999df1"
+      "sha256": "33edfab01b54deab5e29deedc78aa12e7d8dfb197fe144dc76bc88088ce8c832"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -22,7 +22,7 @@
     },
     {
       "path": "skills/dev-memory/references/protocol.md",
-      "sha256": "eafdc7a5515e74c2319d6269068b5cf61207da3babf03c45001915be3bb7a4a0"
+      "sha256": "1fcd8105ccdbc93d23e821bd499f374b8f6518c4eefefdff0a2dc8f4f6d0c525"
     },
     {
       "path": "skills/dev-memory/references/codex-hooks.md",
@@ -38,15 +38,15 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "01acffa0d904a84498c6a2bdcb4ef9b21e3b048f6246eb58710186df000248dd"
+      "sha256": "3da2975a29f9a73625b830bf352a08109c4f12715c0b3e899b02a913e21a9b45"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "07693bf7070d556e721fc45bb5003277d4a7903df451587f28195ef167da5dd2"
+      "sha256": "242b191a90eeeec680c3b6a8bedf9c3b21e9337af2e8fd8058364ca4ced998ca"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
-      "sha256": "946e65ce6d12416ca7ad19c8d713f245d7e54fa2c87b1196d1c5cab0c993a2ef"
+      "sha256": "9af8794e04dfcca9b83b1c695cd1e8d38098ed530754119794977cf3a49c06ab"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "240108a82d590ccced01d25fd79eb7cb625f78bea3621405799d2f388eca7ab3"
+      "sha256": "f42bf499fc87f448808379c01323a6b572c66575ddb39cf2cbf15086aa54f3fe"
     },
     {
       "path": "LICENSE",
@@ -74,7 +74,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "82f934a9870febadf7948df150f80138e962a442232aad2a1a56be7ae712913a"
+      "sha256": "f5fed3774109628bab57f7b07e35307a4b32a10d19f6234f5b743b3a62e8461a"
     },
     {
       "path": "bin/install.cjs",
@@ -82,7 +82,7 @@
     },
     {
       "path": "CONTRIBUTING.md",
-      "sha256": "d03f0ce018cf8842e6d831e278374fc06071656c798c4ec9ca7ed8aaa49fd0e7"
+      "sha256": "363936c9d7ec6feedfc62d90b4cfdf44c18100bbec9114e2338e08cf9d8148bf"
     },
     {
       "path": "SECURITY.md",
@@ -98,23 +98,23 @@
     },
     {
       "path": "docs/architecture.md",
-      "sha256": "7aaa92abd0c4a85eb2dbb04c5170e9b4c6201b5599cf0896b3141c36a9971961"
+      "sha256": "ce6dfdbc7979bd530980676c24078424bbe3f1b2b174e4e51f047781276c0046"
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "fa206701a1ca0a78089e7f8e1d65ad9cf1cd49fd8550182279ff9a310d8e25b0"
+      "sha256": "6b6393043661cb2fbe57cc30b6adc97e385fa9643fbd17c96db4c67f45f36014"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "440a72af7486834ae8d3548ba96804b7c348a3daa692a2676dd730ee0a1d51c0"
+      "sha256": "ca522801e7b37ac3ba169fdb2ac9188deea487eddb185b88d528f44341925a92"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "c3401285ec7ce68248b8d92913ea4b1302dc1630d3bf9944cb17c664bd0b55a8"
+      "sha256": "e2ee46f19aa2afaf6144df004df201009fd81febb0c1604b3aae21961a58eef8"
     },
     {
       "path": "tests/test_efficiency.py",
-      "sha256": "3159f4ef159d16f9bcfe36b2157ca8a55184df3c669d9ce7725e17fba35283e0"
+      "sha256": "a8539a0c88328e99ddcbaf74125f861204fb3eb890ef72964fa8a41781fd1b33"
     },
     {
       "path": "reports/optimization-0.8.0.md",
@@ -133,8 +133,12 @@
       "sha256": "ba3d4e1c7b7794806abec9c660ccdb70367c98463bdcc9c9d61fa965576e2981"
     },
     {
+      "path": "reports/maintenance-review-0.8.4.md",
+      "sha256": "6386f3986cc4483127aafebcd9c58aa2bbd8c04629b365da8405f808a463c4ab"
+    },
+    {
       "path": "reports/project-capture-review-0.8.3.md",
-      "sha256": "fac981dd4086d54a7904c9b4414dd84f4c687e6151d597e3667e8c80cd21b404"
+      "sha256": "de99b9ba5e30a3daeb982a92b741a25f1fef16fc6979aa221e933f95e356c4c9"
     },
     {
       "path": "tests/test_capture_learning.py",
@@ -158,11 +162,11 @@
     },
     {
       "path": "tests/test_dev_memory.py",
-      "sha256": "d6520335e1fc7c822d8084e3721156e9bd40d0d172223b954918cc743b5de7d3"
+      "sha256": "17d15251ef90cdb01e4442ab925fa40635117cab21f0f1011c6d0d6a5381af5f"
     },
     {
       "path": "tests/test_maintenance.py",
-      "sha256": "b7e24dc1431b4962443c8bfc22819f88d67e73710dd93b4de37ce2b5c146ebb8"
+      "sha256": "7db5c61f3eccc931a158db0ac13b8664540709c7d9b05e3b792291da30020d9a"
     },
     {
       "path": "tests/test_lifecycle.py",
@@ -246,7 +250,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "aed0a1ae68add8e4e7f58957ced92e63ca4d5c8a0f86ed31d0427e46ab09eb70"
+      "sha256": "8885821454efe674a0b137b26601c5a2dadd7780541ccf33652e75c26368d893"
     },
     {
       "path": "reports/online-installation.json",
@@ -286,7 +290,7 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "5e117570ea291e52fd669ef51a2ba548c8d0dc3c63c4c1d607926fb1a0d2c68b"
+      "sha256": "c257b9df3cc85ea05cbddfe6544c97757aad30090ecc98c70b0f094e6ed78256"
     },
     {
       "path": "evals/check_deepseek.py",
@@ -311,5 +315,5 @@
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.8.3"
+  "version": "0.8.4"
 }

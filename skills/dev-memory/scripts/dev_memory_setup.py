@@ -27,7 +27,7 @@ For development tasks in this initialized project, use dev-memory automatically;
 - Read `.dev-memory/activation.json`; load this host's `skill_file` and use its runtime/store paths and project root. Report unavailable bindings or runtimes.
 - At task start/resume or after a material project/module/topic change, make one bounded `context --exclude-task` call with task terms and optional `--intent` for global/current-project rules. Force recall after context loss; otherwise reuse results. Do not retrieve or write task memories/checkpoints, run separate startup doctor/maintain calls, scan other projects, or reload all memory each turn.
 - Apply relevant rules below current instructions. Save explicit corrections before affected edits. At each development turn's close, save genuine new evidence: a first reusable choice can be a candidate; repetition is for promotion. Check equivalents; no NOOP-only `apply`.
-- Context/apply return maintenance status only. At a quiet task boundary, fetch one `maintain --exclude-task` pack; respect `pending_next_turn`. Do not poll or interrupt coding. Assess capture in the primary AI.
+- Context/apply return maintenance status only. When due at a quiet task boundary, fetch one `maintain --exclude-task` pack; respect `pending_next_turn`. Do not poll or interrupt coding. Assess capture in the primary AI.
 - Keep durable project rules, conventions, decisions and evidenced facts in project scope, global habits de-identified, and secrets out of memory. Temporary task progress stays in the conversation. Do not initialize another project or bypass pause, disable, read-only, or turn opt-out settings. Inspect store receipts before claiming a write succeeded.
 {END}
 '''

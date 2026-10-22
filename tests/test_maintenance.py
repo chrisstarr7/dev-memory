@@ -18,6 +18,164 @@ class MaintenanceTests(MemoryTestCase):
         # These tests exercise full maintenance packs, which are now explicitly requested.
         return super().apply(maintenance='prepare', include_task=True, **kwargs)
 
+    def test_summary_cannot_activate_candidates_or_strengthen_sources(self):
+        for n, fields in enumerate([{'status':'candidate'}, {'strength':'soft'}]):
+            source = self.add_project_rule(turn=f'source-{n}', content=f'Source constraint {n}.', **fields)
+            result = self.apply(scope='project', turn=f'summary-{n}', operations=[{'op':'ADD',
+                'record':self.record(kind='summary', content=f'Summary constraint {n}.',
+                    derived_from=[source], expected_source_revisions={source:1})}])
+            self.assertEqual(result['stores'][0]['error'], 'provenance_error')
+
+    def test_consolidation_honors_recall_controls_and_bounds(self):
+        memory_id = self.add_project_rule()
+        config_path = self.project_a / '.dev-memory/config.json'
+        config = json.loads(config_path.read_text(encoding='utf-8'))
+        config['recall_enabled'] = False
+        config_path.write_text(json.dumps(config), encoding='utf-8')
+        blocked = store.consolidate_sources('project',[memory_id],project_root=self.project_a)
+        self.assertEqual(blocked['status'], 'skipped_private')
+        self.assertNotIn('sources',blocked)
+        config['recall_enabled'] = True
+        config_path.write_text(json.dumps(config), encoding='utf-8')
+        ids = [memory_id] + [self.add_project_rule(turn=f'limit-{n}', content=f'Other rule {n}.') for n in range(8)]
+        with self.assertRaises(store.MemoryError):
+            store.consolidate_sources('project',ids,project_root=self.project_a)
+        large = self.add_project_rule(turn='large',content='Constraint retained. '*1000)
+        bounded = store.consolidate_sources('project',[large],project_root=self.project_a)
+        self.assertEqual(bounded['sources'], [])
+        self.assertEqual(bounded['remaining_ids'], [large])
+        self.assertTrue(bounded['context_incomplete'])
+
+    def test_oversized_anchor_does_not_starve_a_smaller_pending_rule(self):
+        large = self.add_project_rule(content='Very long distinct restriction. '*900, tags=['large'])
+        for n in range(5):
+            self.add_project_rule(turn=f'other-large-{n}',content=f'Long restriction {n}. '*1500,tags=['large'])
+        small = self.add_project_rule(turn='small',kind='convention',content='Use stable DTO field names.',tags=['naming'])
+        pack = store.maintenance_prepare('project',project_root=self.project_a,force=True)
+        self.assertIn(small,[r['id'] for r in pack['records']])
+        self.assertIn(large,pack['remaining_ids'])
+        self.assertNotIn(large,pack['seed_ids'])
+
+    def test_second_maintenance_write_in_same_turn_is_rejected(self):
+        first = self.add_project_rule(content='Preserve all restrictions. '*20)
+        one = self.maintain('COMPACT',[first],content='Preserve all restrictions. '*4,turn='one-turn')
+        self.assertEqual(one['status'], 'saved')
+        two = self.apply(scope='project',turn='one-turn',idem='second-maintenance',operations=[{
+            'op':'COMPACT','id':first,'expected_revision':2,'content':'Preserve all restrictions.',
+            'meaning_preserved':True,'reason':'Same restrictions.'}])
+        self.assertEqual(two['stores'][0]['error'], 'maintenance_deferred')
+        self.assertEqual(self.detail(first)['record']['revision'],2)
+
+    def test_maintenance_batch_has_a_store_wide_eight_record_limit(self):
+        ids = [self.add_project_rule(turn=f'union-{n}',content=f'Rule {n}.') for n in range(9)]
+        operations = [{'op':'MAINTENANCE_REVIEW','expected_revisions':{i:1},'reason':'Read current rule.'} for i in ids]
+        result = self.apply(scope='project',turn='oversized-batch',operations=operations)
+        self.assertEqual(result['stores'][0]['error'], 'validation_error')
+        self.assertEqual(result['stores'][0]['transaction'], 'rolled_back')
+        self.assertEqual(store.maintenance_prepare('project',project_root=self.project_a)['pending_count'],9)
+
+    def test_age_trigger_drains_the_recent_small_tail(self):
+        old = self.add_project_rule(content='Old pending rule.')
+        recent = self.add_project_rule(turn='recent',kind='convention',content='Recent pending rule.')
+        _,db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            conn.execute("UPDATE maintenance_pending SET updated_at='2000-01-01T00:00:00+00:00' WHERE memory_id=?",(old,))
+            conn.execute("DELETE FROM meta WHERE key='maintenance_cycle_active'")
+            conn.commit()
+        pack = store.maintenance_prepare('project',project_root=self.project_a)
+        self.assertEqual(pack['trigger'],'interval')
+        self.maintain('MAINTENANCE_REVIEW',[old],turn='old-reviewed')
+        tail = store.maintenance_prepare('project',project_root=self.project_a,session_id='session-test',turn_id='next')
+        self.assertEqual(tail['status'],'prepare')
+        self.assertEqual(tail['trigger'],'drain')
+        self.assertIn(recent,tail['seed_ids'])
+
+    def test_candidate_maintenance_preserves_status_and_independent_evidence(self):
+        ids = []
+        for n, content in enumerate(['Inspect existing implementations before adding code.',
+                                     'Check suitable existing code before adding an implementation.']):
+            candidate = dict(kind='preference', claim_type='preference', status='candidate',
+                strength='soft', cross_project_confirmed=False, title='Code reuse',content=content,
+                source={'type':'user_feedback','excerpt':'The user chose inspecting a suitable existing solution.'})
+            result = self.apply(scope='global',task='one-task',turn=f'candidate-{n}',
+                operations=[{'op':'ADD','record':candidate}])
+            ids.append(result['stores'][0]['operations'][0]['id'])
+        pack = store.maintenance_prepare('global',global_root=self.global_root,force=True)
+        self.assertEqual(set(pack['seed_ids']),set(ids))
+        merged = self.apply(scope='global',turn='candidate-merge',operations=[{'op':'MERGE_DUPLICATES',
+            'id':ids[0],'expected_revisions':dict.fromkeys(ids,1),'meaning_preserved':True,
+            'reason':'Equivalent reusable method; keep the inactive status.'}])
+        self.assertEqual(merged['status'],'saved',merged)
+        kept = store.show_record('global',ids[0],global_root=self.global_root)
+        self.assertEqual(kept['record']['status'],'candidate')
+        self.assertEqual(len(kept['evidence']),1)
+        self.assertEqual(store.recall('reuse',global_root=self.global_root)['stores'][0]['records'],[])
+        for task, turn, expected_status in [('one-task','same-task','candidate'),('new-task','independent','active')]:
+            revision=store.show_record('global',ids[0],global_root=self.global_root)['record']['revision']
+            result=self.apply(scope='global',task=task,turn=turn,operations=[{'op':'ADD_EVIDENCE',
+                'id':ids[0],'expected_revision':revision,
+                'source':{'type':'user_confirmation','excerpt':'The user again chose checking reusable implementations.'}}])
+            self.assertEqual(result['status'],'saved',result)
+            self.assertEqual(store.show_record('global',ids[0],global_root=self.global_root)['record']['status'],expected_status)
+
+    def test_changed_candidate_alias_cannot_supply_unrelated_promotion_evidence(self):
+        ids=[]
+        for n,content in enumerate(['Inspect suitable code before implementation.', 'Review existing implementations before adding code.']):
+            record=dict(kind='preference',claim_type='preference',status='candidate',strength='soft',
+                cross_project_confirmed=False,title='Reuse',content=content,
+                source={'type':'user_feedback','excerpt':'The user preferred checking existing implementations.'})
+            result=self.apply(scope='global',task='one-task',turn=f'alias-{n}',operations=[{'op':'ADD','record':record}])
+            ids.append(result['stores'][0]['operations'][0]['id'])
+        self.apply(scope='global',turn='aliases-merged',operations=[{'op':'MERGE_DUPLICATES',
+            'id':ids[0],'expected_revisions':dict.fromkeys(ids,1),'meaning_preserved':True,'reason':'Same method.'}])
+        revised={**record,'content':'Explain results in a different reporting order.',
+            'status':'active','cross_project_confirmed':True,
+            'source':{'type':'user_statement','excerpt':'Across projects, the user explicitly requires this reporting order.'}}
+        result=self.apply(scope='global',task='new-task',turn='alias-corrected',operations=[{
+            'op':'REVISE','id':ids[1],'expected_revision':2,'record':revised}])
+        self.assertEqual(result['status'],'saved',result)
+        canonical=store.show_record('global',ids[0],global_root=self.global_root)['record']
+        self.assertEqual(canonical['status'],'stale')
+        recalled=store.recall('Inspect suitable code implementation reuse',global_root=self.global_root,force=True)
+        self.assertNotIn(ids[0],[r['id'] for r in recalled['stores'][0]['records']])
+        self.apply(scope='global',task='one-task',turn='same-old-signal',operations=[{
+            'op':'ADD_EVIDENCE','id':ids[0],'expected_revision':canonical['revision'],
+            'source':{'type':'user_feedback','excerpt':'The user preferred checking existing implementations.'}}])
+        self.assertNotEqual(store.show_record('global',ids[0],global_root=self.global_root)['record']['status'],'active')
+
+    def test_changed_inactive_habit_cannot_reuse_old_evidence_to_promote(self):
+        record=dict(kind='preference',claim_type='preference',status='candidate',strength='soft',
+            cross_project_confirmed=False,title='Reuse',content='Inspect existing code before adding another implementation.',
+            source={'type':'user_feedback','excerpt':'The user chose checking existing implementations.'})
+        result=self.apply(scope='global',task='old-task',turn='old-meaning',operations=[{'op':'ADD','record':record}])
+        memory_id=result['stores'][0]['operations'][0]['id']
+        revised={**record,'title':'Reporting','content':'Explain results in an ordered list.',
+            'source':{'type':'user_feedback','excerpt':'The user chose an ordered report.'}}
+        result=self.apply(scope='global',task='new-task',turn='new-meaning',operations=[{
+            'op':'REVISE','id':memory_id,'expected_revision':1,'record':revised}])
+        self.assertEqual(result['stores'][0]['error'],'provenance_error')
+        result=self.apply(scope='global',task='new-task',turn='replace-meaning',operations=[{
+            'op':'SUPERSEDE','id':memory_id,'expected_revision':1,'record':revised}])
+        self.assertEqual(result['status'],'saved',result)
+        records=store.list_records('global',global_root=self.global_root,status='candidate')['records']
+        self.assertEqual(len(records),1)
+        self.assertNotEqual(records[0]['id'],memory_id)
+        self.assertEqual(store.recall('ordered report',global_root=self.global_root,force=True)['stores'][0]['records'],[])
+
+    def test_legacy_active_summary_with_uncertain_sources_is_not_recalled(self):
+        source = self.add_project_rule(content='Confirmed source requirement.')
+        summary = self.add_summary(source,turn='legacy-summary')
+        def recalled():
+            return [r['id'] for r in store.recall('Derived checklist',project_root=self.project_a,
+                global_root=self.global_root,force=True)['stores'][1]['records']]
+        self.assertIn(summary,recalled())
+        _,db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            conn.execute("UPDATE memories SET status='candidate' WHERE id=?",(source,))
+            conn.commit()
+        self.assertNotIn(summary,recalled())
+        self.assertEqual(self.detail(summary)['record']['status'],'active')
+
     def test_batch_snapshot_revisions_and_single_compact_form_are_resolved_by_program(self):
         first = self.add_project_rule(content='Require all stated conditions.')
         duplicate = self.add_project_rule(turn='duplicate',content='Every stated condition must hold.')
