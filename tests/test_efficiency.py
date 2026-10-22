@@ -17,6 +17,37 @@ import codex_hook
 
 
 class EfficiencyTests(MemoryTestCase):
+    def test_unverified_recall_without_cache_never_probes_git(self):
+        memory_id = self.add_project_rule()
+        for options in ({}, {'readonly': True, 'session_id': 'read-only'}, {'force': True}):
+            with patch.object(store, '_run_git', side_effect=AssertionError('No Git needed without cache or verification')):
+                result = store.recall('refund', project_root=self.project_a, global_root=self.global_root,
+                                      include_task=False, **options)
+            self.assertEqual([r['id'] for r in result['stores'][1]['records']], [memory_id])
+            self.assertIsNone(result['stores'][1]['records'][0]['verification_status'])
+
+    def test_uncached_verified_recall_checks_one_snapshot_and_preserves_staleness(self):
+        path = self.project_a / 'refunds.py'
+        path.write_text('limit = 14\n', encoding='utf-8')
+        for n in range(2):
+            self.add_project_rule(turn=f'verified-{n}', kind='lesson', claim_type='observed',
+                title=f'Refund regression {n}', content=f'Refund boundary check {n} passed.',
+                conditions='', exceptions='', do='', dont='', verification_steps='',
+                source=self.source('The check exited successfully.', 'tool_result'),
+                verification={'command':'python -m unittest', 'finished_at':'2026-10-22T00:00:00Z',
+                              'code_version':'fixture-v1', 'exit_code':0})
+        for expected in ('current_workspace', 'stale_workspace_changed', 'workspace_unknown'):
+            if expected == 'stale_workspace_changed':
+                path.write_text('limit = 300\n', encoding='utf-8')
+            with patch.object(store, '_workspace_signature',
+                              **({'return_value':None} if expected == 'workspace_unknown' else {'wraps':store._workspace_signature})) as fingerprint:
+                result = store.recall('refund', project_root=self.project_a, global_root=self.global_root,
+                                      include_task=False, readonly=True)
+            records = result['stores'][1]['records']
+            self.assertEqual(len(records), 2)
+            self.assertEqual({r['verification_status'] for r in records}, {expected})
+            self.assertEqual(fingerprint.call_count, 1)
+
     def habit(self, **updates):
         return dict(kind='preference', claim_type='preference', strength='soft', status='candidate',
                     cross_project_confirmed=False, title='Reuse suitable code', content='Reuse suitable existing code.',

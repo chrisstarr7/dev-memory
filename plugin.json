@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dev-memory",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "Developer-centered local memory of coding habits and reasoning preferences for AI assistants."
 }

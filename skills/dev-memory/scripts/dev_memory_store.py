@@ -145,6 +145,7 @@ def _run_git(root: Path, args: list[str]) -> subprocess.CompletedProcess[str] | 
 
 def _workspace_signature(root: Path, module: str | None = None) -> str | None:
     """Hash Git's changed-path list and cheap file metadata; never persist paths or file contents."""
+    root_resolved = root.resolve()
     result = _run_git(root, ["-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all"])
     if result and result.returncode == 0:
         rows = [row for row in result.stdout.split("\0") if row]
@@ -154,7 +155,7 @@ def _workspace_signature(root: Path, module: str | None = None) -> str | None:
         for row in rows[:1000]:
             path_text = row[3:].split(" -> ")[-1]
             candidate = (root / path_text).resolve()
-            if not candidate.is_relative_to(root.resolve()):
+            if not candidate.is_relative_to(root_resolved):
                 continue
             try:
                 stat = candidate.stat()
@@ -162,7 +163,6 @@ def _workspace_signature(root: Path, module: str | None = None) -> str | None:
             except OSError:
                 bits.append(f"{path_text}:missing")
         return hashlib.sha256("\n".join(bits).encode("utf-8", errors="replace")).hexdigest()
-    root_resolved = root.resolve()
     candidate = (root_resolved / module).resolve() if module else root_resolved
     scan_root = candidate if candidate.is_relative_to(root_resolved) and candidate.is_dir() else root_resolved
     bits = []
@@ -1792,7 +1792,8 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
     }
     current_head = None
     current_signature = None
-    if root:
+    workspace_checked = bool(root and session_id and not readonly)
+    if workspace_checked:
         branch = _run_git(root, ["branch", "--show-current"])
         head = _run_git(root, ["rev-parse", "--short=12", "HEAD"])
         current_head = head.stdout.strip() if head and head.returncode == 0 else None
@@ -1801,7 +1802,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         cache_value["head"] = current_head
         cache_value["workspace_signature"] = current_signature
     cache_key = hashlib.sha256(json.dumps(cache_value, sort_keys=True).encode("utf-8")).hexdigest()
-    can_cache = root is None or current_signature is not None
+    can_cache = root is None or (workspace_checked and current_signature is not None)
     conn = None
     try:
         if session_id and not force and not readonly and can_cache:
@@ -1906,9 +1907,14 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             if record:
                 record["_score"] = scores.get(memory_id, 0)
                 record['_lexical'] = memory_id in lexical_matches
-                record["verification_status"] = _verification_status(record, root, current_head, current_signature)
                 records.append(record)
         conn.close()
+        if root and not workspace_checked and any(record.get('verification') for record in records):
+            head = _run_git(root, ['rev-parse', '--short=12', 'HEAD'])
+            current_head = head.stdout.strip() if head and head.returncode == 0 else None
+            current_signature = _workspace_signature(root, module)
+        for record in records:
+            record['verification_status'] = _verification_status(record, root, current_head, current_signature)
         records.sort(key=lambda record: (record["updated_at"], record["id"]), reverse=True)
         records.sort(key=lambda record: (
             0 if record["kind"] == "checkpoint" and (record.get("task_id") == active_task or resume) else 1,

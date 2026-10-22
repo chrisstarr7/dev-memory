@@ -3,7 +3,7 @@ name: dev-memory
 description: Local development memory. For development tasks, recall relevant developer habits and authorized project rules; learn durable habits from visible user requirements, corrections and choices, preserving evidence and scope.
 license: MIT
 metadata:
-  version: "0.8.5"
+  version: "0.8.6"
   requires: "Python 3.10+ with sqlite3 and local file/process access; Git optional."
 ---
 
