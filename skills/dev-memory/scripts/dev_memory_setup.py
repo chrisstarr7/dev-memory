@@ -28,7 +28,7 @@ For development tasks in this initialized project, use dev-memory automatically;
 - At task start/resume or after a material project/module/topic change, make one bounded `context --exclude-task` call with task terms and optional `--intent` for global/current-project rules. Force recall after context loss; otherwise reuse results. Do not retrieve or write task memories/checkpoints, run separate startup doctor/maintain calls, scan other projects, or reload all memory each turn.
 - Apply relevant rules below current instructions. Save explicit corrections before affected edits. At each development turn's close, save genuine new evidence: a first reusable choice can be a candidate; repetition is for promotion. Check equivalents; no NOOP-only `apply`.
 - Context/apply return maintenance status only. At a quiet task boundary, fetch one `maintain --exclude-task` pack; respect `pending_next_turn`. Do not poll or interrupt coding. Assess capture in the primary AI.
-- Keep only durable project facts in project scope, global habits de-identified, and secrets out of memory. Temporary task progress stays in the conversation. Do not initialize another project or bypass pause, disable, read-only, or turn opt-out settings. Inspect store receipts before claiming a write succeeded.
+- Keep durable project rules, conventions, decisions and evidenced facts in project scope, global habits de-identified, and secrets out of memory. Temporary task progress stays in the conversation. Do not initialize another project or bypass pause, disable, read-only, or turn opt-out settings. Inspect store receipts before claiming a write succeeded.
 {END}
 '''
 
@@ -118,7 +118,7 @@ def setup(root: Path, agent: str, skill: Path, python: str, global_root: Path | 
     results = []
     for scope in ('project', 'global'):
         try:
-            results.append(store.init_project(root, capture_mode='developer-first') if scope == 'project' else store.init_global(global_root))
+            results.append(store.init_project(root, capture_mode='full-project') if scope == 'project' else store.init_global(global_root))
         except (store.MemoryError, OSError) as exc:
             results.append({'scope': scope, 'status': 'failed', 'error': getattr(exc, 'code', 'storage_unavailable')})
             return {'status': 'failed', 'stores': results, 'activation': 'not_configured'}

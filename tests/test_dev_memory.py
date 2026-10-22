@@ -387,6 +387,37 @@ class StoreTests(MemoryTestCase):
         self.assertEqual(result["status"], "failed")
         self.assertEqual(result["stores"][0]["error"], "provenance_error")
 
+    def test_hypotheses_cannot_be_active_or_recalled_from_legacy_rows(self):
+        rejected = self.apply(scope='project', turn='hypothesis', operations=[{
+            'op':'ADD', 'record':self.record(claim_type='hypothesis')}])
+        self.assertEqual(rejected['stores'][0]['error'], 'provenance_error')
+        legacy_id = self.add_project_rule(turn='legacy-rule', title='Unconfirmed naming')
+        _, db = store.project_paths(self.project_a)
+        import sqlite3
+        from contextlib import closing
+        with closing(sqlite3.connect(db)) as conn:
+            conn.execute("UPDATE memories SET claim_type='hypothesis' WHERE id=?", (legacy_id,))
+            conn.commit()
+        recalled = store.recall('Unconfirmed naming', project_root=self.project_a,
+            global_root=self.global_root, include_task=False, force=True)
+        self.assertNotIn(legacy_id, [r['id'] for r in recalled['stores'][1]['records']])
+        self.assertTrue(store.show_record('project', legacy_id, project_root=self.project_a)['record'])
+        checkpoints = []
+        for turn in ('older', 'newer'):
+            result = self.apply(scope='task', task='legacy-resume', turn=turn,
+                operations=[{'op':'CHECKPOINT', 'record':self.record(kind='checkpoint', claim_type='observed',
+                    title=turn, content='Synthetic checkpoint ' + turn)}])
+            checkpoints.append(result['stores'][0]['operations'][0]['id'])
+        with closing(sqlite3.connect(db)) as conn:
+            conn.execute("UPDATE memories SET status='active' WHERE id=?", (checkpoints[0],))
+            conn.execute("UPDATE memories SET claim_type='hypothesis' WHERE id=?", (checkpoints[1],))
+            conn.commit()
+        resumed = store.recall('continue', project_root=self.project_a, global_root=self.global_root,
+                               resume=True, force=True)
+        resumed_ids = [r['id'] for r in resumed['stores'][1]['records']]
+        self.assertIn(checkpoints[0], resumed_ids)
+        self.assertNotIn(checkpoints[1], resumed_ids)
+
     def test_desired_policy_and_observed_implementation_remain_distinct(self) -> None:
         desired = self.record(title="Desired policy", content="Must reject final-sale items.")
         observed = self.record(kind="project_fact", title="Observed implementation", content="Current code permits final-sale items.",

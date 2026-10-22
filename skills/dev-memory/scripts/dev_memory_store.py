@@ -644,6 +644,8 @@ def _validate_record(record: Any, scope: str, task_id: str | None, namespace_id:
     revision = record.get("revision", 1)
     if not all(isinstance(v, str) for v in (claim_type, status, strength)) or claim_type not in CLAIM_TYPES or status not in STATUSES or strength not in STRENGTHS:
         raise MemoryError("validation_error", "Unsupported claim type, status, or strength.")
+    if claim_type == "hypothesis" and status == "active":
+        raise MemoryError("provenance_error", "Unconfirmed hypotheses must remain inactive candidates.")
     if not isinstance(revision, int) or revision < 1:
         raise MemoryError("validation_error", "Record revision must be a positive integer.")
     source = record.get("source", {})
@@ -1696,8 +1698,10 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         return {"scope": kind, "status": "unavailable", "reason": exc.code, "records": []}
     except (sqlite3.Error, OSError):
         return {"scope": kind, "status": "unavailable", "reason": "storage_unavailable", "records": []}
+    capture = {"capture_mode": config.get("capture_mode", "full-project") if kind == "project" else "global",
+               "capture_enabled": config.get("capture_enabled", True) and config.get("excluded") is not True}
     if not config.get("recall_enabled", True) or config.get("excluded") is True:
-        return {"scope": kind, "status": "disabled", "records": []}
+        return {"scope": kind, "status": "disabled", "records": [], **capture}
     readonly = readonly or not config.get("capture_enabled", True)
     limits = config.get("limits", {})
     if not isinstance(limits, dict) or any(type(limits.get(k, v)) is not int for k, v in (("max_candidates", 20), ("max_details", 5), ("max_context_chars", 4000))):
@@ -1722,7 +1726,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         except sqlite3.Error:
             active_task = task_id
     cache_value = {
-        "retrieval_format": 3, "intent": intent,
+        "retrieval_format": 4, "intent": intent,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
         "revision": current_revision, "task": active_task, "module": module, "resume": resume,
         "include_task": include_task,
@@ -1748,7 +1752,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             previous = cache_conn.execute("SELECT 1 FROM session_context WHERE session_id=? AND context_key=?", (session_id, cache_key)).fetchone()
             cache_conn.close()
             if previous:
-                return {"scope": kind, "status": "cached", "records": [], "context_incomplete": False, "data_revision": current_revision}
+                return {"scope": kind, "status": "cached", "records": [], "context_incomplete": False, "data_revision": current_revision, **capture}
         conn = _connect(db_path, readonly=True)
         deadline = time.monotonic() + 0.5
         conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
@@ -1778,7 +1782,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 f"""SELECT m.id,SUM(CASE st.term {weight_case} ELSE 0 END) score,
                 MAX(CASE st.term {lexical_case} ELSE 0 END) lexical_match FROM search_terms st INDEXED BY search_term_term
                 CROSS JOIN memories m ON m.id=st.memory_id
-                WHERE st.term IN ({placeholders}) AND m.status IN ('active','conflicted')
+                WHERE st.term IN ({placeholders}) AND m.claim_type!='hypothesis' AND m.status IN ('active','conflicted')
                 AND m.scope IN ({scope_marks})
                 AND (m.scope!='task' OR (? IS NOT NULL AND m.task_id=?))
                 GROUP BY m.id ORDER BY lexical_match DESC,score DESC,m.updated_at DESC,m.id DESC LIMIT ?""",
@@ -1790,7 +1794,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         selected_ids = set(scores)
         if kind == "global":
             selected_ids.update(row[0] for row in conn.execute(
-                "SELECT id FROM memories WHERE kind IN ('preference','convention') AND status='active' ORDER BY CASE strength WHEN 'hard' THEN 0 ELSE 1 END,updated_at DESC LIMIT ?",
+                "SELECT id FROM memories WHERE kind IN ('preference','convention') AND claim_type!='hypothesis' AND status='active' ORDER BY CASE strength WHEN 'hard' THEN 0 ELSE 1 END,updated_at DESC LIMIT ?",
                 (max_candidates + 1,),
             ).fetchall())
         if include_task and resume and kind == "project" and not active_task:
@@ -1798,20 +1802,20 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             # "continue" request to one task. Detail budgets still apply.
             selected_ids.update(row[0] for row in conn.execute(
                 """SELECT m.id FROM memories m
-                WHERE m.scope='task' AND m.kind='checkpoint' AND m.status IN ('active','conflicted')
+                WHERE m.scope='task' AND m.kind='checkpoint' AND m.claim_type!='hypothesis' AND m.status IN ('active','conflicted')
                 AND NOT EXISTS (SELECT 1 FROM memories n WHERE n.task_id=m.task_id AND n.kind='checkpoint'
-                    AND n.status IN ('active','conflicted') AND
+                    AND n.claim_type!='hypothesis' AND n.status IN ('active','conflicted') AND
                     (n.updated_at>m.updated_at OR (n.updated_at=m.updated_at AND n.id>m.id)))
                 ORDER BY m.updated_at DESC,m.id DESC LIMIT ?""", (min(3, max_candidates) + 1,),
             ).fetchall())
         if include_task and active_task and kind == "project":
             selected_ids.update(row[0] for row in conn.execute(
-                "SELECT id FROM memories WHERE scope='task' AND task_id=? AND kind='checkpoint' AND status IN ('active','conflicted') ORDER BY updated_at DESC LIMIT 2",
+                "SELECT id FROM memories WHERE scope='task' AND task_id=? AND kind='checkpoint' AND claim_type!='hypothesis' AND status IN ('active','conflicted') ORDER BY updated_at DESC LIMIT 2",
                 (active_task,),
             ).fetchall())
         if kind == "project":
             selected_ids.update(row[0] for row in conn.execute(
-                "SELECT id FROM memories WHERE scope='project' AND strength='hard' AND status IN ('active','conflicted') ORDER BY updated_at DESC LIMIT ?",
+                "SELECT id FROM memories WHERE scope='project' AND strength='hard' AND claim_type!='hypothesis' AND status IN ('active','conflicted') ORDER BY updated_at DESC LIMIT ?",
                 (max_candidates + 1,),
             ).fetchall())
         if not selected_ids:
@@ -1820,7 +1824,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             if session_id and not readonly and can_cache:
                 _claim_context(kind, db_path, config, session_id, cache_key, True)
             return {"scope": kind, "status": "ok", "records": [], "context_incomplete": False,
-                    "candidate_count": 0, "data_revision": current_revision, "empty_store": empty_store}
+                    "candidate_count": 0, "data_revision": current_revision, "empty_store": empty_store, **capture}
         records = []
         for memory_id in selected_ids:
             record = _select_record(conn, memory_id)
@@ -1869,7 +1873,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         if session_id and not readonly and not remaining and can_cache:
             _claim_context(kind, db_path, config, session_id, cache_key, True)
         return {
-            "scope": kind, "status": "ok", "records": details, "candidate_count": candidate_count,
+            "scope": kind, "status": "ok", "records": details, "candidate_count": candidate_count, **capture,
             "context_incomplete": bool(remaining), "remaining_ids": remaining,
             "unloaded_candidates": unloaded,
             "candidate_limit_reached": candidate_limit_reached or bool(overflow_ids),
@@ -2453,6 +2457,7 @@ def get_store_status(kind: str, *, project_root: Path | None = None, global_root
         return {
             "scope": kind, "status": "available" if integrity == "ok" else "corrupt",
             "database_exists": True, "readable": True, "writable": os.access(base, os.W_OK),
+            "capture_mode": config.get("capture_mode", "full-project") if kind == "project" else "global",
             "capture_enabled": config.get("capture_enabled", True) and config.get("excluded") is not True,
             "recall_enabled": config.get("recall_enabled", True) and config.get("excluded") is not True,
             "excluded": config.get("excluded") is True,

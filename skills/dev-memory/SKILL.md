@@ -3,7 +3,7 @@ name: dev-memory
 description: Local development memory. For development tasks, recall relevant developer habits and authorized project rules; learn durable habits from visible user requirements, corrections and choices, preserving evidence and scope.
 license: MIT
 metadata:
-  version: "0.8.2"
+  version: "0.8.3"
   requires: "Python 3.10+ with sqlite3 and local file/process access; Git optional."
 ---
 
@@ -42,11 +42,38 @@ Assess an increment in the primary assistant's existing reasoning. No increment 
 Classify by applicability, not merely by wording or the working directory:
 
 - **Explicit cross-project habit:** actual user instruction with clear ongoing cross-project scope → confirmed global rule (`cross_project_confirmed:true`). An explicit important correction gets one bounded save attempt before affected edits; if it fails, follow the current instruction and report it as unsaved.
-- **Reusable method or choice, even on its first occurrence:** direct user requirements, selections and corrections can support a de-identified soft candidate (`kind:preference`, `claim_type:preference`, `strength:soft`, `status:candidate`, `cross_project_confirmed:false`). Use the actual `source.type`: `user_statement`, `user_confirmation` or `user_feedback`. **Repetition is required for automatic adoption, not for the first record.** Generate an opaque local `task_id` if the host supplies none; reuse it through the continuing task. The program hashes it and counts one signal per task across all user source types. Two genuinely independent tasks can promote a candidate; turns or restatements of one effort are not independent. Never apply an inactive candidate as a rule.
-- **Project rule or technical decision:** retain the owning project scope. New records are off in the default `developer-first` mode; `mode full-project --project-root PATH` enables them after user authorization. Existing records remain recallable and can be corrected. Unbound project content stays in conversation; failed project writes never fall back to global.
-- **Explicitly temporary, business-specific, or unclear in meaning:** keep it in the current conversation unless authorized project capture applies. “Skip tests this time” is not a permanent preference. “Here, check for suitable existing code instead of writing another implementation” can support a narrowly worded reuse candidate; “here” or “this code” alone does not make the method temporary. A choice about business-understandable naming must retain that meaning, not become a preference for short names in every situation. Uncertain cross-project applicability calls for a candidate when the reusable method is clear; uncertain meaning does not. AI summaries and retrieval add no user evidence. Normal Skill use never creates/retrieves task checkpoints.
+- **Reusable method or choice, even on its first occurrence:** after checking project applicability, repository-independent user requirements, selections and corrections can support a de-identified global soft candidate (`kind:preference`, `claim_type:preference`, `strength:soft`, `status:candidate`, `cross_project_confirmed:false`). Project-bound choices remain project knowledge. Use the actual `source.type`: `user_statement`, `user_confirmation` or `user_feedback`. **Repetition is required for automatic adoption, not for the first record.** Generate an opaque local `task_id` if the host supplies none; reuse it through the continuing task. The program hashes it and counts one signal per task across all user source types. Two genuinely independent tasks can promote a candidate; turns or restatements of one effort are not independent. Never apply an inactive candidate as a rule.
+- **Project knowledge:** capture durable project rules, conventions, procedures, decisions and evidenced facts on first discovery in an authorized project. New setups default to `full-project`; upgrades preserve existing modes and all controls. In `developer-first`, new project records remain blocked: report an eligible unsaved increment and the required mode change rather than silently dropping it or enabling capture yourself. Unbound project content stays in conversation; failed project writes never fall back to global.
+- **Explicitly temporary or unclear in meaning:** keep it in the current conversation, even in full-project mode. Business-specific durable information instead belongs to authorized project capture. “Skip tests this time” is not a permanent preference. “Here, check for suitable existing code instead of writing another implementation” can support a narrowly worded reuse candidate; “here” or “this code” alone does not make the method temporary. A choice about business-understandable naming must retain that meaning, not become a preference for short names in every situation. Uncertain cross-project applicability calls for a candidate when the reusable method is clear; uncertain meaning does not. AI summaries and retrieval add no user evidence. Normal Skill use never creates/retrieves task checkpoints.
 
 A saved candidate is a stored memory, but ordinary recall excludes it until active. When investigating missing capture, use one diagnostic `doctor` for runtime version, user/project activation and per-status counts; inspect `list --scope global --status candidate` only when needed. Zero active rules does not prove no memory was saved. Do not add these diagnostics to ordinary coding turns.
+
+## Decide what deserves project memory
+
+The user need not say “remember” or choose global/project. At a development turn's close, ask whether visible new information would change a future implementation, investigation, review or delivery in this repository. If it is durable, supported and not already represented, capture it now. Do not limit project capture to business facts or wait for repetition of an explicit project rule. Scope by applicability; paths identify ownership, not whether a method generalizes.
+
+Read the existing context result's `capture_mode` and `capture_enabled` before capture; readable/available does not mean new writes are enabled. Do not add startup diagnostics to obtain this information.
+
+Consider all relevant knowledge already encountered, without scanning unrelated files:
+
+| Knowledge | What to retain when evidenced |
+| --- | --- |
+| Engineering conventions | Naming, layering, DTO/Mapper usage, errors, logging, comments, encoding, formatting and reuse boundaries |
+| Business invariants | Eligibility, calculations, state transitions, negative requirements and exceptions |
+| Contracts and data | API fields/compatibility, units, nullability, schema constraints, SQL dialect, migrations and historical-data rules |
+| Architecture and integration | Service ownership, dependency boundaries, transaction scope, concurrency, idempotency, cache/MQ/external-service contracts |
+| Security and privacy | Authorization and tenant boundaries, redaction, retention and audit requirements; never preserve a vulnerability as a desired rule |
+| Quality and capacity | Confirmed acceptance criteria, regression obligations, performance budgets, timeouts, resource limits and failure behavior |
+| Documentation and delivery | Required artifacts, templates, locations, audience, examples, review/release and verification expectations |
+| Environment and operations | Confirmed toolchain constraints, commands, deployment assumptions and reproducible operational prerequisites; exclude credentials |
+| Failure and prevention | Verified root cause, applicability, failed approach and prevention check; exclude speculative diagnoses |
+| Decisions and stable navigation | Confirmed tradeoff/rejected alternative and rationale, or a non-obvious canonical implementation location useful in later work |
+
+Use `convention`, `business_rule`, `procedure`, `decision`, `project_fact` or `lesson` to fit the meaning; categories are examples, not an allowlist. A user-stated project rule can be active immediately (`claim_type:desired`, appropriate user source). A code/tool observation uses `claim_type:observed` and real source/code references; record what exists, never turn it into a desired rule. An unresolved hypothesis stays in conversation or an explicitly marked inactive candidate, never an active constraint. Tool verification requires actual successful tool evidence under the protocol. Do not confuse source evidence with a passed test.
+
+Preserve scope (repository/module/interface), conditions, exclusions and authority. Split independent rules, but keep related constraints together. If the same turn contains a project contract and a reusable development method, capture separate records only when each independently qualifies; de-identify the global method and keep inferred global preferences as candidates. Explicit cross-project user instructions retain their stated strength. Project content must never enter global fields/evidence, even when project capture is unavailable.
+
+Do not save task status, to-do lists, ordinary diffs, every inspected symbol, copied documentation, speculative architecture or generic programming advice. Prefer a compact actionable rule with a canonical source reference over duplicating an entire spec. Revise an existing rule on correction, preserving history; do not manufacture supporting evidence from AI restatements. A blocked/skipped write is not a successful save; inspect each store receipt and report relevant unsaved rules before delivery.
 
 ## Write clear atomic records, once
 

@@ -10,11 +10,11 @@ npx -y --prefer-online chrisstarr7/dev-memory <agent>
 
 支持 Codex、Claude Code、Cursor、Gemini CLI、GitHub Copilot、OpenCode 和 DeepSeek Harness，参数与路径见下表。需要 Node.js 22+、npm/npx、Git 和 Python 3.10+（含 sqlite3）。`npx` 直接获取这个公开 GitHub 仓库的程序，不需要 npm 账号。安装器无第三方 Node 依赖、无安装生命周期脚本，记忆运行时仍是 Python 标准库和 SQLite；安装完成后的记忆管理不调用 npx 或网络下载。
 
-成功时显示程序、项目和引导文件。一条命令完成下载、运行检查、独立空库初始化和项目引导。新项目默认为 `developer-first`：优先学习全局习惯，读取已有项目规则，但不新增项目或任务记录。需要完整项目捕获时，让 AI 使用 `.dev-memory/activation.json` 中当前宿主的 `python` 和 `cli` 路径，调用 `mode full-project --project-root /项目路径`；同一命令接受 `developer-first` 以切回。重复执行复用相同的受管理程序，有变化时自动更新；已有记忆与配置不会清空。默认使用当前目录；其他目录执行时可加 `--project /项目绝对路径`。加 `--json` 获取机器回执。
+成功时显示程序、项目和引导文件。一条命令完成下载、运行检查、独立空库初始化和项目引导。新项目默认为 `full-project`：自动记录有依据的长期项目规范、契约、决策和经验，常规流程不读写任务记忆。旧项目仍是 developer-first 且希望开启完整项目捕获时，让 AI 使用 `.dev-memory/activation.json` 中当前宿主的 `python` 和 `cli` 路径，调用 `mode full-project --project-root /项目路径`；同一命令接受 `developer-first` 以切回。重复执行复用相同的受管理程序，有变化时自动更新；已有记忆与配置不会清空。默认使用当前目录；其他目录执行时可加 `--project /项目绝对路径`。加 `--json` 获取机器回执。
 
 ## Codex 一次安装同时配置全局与项目
 
-上面的安装命令选择 `codex` 后，同时配置用户级全局记忆和当前项目引导，不需要额外参数或第二条安装命令。安装器初始化各自独立的全局库与项目库；已有记忆、暂停/只读设置和项目捕获模式保持原样。新项目仍默认采用 `developer-first`，不会因合并入口而扩大业务记忆捕获范围。
+上面的安装命令选择 `codex` 后，同时配置用户级全局记忆和当前项目引导，不需要额外参数或第二条安装命令。安装器初始化各自独立的全局库与项目库；已有记忆、暂停/只读设置和项目捕获模式保持原样。新项目默认采用 `full-project`；升级不会自动改变已有 developer-first 模式或隐私控制。
 
 用户级引导写入 `$CODEX_HOME/AGENTS.override.md`（若存在且非空），否则写入 `$CODEX_HOME/AGENTS.md`，仅更新管理标记之间的内容。当前项目使用自己的引导与私有 activation 绑定。已有非空 override 会被优先使用，避免遮蔽实际引导。
 

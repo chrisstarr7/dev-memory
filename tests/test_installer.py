@@ -112,7 +112,7 @@ class InstallerTests(unittest.TestCase):
         parent.mkdir()
         # A synthetic read principal on one temporary parent; no real-user ACLs.
         subprocess.run(['icacls', str(parent), '/grant', '*S-1-5-32-545:(OI)(CI)(RX)'],
-                       check=True, capture_output=True, text=True, timeout=10)
+                       check=True, capture_output=True, timeout=10)
         target = parent / 'dev-memory'
         with patch.object(dev_memory.sys, 'platform', 'old-policy'):
             dev_memory._copy_release(target)  # Reproduce the former Windows 0700 ACL.

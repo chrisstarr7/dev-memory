@@ -19,7 +19,7 @@ Dev Memory is a developer-centered local memory system for AI-assisted developme
 
 - Learns your preferences for requirements analysis, implementation, debugging, verification and delivery.
 - Recalls a small set of relevant habits and authorized project rules for the current task.
-- Keeps one-time directions in the conversation; new project memory is off by default.
+- Keeps one-time directions in the conversation; durable project knowledge is captured in initialized projects.
 - Runs as a host-guided Skill with a local Python CLI. It has no daemon, telemetry or external memory service.
 
 ## Quick start
@@ -51,12 +51,14 @@ For Codex, the command configures both user-level global habits and the current 
 | Memory | Examples | Scope and default |
 | --- | --- | --- |
 | Global habits | Reuse suitable existing code; diagnose from evidence; preferred response order | Reused across projects after removing project details. Eligible global capture requires an authorized setup. |
-| Project rules | Business constraints, architecture decisions, interface agreements | Available only in the owning project. New project records require `full-project`. |
+| Project rules | Engineering/documentation conventions, business/data/API contracts, architecture decisions, verified lessons | Available only in the owning project. New project records require `full-project`. |
 | One-time directions | “Skip tests this time” | Current conversation only. |
 
-New project stores use **`developer-first`**: existing project rules can be recalled, but new project records are off. Use `full-project` to enable new durable project records. Existing settings and data are preserved during upgrades.
+New project stores use **`full-project`**: eligible durable project knowledge is captured automatically, without a “remember this” command. `developer-first` remains an opt-in mode that blocks new project records. Upgrades preserve existing modes, paused/disabled controls and data; an older developer-first project needs an explicit switch to full-project.
 
 Codex user-level guidance can use global habits in an uninitialized project without initializing or capturing that project's business memory. To give another project its own store and project rules, run the setup command from that project's root. Initialized projects make one combined global/project recall.
+
+Ordinary feedback needs no scope label. The AI chooses by applicability: repository-specific conventions and contracts stay in the project; reusable habits may qualify globally, with inferred habits stored first as inactive candidates. One-time requests stay in the conversation. Unknown meaning is not evidence.
 
 ## How learning and recall work
 
@@ -85,7 +87,7 @@ The primary assistant assesses user feedback in its existing task reasoning and 
 | --- | --- |
 | Express an ongoing habit | “Across all projects, check for suitable existing code before adding an implementation.” |
 | Enable project records | “Switch this project to full-project memory capture.” |
-| Return to the default mode | “Switch this project to developer-first.” |
+| Disable new project records | “Switch this project to developer-first.” |
 | Correct a habit | “Revise that habit: reuse existing code when it fits the requirement.” |
 | Pause global learning, keep recall | “Pause global habit writes, but keep recall.” |
 | Disable global memory | “Stop both reading and writing global habits.” |
@@ -120,3 +122,5 @@ Installation/program checks do not prove real host compliance or negligible end-
 [Installation and removal](docs/installation.md) · [Architecture](docs/architecture.md) · [Protocol](skills/dev-memory/references/protocol.md) · [Verification reports](reports/verification.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
 Report sanitized issues at [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues). Released under the [MIT License](LICENSE).
+
+[0.8.3 project/global capture review](reports/project-capture-review-0.8.3.md)

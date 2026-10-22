@@ -47,6 +47,48 @@ class SetupTests(unittest.TestCase):
             with contextlib.closing(sqlite3.connect(db)) as conn:
                 self.assertEqual(conn.execute('select count(*) from memories').fetchone()[0], 0)
 
+    def test_fresh_setup_captures_durable_project_knowledge_without_mode_switch(self):
+        self.activate()
+        cases = [
+            ('convention', 'Code naming', 'DTO fields use business-readable names.'),
+            ('convention', 'Documentation contract', 'API examples must group fields by model.'),
+            ('business_rule', 'Eligibility', 'Archived resources cannot be edited.'),
+            ('decision', 'Transaction boundary', 'Ownership changes remain in one local transaction.'),
+            ('procedure', 'Delivery checks', 'Inspect affected consumers before release.'),
+            ('project_fact', 'Database dialect', 'The configured database uses SQLite SQL syntax.'),
+            ('lesson', 'Retry prevention', 'Use the existing idempotency key to prevent duplicate writes.'),
+        ]
+        for n, (kind, title, content) in enumerate(cases):
+            with self.subTest(kind=kind, title=title):
+                record = dict(kind=kind, claim_type='desired', strength='hard', title=title,
+                              content=content, source={'type':'user_statement', 'excerpt':content})
+                saved = store.apply_payload(dict(schema_version=1, scope='project',
+                    session_id='capture-test', turn_id=str(n), idempotency_key=str(n),
+                    operations=[dict(op='ADD', scope='project', record=record)]),
+                    project_root=self.project, global_root=self.global_root)
+                self.assertEqual(saved['status'], 'saved', saved)
+                memory_id = saved['stores'][0]['operations'][0]['id']
+                recalled = store.recall(title, project_root=self.project,
+                    global_root=self.global_root, include_task=False, force=True)
+                self.assertIn(memory_id, [r['id'] for r in recalled['stores'][1]['records']])
+        self.assertEqual(store.list_records('global', global_root=self.global_root)['records'], [])
+
+    def test_upgrade_preserves_deliberate_developer_first_mode(self):
+        store.init_project(self.project, capture_mode='developer-first')
+        result = self.activate()
+        self.assertEqual(result['mode'], 'developer-first')
+        for force in (True, False):
+            recalled = store.recall('naming', project_root=self.project, global_root=self.global_root,
+                                    session_id='mode-check', force=force, include_task=False)
+            self.assertEqual(recalled['stores'][1]['capture_mode'], 'developer-first')
+        payload = dict(schema_version=1, scope='project', session_id='s', turn_id='t',
+            idempotency_key='blocked', operations=[dict(op='ADD', record=dict(
+                kind='convention', claim_type='desired', strength='hard', title='Naming',
+                content='Use business-readable DTO names.',
+                source={'type':'user_statement','excerpt':'Use business-readable DTO names.'}))])
+        receipt = store.apply_payload(payload, project_root=self.project, global_root=self.global_root)
+        self.assertEqual(receipt['status'], 'skipped_developer_first')
+
     def test_existing_instructions_and_override_are_preserved(self):
         (self.project / 'AGENTS.md').write_text('Team instructions\n', encoding="utf-8")
         override = self.project / 'AGENTS.override.md'
@@ -85,7 +127,7 @@ class SetupTests(unittest.TestCase):
         self.assertIn('quiet task boundary', block)
         self.assertIn('`pending_next_turn`', block)
         self.assertIn('pause, disable, read-only, or turn opt-out settings', block)
-        self.assertIn('Keep only durable project facts in project scope', block)
+        self.assertIn('Keep durable project rules, conventions, decisions and evidenced facts in project scope', block)
         self.assertIn('Do not retrieve or write task memories/checkpoints', block)
         self.assertLess(len(block), 1800)
 

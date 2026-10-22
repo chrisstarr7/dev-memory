@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "storage_kind": "project",
-  "capture_mode": "developer-first",
+  "capture_mode": "full-project",
   "capture_enabled": true,
   "recall_enabled": true,
   "limits": {
