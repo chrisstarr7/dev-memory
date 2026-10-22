@@ -196,7 +196,7 @@ class StoreTests(MemoryTestCase):
                                    max_candidates=10, max_details=2, max_chars=1500,
                                    session_id=f"growth-{index}", force=True)
             self.assertLessEqual(len(recalled["stores"][0]["records"]), 2)
-            self.assertLessEqual(recalled["stores"][0]["candidate_count"], 2 * 10 + 2)
+            self.assertLessEqual(recalled["stores"][0]["matched_count"], 2 * 10 + 2)
             self.assertTrue(recalled["stores"][0]["candidate_limit_reached"])
         elapsed = time.perf_counter() - started
         self.assertLess(elapsed, 3.0, f"bounded recall took {elapsed:.3f}s for 300 records x10")

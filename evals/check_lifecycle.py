@@ -8,9 +8,8 @@ import http.client
 import json
 import os
 from pathlib import Path
-import selectors
+import re
 import shutil
-import signal
 import socket
 import sqlite3
 import statistics
@@ -21,7 +20,7 @@ import time
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'skills/dev-memory/scripts'))
-from dev_memory import SKILL_FILES
+from dev_memory import SKILL_FILES, PACKAGE_ROOT, _release_version
 import dev_memory_store as store
 from check_maintenance import observed_usage
 
@@ -45,34 +44,58 @@ def run_model(codex, model, reasoning, project, home, env, label, prompt, output
           '--sandbox','workspace-write','--config','sandbox_workspace_write.network_access=true',
           '--model',model,'--config',f'model_reasoning_effort="{reasoning}"','--add-dir',str(home),prompt]
     print('Starting '+label,flush=True)
-    started=time.monotonic();first=None;events=[];timed_out=False
-    with (output.parent/f'lifecycle-{label}.stderr').open('w') as stderr:
-        process=subprocess.Popen(argv,cwd=project,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=stderr,text=True,start_new_session=True)
-        selector=selectors.DefaultSelector();selector.register(process.stdout,selectors.EVENT_READ)
-        lines=[]
-        while selector.get_map():
-            if time.monotonic()-started>timeout:
-                timed_out=True;os.killpg(process.pid,signal.SIGKILL);break
-            for key,_ in selector.select(.25):
-                line=key.fileobj.readline()
-                if not line:selector.unregister(key.fileobj);continue
-                lines.append(line)
-                try:event=json.loads(line)
-                except ValueError:continue
-                events.append(event)
-                if event.get('type')=='item.started' and event.get('item',{}).get('type') in {'command_execution','mcp_tool_call','file_change'} and first is None:
-                    first=round(time.monotonic()-started,3)
-        process.wait();selector.close();process.stdout.close()
-    (output.parent/f'lifecycle-{label}.jsonl').write_text(''.join(lines))
+    started=time.monotonic();events=[];timed_out=False
+    log=output.parent/f'lifecycle-{label}.jsonl'
+    # File-backed output avoids pipe deadlocks when a tool inherits the host's handles.
+    with log.open('w',encoding='utf-8') as stdout, (output.parent/f'lifecycle-{label}.stderr').open('w',encoding='utf-8') as stderr:
+        with subprocess.Popen(argv,cwd=project,env=env,stdin=subprocess.DEVNULL,stdout=stdout,stderr=stderr) as process:
+            try:process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                timed_out=True;process.kill();process.communicate()
+    elapsed=round(time.monotonic()-started,3)
+    for line in log.read_text(encoding='utf-8').splitlines():
+        try:event=json.loads(line)
+        except ValueError:continue
+        if isinstance(event,dict):events.append(event)
     commands=[e['item'] for e in events if e.get('type')=='item.completed' and e.get('item',{}).get('type')=='command_execution']
-    result={'label':label,'exit_code':process.returncode,'timed_out':timed_out,'seconds':round(time.monotonic()-started,3),
-            'first_tool_action_seconds':first,'command_calls':len(commands),
+    result={'label':label,'exit_code':process.returncode,'timed_out':timed_out,'seconds':elapsed,
+            'first_tool_action_seconds':None,'timing_note':'Buffered logs do not measure first tool receipt time','command_calls':len(commands),
             'tool_calls':sum(e.get('type')=='item.started' and e.get('item',{}).get('type') in {'command_execution','mcp_tool_call','file_change'} for e in events),
             'usage':next((e['usage'] for e in reversed(events) if e.get('usage')),None),
             'memory_use_reported_ids':observed_usage(events),
             'host_errors':[e for e in events if e.get('type') in {'error','turn.failed'}]}
     print(json.dumps(result),flush=True)
     return result,commands
+
+
+def project_capture_checks(project, days=None):
+    """Check durable sourced policy; ordinary work must not produce task memories."""
+    records=store.list_records('project',project_root=project,status='all',limit=200)['records']
+    assert len(records)<200,'Synthetic capture inspection reached its record limit.'
+    assert not any(r['scope']=='task' or r['kind']=='checkpoint' for r in records),'Ordinary workflow captured task memory/checkpoints.'
+    history=[store.show_record('project',r['id'],project_root=project) for r in records if r['status']=='active']
+    details=[d['record'] for d in history]
+    rules=[r for r in details if r['kind'] in {'business_rule','decision'} and r['claim_type']=='desired']
+    sourced_rules=[d['record'] for d in history if d['record'] in rules
+                   and any(e['source_type'] in store.USER_SOURCES for e in d['evidence'])]
+    if days is not None:
+        assert any(re.search(r'(?<!\d)'+str(days)+r'(?!\d)', ' '.join(r.get(k,'') for k in ('title','content','conditions','exceptions','do','dont')))
+                   for r in sourced_rules),f'{days}-day business requirement was not captured as a sourced desired rule.'
+    if days==14:
+        assert not any('30 days' in r['conditions'] or '30-day' in r['conditions'] for r in rules),'Old operative condition remained active.'
+    observations=0;verified=0
+    for detail in history:
+        record=detail['record'];verification=record.get('verification')
+        has_tool_source=any(e['source_type']=='tool_result' for e in detail['evidence'])
+        observations+=record['claim_type']=='observed' and has_tool_source
+        if verification:
+            assert has_tool_source,'Verification lacks tool-result evidence.'
+            assert all(isinstance(verification.get(k),str) and verification[k].strip() for k in ('command','finished_at','code_version')), 'Verification lacks command/time/code version.'
+            assert type(verification.get('exit_code')) is int and verification['exit_code']==0,'Verification lacks successful exit code.'
+            verified+=1
+    return {'project_global_only_capture':True,'structured_verification_records':verified,
+            'actual_tool_result_observations':observations,
+            'record_kinds':{k:sum(r['kind']==k for r in details) for k in {r['kind'] for r in details}}}
 
 
 def independent_integration(project, home):
@@ -111,6 +134,7 @@ def independent_integration(project, home):
         checks['integer_cents_uppercase_status']=True
         status,replay=post('blue','eligible','same');assert status==200 and replay==original,(status,replay)
         checks['idempotent_replay']=True
+        assert post('blue','eligible','new-key')[0]==409;checks['already_refunded_order_conflict']=True
         status,other=post('green','eligible','same');assert status==201,(status,other)
         checks['tenant_isolated_keys']=True
         assert post('blue','late','same')[0]==409;checks['key_conflict']=True
@@ -119,9 +143,11 @@ def independent_integration(project, home):
         checks['boundary_and_all_exclusions']=True
         assert post('unknown','eligible','missing')[0]==404;checks['no_cross_tenant_order_leak']=True
         client=f"import {{requestRefund}} from './frontend.mjs';const x=await requestRefund('http://127.0.0.1:{port}','blue','eligible','same');if(x.status!=='APPROVED'||x.amount_cents!==1499)throw Error('Client contract mismatch');"
+        client+=f"let rejected=false;try{{await requestRefund('http://127.0.0.1:{port}','blue','late','client-late')}}catch(e){{rejected=true}}if(!rejected)throw Error('Client accepted non-2xx');"
         node=subprocess.run(['node','--input-type=module','-e',client],cwd=project,capture_output=True,text=True,timeout=15)
         assert node.returncode==0,'Frontend request failed: '+node.stderr[-1000:]
         checks['actual_frontend_backend_http']=True
+        checks['frontend_rejects_non_2xx']=True
         return checks
     finally:
         server.terminate()
@@ -167,20 +193,24 @@ def program_scale_probe():
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--model');p.add_argument('--reasoning');p.add_argument('--program-only',action='store_true');p.add_argument('--timeout-seconds',type=int,default=360)
-    p.add_argument('--design-only',action='store_true',help='Fail fast on first-turn requirement/global preference/checkpoint capture')
+    p.add_argument('--design-only',action='store_true',help='Fail fast on first-turn sourced requirement/global preference capture without task memories')
     a=p.parse_args();output=a.output.expanduser().resolve()
     if output.is_relative_to(ROOT):p.error('Keep synthetic transcripts outside the repository.')
     output.parent.mkdir(parents=True,exist_ok=True)
+    version=_release_version(PACKAGE_ROOT)
+    assert version is not None,'Runtime release version unavailable.'
+    runtime_version='.'.join(map(str,version))
     if a.program_only:
-        report={'status':'passed','runtime_version':'0.6.0','runtime_source_sha256':source_hashes(),'program_scale':program_scale_probe()}
+        report={'status':'passed','runtime_version':runtime_version,'runtime_source_sha256':source_hashes(),'program_scale':program_scale_probe()}
         output.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report));return 0
     if not a.model or not a.reasoning:p.error('--model and --reasoning are required for real-host evaluation.')
     codex=shutil.which('codex');assert codex and shutil.which('node'),'Codex and Node required for explicit evaluation.'
     frozen=source_hashes()
-    report={'status':'running','runtime_version':'0.6.0','host':subprocess.check_output([codex,'--version'],text=True).strip(),
+    report={'status':'running','runtime_version':runtime_version,'host':subprocess.check_output([codex,'--version'],text=True).strip(),
             'model':a.model,'reasoning':a.reasoning,'runtime_source_sha256':frozen,'synthetic_only':True,'hooks_configured':False,
             'ordinary_prompts_without_skill_invocation':True,'runs':[],'checks':{},'limitations':[
             'One synthetic project cycle over fresh Codex CLI sessions; not exhaustive semantic validation or other-host enforcement.',
+            'Timeout kills and reaps the host process; independently spawned descendants are not recursively terminated.',
             'Loopback networking is explicitly allowed for the local fixture; not proof of production authentication/security.',
             'Independent behavior checks do not prove negligible whole-workflow overhead; matched benchmark is separate.']}
     try:
@@ -204,21 +234,16 @@ def main():
             for name in ['SPEC.md','schema.sql','api.md']:assert (project/name).is_file(),name
             assert not (project/'backend.py').exists(),'Implemented before authorization.'
             report['checks']['requirements_schema_api_artifacts']=True
-            first_records=store.list_records('project',project_root=project,status='active',limit=100)['records']
-            first_history=[store.show_record('project',r['id'],project_root=project) for r in first_records]
-            first_details=[detail['record'] for detail in first_history]
-            user_sourced={detail['record']['id'] for detail in first_history if any(e['source_type'] in {'user_statement','user_confirmation','user_feedback'} for e in detail['evidence'])}
-            assert any(r['kind'] in {'business_rule','decision'} and r['claim_type']=='desired' and '30' in json.dumps(r,ensure_ascii=False)
-                       and r['id'] in user_sourced for r in first_details), 'Initial business requirement was not captured as a sourced desired rule.'
-            assert any(r['kind']=='checkpoint' and r['task_id'] for r in first_details), 'Initial task checkpoint missing.'
+            report['checks']['first_turn_capture']=project_capture_checks(project,30)
             assert store.list_records('global',global_root=home/'.dev-memory')['records'], 'Explicit cross-project preference missing.'
-            report['checks']['first_turn_requirement_preference_checkpoint_captured']=True
+            report['checks']['first_turn_requirement_preference_captured']=True
             if a.design_only:
                 report['status']='passed'
                 output.write_text(json.dumps(report,indent=2)+'\n')
                 print(json.dumps({'status':report['status'],'checks':report['checks']}),flush=True)
                 return 0
             run('correction-code-frontend-integration',project,IMPLEMENT)
+            report['checks']['implementation_capture']=project_capture_checks(project,14)
             report['checks']['independent_before_bug']=independent_integration(project,home)
             backend=project/'backend.py';tree=ast.parse(backend.read_text());changed=0
             class BoundaryBug(ast.NodeTransformer):
@@ -234,23 +259,11 @@ def main():
             else:raise AssertionError('The injected boundary defect was not detected.')
             run('testing-regression-bugfix',project,FIX)
             report['checks']['independent_after_fix']=independent_integration(project,home)
-            active=store.list_records('project',project_root=project,status='active',limit=100)['records']
-            history=[store.show_record('project',r['id'],project_root=project) for r in active]
-            details=[detail['record'] for detail in history]
-            rules=[r for r in details if r['kind'] in {'business_rule','decision'} and r['claim_type']=='desired']
-            assert rules,'No business constraints captured.'
-            assert any('14' in json.dumps(r,ensure_ascii=False) for r in rules),'Correction missing.'
-            assert not any('30 days' in r['conditions'] or '30-day' in r['conditions'] for r in rules),'Old operative condition remained active.'
+            report['checks']['corrected_policy_capture']=project_capture_checks(project,14)
             report['checks']['semantic_review_note']='Historical superseded-rule annotations may remain in current prose; manually distinguish them from operative conditions.'
-            checkpoints=[r for r in details if r['kind']=='checkpoint'];assert checkpoints,'No real checkpoint.'
-            assert len({r['task_id'] for r in checkpoints})==len(checkpoints),'Repeated active checkpoints for a task.'
-            assert any(detail['record']['claim_type']=='observed' and any(e['source_type']=='tool_result' for e in detail['evidence']) for detail in history),'No actual tool-result observation captured.'
-            report['checks']['structured_verification_records']=sum(bool(r.get('verification')) for r in details)
-            report['checks']['actual_tool_result_observation_captured']=True
-            report['checks']['corrected_policy_and_current_checkpoints']=True
-            report['checks']['record_kinds']={k:sum(r['kind']==k for r in details) for k in {r['kind'] for r in details}}
             commands=run('project-switch',other,SWITCH)
             subprocess.run([sys.executable,'-c',"from cancel import cancel_allowed;assert cancel_allowed(0);assert cancel_allowed(2);assert not cancel_allowed(3)"],cwd=other,check=True,env=env)
+            report['checks']['project_switch_capture']=project_capture_checks(other)
             b=store.list_records('project',project_root=other)['records']
             assert not any('final_sale' in store.show_record('project',r['id'],project_root=other)['record']['content'] for r in b),'Project A leaked into B.'
             global_records=store.list_records('global',global_root=home/'.dev-memory')['records']

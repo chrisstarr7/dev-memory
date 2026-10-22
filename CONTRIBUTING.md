@@ -16,9 +16,7 @@ Update public files and release whitelist together. Version fields in SKILL.md, 
 
 ## Default activation end-to-end check
 
-`python3 evals/check_automatic.py --output /outside/repository/automatic.json` executes three real Codex CLI sessions using the existing login, `gpt-6-astra` and medium reasoning. It uses synthetic projects, an isolated temporary home and empty stores; no user's instructions, Skill configuration or memory are modified. Temporary login material is copied locally for this explicit test and removed with the scratch directory. Ordinary user prompts never invoke the Skill. Model calls use the host account and take time; this is not a default CI step or an additional runtime service.
-
-The output directory receives synthetic JSONL transcripts and the report. Verify saved records, resumed conditions and B's scope isolation separately from configuration checks. Failure is a failure; do not mark event enforcement, other hosts or latency verified from this sequence.
+`check_automatic.py` now delegates to the current lifecycle evaluator rather than requiring obsolete task checkpoints. Use `python3 -B evals/check_lifecycle.py --model MODEL --reasoning medium --design-only --output /outside/repository/activation.json` for first-turn sourced requirement/global-preference capture, or omit `--design-only` for the full cycle. Both use fresh synthetic stores and require no task memories. These explicit host calls consume account usage; they are not default CI steps. The evaluator uses an isolated home and locally copied login material removed with the scratch directory. Installation checks remain separate from actual model behavior.
 
 ## Automatic maintenance evaluation
 
@@ -48,7 +46,7 @@ python3 -B evals/bench_compare.py --scenario automatic-maintenance --model gpt-6
 
 Freeze runtime sources throughout a model evaluation. Identical history is seeded in both modes; off has no installed/activated Skill. Business task/code/model/reasoning stay equal. First business edit is sampled separately from the first-tool proxy and does not prove a correct edit. Retain failed invocations and unavailable metrics; do not treat quota failures as successful fast tasks. These tools consume the existing host account's model usage; they are optional contributor evaluations, not runtime dependencies or background work. Never publish their raw authentication files or synthetic transcripts by default.
 
-Review semantic predicates as well as outputs: an explicitly superseded historical condition is not an active permission. Plain successful tool-result observations may be stored without optional machine-verification fields; they do not certify the present workspace. The 0.5.0 final host pass and matched workflow timings remain blocked as documented in `reports/lifecycle-review.md`.
+Review semantic predicates as well as outputs: an explicitly superseded historical condition is not an active permission. Durable successful tool-result observations may be stored without optional machine-verification fields; ordinary test progress need not be stored and does not certify the present workspace. Program-only and fake-emitter tests use no model; full host sessions require explicit model parameters. Buffered host logs report no first-tool timestamp rather than inferring one. The 0.5.0 final host pass and matched workflow timings remain blocked as documented in `reports/lifecycle-review.md`.
 
 ## Optional DeepSeek provider check
 

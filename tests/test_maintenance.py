@@ -51,6 +51,12 @@ class MaintenanceTests(MemoryTestCase):
         for n in range(5):
             self.add_project_rule(turn=f'other-large-{n}',content=f'Long restriction {n}. '*1500,tags=['large'])
         small = self.add_project_rule(turn='small',kind='convention',content='Use stable DTO field names.',tags=['naming'])
+        # Fast hosts insert within one second; UUID tie ordering must not define this fixture.
+        _,db=store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            conn.execute("UPDATE maintenance_pending SET updated_at='2001-01-01T00:00:00+00:00' WHERE memory_id!=?",(small,))
+            conn.execute("UPDATE maintenance_pending SET updated_at='2000-01-01T00:00:00+00:00' WHERE memory_id=?",(large,))
+            conn.commit()
         pack = store.maintenance_prepare('project',project_root=self.project_a,force=True)
         self.assertIn(small,[r['id'] for r in pack['records']])
         self.assertIn(large,pack['remaining_ids'])

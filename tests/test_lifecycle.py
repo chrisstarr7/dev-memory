@@ -167,7 +167,9 @@ class LifecycleTests(MemoryTestCase):
 
     def test_current_batch_show_is_bounded_and_omits_old_audit_bodies(self):
         ids=[self.add_project_rule(turn=str(n),content=f'Current rule {n}') for n in range(3)]
-        result=store.show_current('project',ids,project_root=self.project_a)
+        with patch.object(store,'_workspace_signature',side_effect=AssertionError('Unverified reads need no workspace scan')):
+            result=store.show_current('project',ids,project_root=self.project_a)
+            self.assertIsNone(store.show_record('project',ids[0],project_root=self.project_a)['record']['verification_status'])
         self.assertEqual({r['id'] for r in result['records']},set(ids))
         self.assertTrue(result['audit_not_loaded'])
         self.assertNotIn('revisions',result)
@@ -223,6 +225,78 @@ class LifecycleTests(MemoryTestCase):
         self.assertEqual(shown.returncode,0,shown.stdout+shown.stderr)
         self.assertEqual(json.loads(shown.stdout)['records'][0]['id'],mid)
 
+    def test_project_borrows_unused_global_budget_without_cache_churn(self):
+        self.apply(scope='global',task='one-task',turn='inactive-habit',operations=[{'op':'ADD','record':{
+            'kind':'preference','claim_type':'preference','strength':'soft','status':'candidate',
+            'cross_project_confirmed':False,'title':'Reuse','content':'Inspect suitable existing implementations.',
+            'source':{'type':'user_feedback','excerpt':'The user chose checking existing implementations.'}}}])
+        for n in range(3):
+            self.add_project_rule(turn=f'rule-{n}',content=f'Project payment rule {n}.',
+                conditions='',exceptions='',do='',dont='',verification_steps='')
+        kwargs=dict(query='payment',project_root=self.project_a,global_root=self.global_root,session_id='borrow')
+        first=dev_memory.context(**kwargs,include_task=False)
+        self.assertEqual(len(first['stores'][1]['records']),3)
+        self.assertFalse(first['stores'][1]['context_incomplete'])
+        second=dev_memory.context(**kwargs,include_task=False)
+        self.assertEqual([r['status'] for r in second['stores']],['cached','cached'])
+        self.apply(scope='global',turn='confirmed-global',operations=[{'op':'ADD','record':self.record(
+            scope='global',kind='preference',title='Reporting',content='Report outcomes before remaining gaps.')}])
+        changed=dev_memory.context(**kwargs,include_task=False)
+        self.assertEqual(len(changed['stores'][0]['records']),1)
+        self.assertLessEqual(len(changed['stores'][1]['records']),2)
+        self.assertTrue(changed['stores'][1]['context_incomplete'])
+
+    def test_disabled_or_excluded_memory_cannot_be_read_through_inspection(self):
+        ids={}
+        ids['project']=self.add_project_rule(content='Synthetic private project constraint.')
+        result=self.apply(scope='global',turn='global-rule',operations=[{'op':'ADD','record':self.record(
+            scope='global',kind='preference',content='Use a consistent reporting order.')}])
+        ids['global']=result['stores'][0]['operations'][0]['id']
+        for kind in ('global','project'):
+            path=store.config_path_for(kind,root=self.project_a,global_root=self.global_root)
+            original=path.read_bytes()
+            for control in ({'recall_enabled':False},{'excluded':True}):
+                try:
+                    config=json.loads(original);config.update(control);store.write_json_atomic(path,config)
+                    shown=store.show_record(kind,ids[kind],project_root=self.project_a,global_root=self.global_root)
+                    listed=store.list_records(kind,project_root=self.project_a,global_root=self.global_root)
+                    self.assertEqual(shown.get('status'),'disabled')
+                    self.assertNotIn('record',shown)
+                    self.assertNotIn('evidence',shown)
+                    self.assertEqual(listed.get('status'),'disabled')
+                    self.assertEqual(listed['records'],[])
+                finally:path.write_bytes(original)
+
+    def test_current_lookup_labels_stale_verification_and_checks_workspace_once(self):
+        (self.project_a/'app.py').write_text('PAYMENT_LIMIT = 30\n',encoding='utf-8')
+        record=self.record(kind='lesson',claim_type='observed',content='The refund boundary regression passed on the checked source.',
+            source={'type':'tool_result','excerpt':'The actual regression command completed with exit code zero.'},
+            verification={'command':'python -m unittest','finished_at':'2026-10-22T00:00:00Z',
+                          'code_version':'synthetic-v1','exit_code':0})
+        memory_id=self.apply(scope='project',operations=[{'op':'ADD','record':record}])['stores'][0]['operations'][0]['id']
+        other=self.apply(scope='project',turn='other-result',operations=[{'op':'ADD','record':{**record,'title':'Other check','content':'A separate durable regression check.'}}])['stores'][0]['operations'][0]['id']
+        (self.project_a/'app.py').write_text('PAYMENT_LIMIT = 14\n',encoding='utf-8')
+        with patch.object(store,'_workspace_signature',wraps=store._workspace_signature) as fingerprint:
+            shown_records=store.show_current('project',[memory_id,other],project_root=self.project_a)['records']
+            shown=shown_records[0]
+            self.assertTrue(all(r['verification_status']=='stale_workspace_changed' for r in shown_records))
+            self.assertEqual(fingerprint.call_count,1)
+        self.assertEqual(shown['verification_status'],store.show_record('project',memory_id,project_root=self.project_a)['record']['verification_status'])
+        summary=store.consolidate_sources('project',[memory_id],project_root=self.project_a)
+        self.assertEqual(summary['sources'][0]['verification_status'],'stale_workspace_changed')
+
+    def test_code_observation_cannot_become_a_desired_convention(self):
+        for n,claim in enumerate(('desired','preference')):
+            result=self.apply(scope='project',turn=f'legacy-code-{n}',operations=[{'op':'ADD',
+                'record':self.record(kind='convention',claim_type=claim,
+                    content='Always keep the observed permissive authorization behavior.',
+                    source={'type':'code_observation','excerpt':'Existing code returns true without checking permission.'})}])
+            self.assertEqual(result['stores'][0]['error'],'provenance_error')
+        observed=self.add_project_rule(turn='observed-only',kind='project_fact',claim_type='observed',
+            content='The legacy authorization path currently returns true without checking permission.',
+            source={'type':'code_observation','excerpt':'Observed the implementation; this is not a required behavior.'})
+        self.assertEqual(store.show_record('project',observed,project_root=self.project_a)['record']['claim_type'],'observed')
+
     def test_seven_phase_memory_contract_and_project_switch(self):
         """Deterministic synthetic memory events; this is not an AI workflow timing test."""
         pref=self.apply(scope='global',turn='preference',operations=[{'op':'ADD','record':self.record(
@@ -232,7 +306,8 @@ class LifecycleTests(MemoryTestCase):
         mid=self.add_project_rule(turn='requirements',content='Synthetic refund policy: delivered/unopened within 30 days.',
             conditions='Delivered, unopened, delivery age <=30.',exceptions='Gift/final-sale excluded.',
             source={'type':'user_feedback','excerpt':'Synthetic requirement: delivered/unopened within 30 days; gift/final-sale excluded.'})
-        stages=('requirements','schema','api','implementation','integration','testing','bugfix')
+        stages=('requirements','design','api','implementation','verification','bugfix','delivery')
+        last_loaded=None
         for stage in stages:
             if stage=='implementation':
                 corrected=self.record(content='Synthetic refund policy: delivered/unopened within 14 days.',
@@ -240,24 +315,30 @@ class LifecycleTests(MemoryTestCase):
                 changed=self.apply(turn='correction',scope='project',operations=[{'op':'REVISE','id':mid,
                     'expected_revision':1,'record':corrected}])
                 self.assertEqual(changed['stores'][0]['operations'][0]['id'],mid)
-            self.apply(scope='task',task='cycle',turn=stage,operations=[{'op':'CHECKPOINT','record':self.record(
-                kind='checkpoint',claim_type='observed',content=f'Synthetic fixture reached stage:{stage}; continue with the next stage.',
-                source={'type':'code_observation','excerpt':f'Synthetic stage event: {stage}.'})}])
-            context=dev_memory.context(query=f'refund stage:{stage}',project_root=self.project_a,
-                global_root=self.global_root,task_id='cycle',force=True)
+            context=dev_memory.context(query='refund eligibility',project_root=self.project_a,
+                global_root=self.global_root,session_id='cycle',include_task=False)
             bucket=context['stores'][1]
             relevant={r['id']:r for r in bucket['records']}
             if mid not in relevant:
-                relevant.update({r['id']:r for r in store.show_current('project',[mid],project_root=self.project_a)['records']})
+                self.assertEqual(bucket['status'],'cached')
+                relevant[mid]=last_loaded
+            else:
+                self.assertEqual(bucket['status'],'ok')
+                last_loaded=relevant[mid]
             self.assertIn(mid,relevant)
             expected='<=14' if stages.index(stage)>=3 else '<=30'
             self.assertIn(expected,relevant[mid]['conditions'])
             self.assertEqual(relevant[mid]['exceptions'],'Gift/final-sale excluded.')
         current=store.list_records('project',project_root=self.project_a)['records']
-        self.assertEqual(sum(r['kind']=='checkpoint' for r in current),1)
+        self.assertFalse(any(r['scope']=='task' or r['kind']=='checkpoint' for r in current))
         self.assertEqual(sum(r['kind']=='business_rule' for r in current),1)
         history=store.show_record('project',mid,project_root=self.project_a)
-        self.assertTrue(history['revisions'])
+        self.assertEqual(history['record']['revision'],2)
+        self.assertEqual(len(history['revisions']),1)
+        _,db=store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM session_bindings').fetchone()[0],0)
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM receipts').fetchone()[0],2)
         b=dev_memory.context(query='cancellation',project_root=self.project_b,global_root=self.global_root,force=True)
         self.assertIn(pid,[r['id'] for r in b['stores'][0]['records']])
         self.assertEqual(b['stores'][1]['records'],[])

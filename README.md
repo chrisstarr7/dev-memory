@@ -91,10 +91,22 @@ flowchart TD
     K --> F
 ```
 
-- Recall is part of the primary workflow. One focused `context --exclude-task` lookup supplies a bounded set of relevant rules; valid context is reused. Context loss requires a fresh lookup. Default body budget is five records / 4000 characters, reserving three global and two project records; unloaded or incomplete results may require targeted follow-up.
+- Recall is part of the primary workflow. One focused `context --exclude-task` lookup supplies a bounded set of relevant rules; valid context is reused. Context loss requires a fresh lookup. Default body budget is five records / 4000 characters, normally reserving three global and two project records; unloaded or incomplete results may require targeted follow-up. If global scope has no eligible rules or recall is disabled there, the project borrows that unused capacity; the total budget stays unchanged.
 - The primary AI evaluates capture during its existing reasoning. Important corrections are captured before affected edits; ordinary eligible changes are batched before final delivery. Equivalent records are reused or revised, with evidence and history preserved.
 - An optional host-provided read-only reviewer can help with complex assessment when useful work overlaps. If used, the primary AI joins it, applies eligible records and checks receipts **before ending the response**. A launched reviewer is not a successful save. There is no required extra model call or continuous conversation listener.
 - Global and project writes have separate transactions: one can succeed while the other fails. A write failure must be reported accurately. See the [protocol](skills/dev-memory/references/protocol.md) for operation schemas, source requirements, revision guards and retrieval limits.
+
+## Throughout the development lifecycle
+
+| Phase | How memory participates |
+| --- | --- |
+| Requirements | Recall current business rules; save confirmed durable requirements and exceptions. |
+| Design | Reuse contracts and decisions; keep provisional assumptions out of active rules. |
+| Implementation | Apply conventions and canonical capabilities; distinguish observed legacy behavior from required behavior. |
+| Verification | Recall acceptance/regression obligations; old test evidence is version-bound, not a fresh pass. |
+| Correction | Save important corrections before affected edits; invalidate obsolete derived summaries. |
+| Delivery | Follow artifact/reporting rules, finish eligible capture and inspect receipts; do not save task progress. |
+| Next task/project | Focused recall from global and the current project; fetch missing relevant rules and keep projects isolated. |
 
 ## Automatic organization and summaries
 
@@ -173,6 +185,7 @@ Rerun the same installation command from the project root, then open a new AI se
 - [Installation and removal](docs/installation.md): hosts, paths, alternate installation and troubleshooting.
 - [Verification reports](reports/verification.md): actual program/host checks and known gaps.
 - [0.8.4 maintenance review](reports/maintenance-review-0.8.4.md).
+- [0.8.5 lifecycle exercise and review](reports/lifecycle-review-0.8.5.md).
 - [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE).
 
 Report sanitized issues at [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues). Do not attach private databases, credentials or raw conversations.

@@ -657,6 +657,8 @@ def _validate_record(record: Any, scope: str, task_id: str | None, namespace_id:
         raise MemoryError("validation_error", "Evidence excerpt exceeds 500 characters.")
     if source.get("type") == "model_inference" and status == "active":
         raise MemoryError("provenance_error", "Model inference alone cannot create an active memory.")
+    if source.get("type") == "code_observation" and claim_type in {"desired", "preference"}:
+        raise MemoryError("provenance_error", "Code observations describe existing behavior, not desired rules or user preferences.")
     if scope == "global":
         _validate_global(record, source, inferred_active=inferred_active)
     verify = record.get("verification", {})
@@ -1781,7 +1783,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         except sqlite3.Error:
             active_task = task_id
     cache_value = {
-        "retrieval_format": 5, "intent": intent,
+        "retrieval_format": 6, "intent": intent,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
         "revision": current_revision, "task": active_task, "module": module, "resume": resume,
         "include_task": include_task,
@@ -1805,9 +1807,12 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         if session_id and not force and not readonly and can_cache:
             cache_conn = _connect(db_path, readonly=True)
             previous = cache_conn.execute("SELECT 1 FROM session_context WHERE session_id=? AND context_key=?", (session_id, cache_key)).fetchone()
+            no_eligible_rules = (kind == 'global' and previous and cache_conn.execute(
+                "SELECT 1 FROM memories WHERE scope='global' AND status IN ('active','conflicted') AND claim_type!='hypothesis' LIMIT 1").fetchone() is None)
             cache_conn.close()
             if previous:
-                return {"scope": kind, "status": "cached", "records": [], "context_incomplete": False, "data_revision": current_revision, **capture}
+                return {"scope": kind, "status": "cached", "records": [], "context_incomplete": False, "data_revision": current_revision,
+                        **({'no_eligible_rules':bool(no_eligible_rules)} if kind == 'global' else {}), **capture}
         conn = _connect(db_path, readonly=True)
         deadline = time.monotonic() + 0.5
         conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
@@ -1875,11 +1880,14 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             ).fetchall())
         if not selected_ids:
             empty_store = conn.execute("SELECT 1 FROM memories WHERE status IN ('active','candidate','conflicted') LIMIT 1").fetchone() is None
+            no_eligible_rules = (kind == 'global' and conn.execute(
+                "SELECT 1 FROM memories WHERE scope='global' AND status IN ('active','conflicted') AND claim_type!='hypothesis' LIMIT 1").fetchone() is None)
             conn.close()
             if session_id and not readonly and can_cache:
                 _claim_context(kind, db_path, config, session_id, cache_key, True)
             return {"scope": kind, "status": "ok", "records": [], "context_incomplete": False,
-                    "candidate_count": 0, "data_revision": current_revision, "empty_store": empty_store, **capture}
+                    "matched_count": 0, "data_revision": current_revision, "empty_store": empty_store,
+                    **({'no_eligible_rules':bool(no_eligible_rules)} if kind == 'global' else {}), **capture}
         records = []
         for memory_id in selected_ids:
             record = _select_record(conn, memory_id)
@@ -1940,7 +1948,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         if session_id and not readonly and not remaining and can_cache:
             _claim_context(kind, db_path, config, session_id, cache_key, True)
         return {
-            "scope": kind, "status": "ok", "records": details, "candidate_count": candidate_count, **capture,
+            "scope": kind, "status": "ok", "records": details, "matched_count": candidate_count, **capture,
             "context_incomplete": bool(remaining), "remaining_ids": remaining,
             "unloaded_candidates": unloaded,
             "candidate_limit_reached": candidate_limit_reached or bool(overflow_ids),
@@ -1968,8 +1976,8 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
                                 force=force, readonly=readonly, intent=intent)]
     else:
         half_candidates = max(1, max_candidates // 2)
-        # Fixed per-store budgets remain stable when one side returns cached.
-        # Developer habits lead; fixed budgets preserve cache behavior and project capacity.
+        # Reserve both scopes; a provably inactive global side lends its unused budget.
+        # The same indexed eligibility check on cache hits keeps this allocation stable.
         global_details = min(max(0, max_details - 1), max(1, (max_details * 3) // 5))
         global_budget = max(0, (max_chars * 3) // 5)
         global_result = _recall_store(
@@ -1977,6 +1985,8 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
             max_candidates=half_candidates, max_details=global_details, max_chars=global_budget,
             force=force, readonly=readonly, intent=intent,
         )
+        if global_result.get('no_eligible_rules') is True or global_result['status'] == 'disabled':
+            global_details, global_budget = 0, 0
         remaining_details = max(0, max_details - global_details)
         remaining_chars = max(0, max_chars - global_budget)
         project_result = _recall_store(
@@ -2010,11 +2020,19 @@ def show_current(kind: str, memory_ids: list[str], *, project_root: Path | None 
     conn = _connect(db, readonly=True)
     try:
         records, remaining, missing, used = [], [], [], 0
+        head, signature, workspace_checked = None, None, False
         for memory_id in memory_ids:
             record = _select_record(conn, memory_id)
             if record is None:
                 missing.append(memory_id)
                 continue
+            if kind == 'project':
+                if record.get('verification') and not workspace_checked:
+                    head = _run_git(project_root, ['rev-parse', '--short=12', 'HEAD']) if project_root else None
+                    signature = _workspace_signature(project_root) if project_root else None
+                    workspace_checked = True
+                record['verification_status'] = _verification_status(
+                    record, project_root, head.stdout.strip() if head and head.returncode == 0 else None, signature)
             size = len(json.dumps(record, ensure_ascii=False))
             if used + size > 12000:
                 remaining.append(memory_id)
@@ -2027,7 +2045,9 @@ def show_current(kind: str, memory_ids: list[str], *, project_root: Path | None 
 
 
 def show_record(kind: str, memory_id: str, *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
-    _, db, _ = _config_for(kind, project_root, global_root)
+    _, db, config = _config_for(kind, project_root, global_root)
+    if not config.get('recall_enabled', True) or config.get('excluded'):
+        return {'scope':kind, 'status':'disabled'}
     conn = _connect(db, readonly=True)
     conn.row_factory = sqlite3.Row
     record = _select_record(conn, memory_id)
@@ -2047,12 +2067,14 @@ def show_record(kind: str, memory_id: str, *, project_root: Path | None = None, 
     conn.close()
     if not record:
         raise MemoryError("not_found", "Memory record was not found.")
-    if kind == "project":
+    if kind == "project" and record.get("verification"):
         head = _run_git(project_root, ["rev-parse", "--short=12", "HEAD"]) if project_root else None
         signature = _workspace_signature(project_root) if project_root else None
         record["verification_status"] = _verification_status(
             record, project_root, head.stdout.strip() if head and head.returncode == 0 else None, signature
         )
+    elif kind == "project":
+        record["verification_status"] = None
     return {"record": record, "evidence": evidence, "revisions": revisions, "merged_source_ids": merged_sources}
 
 def list_records(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
@@ -2060,6 +2082,8 @@ def list_records(kind: str, *, project_root: Path | None = None, global_root: Pa
     if status not in {"active", "candidate", "conflicted", "archived", "superseded", "stale", "all"}:
         raise MemoryError("validation_error", "Unsupported list status.")
     base, db, config = _config_for(kind, project_root, global_root)
+    if not config.get('recall_enabled', True) or config.get('excluded'):
+        return {'scope':kind, 'status':'disabled', 'records':[]}
     conn = _connect(db, readonly=True)
     conn.row_factory = sqlite3.Row
     if status == "all":
@@ -2555,10 +2579,18 @@ def consolidate_sources(kind: str, source_ids: list[str], *, project_root: Path 
     conn = _connect(db, readonly=True)
     try:
         records, remaining, used = [], [], 0
+        head, signature, workspace_checked = None, None, False
         for memory_id in source_ids:
             record = _select_record(conn, memory_id)
             if not record or record["namespace_id"] != config["namespace_id"] or record["scope"] != kind:
                 raise MemoryError("scope_error", "Consolidation sources must exist in this same storage scope.")
+            if kind == 'project':
+                if record.get('verification') and not workspace_checked:
+                    head = _run_git(project_root, ['rev-parse', '--short=12', 'HEAD']) if project_root else None
+                    signature = _workspace_signature(project_root) if project_root else None
+                    workspace_checked = True
+                record['verification_status'] = _verification_status(
+                    record, project_root, head.stdout.strip() if head and head.returncode == 0 else None, signature)
             shaped = _context_record(record)
             size = len(json.dumps(shaped, ensure_ascii=False))
             if used + size > 12000:
