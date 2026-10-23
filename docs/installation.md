@@ -58,10 +58,10 @@ npx -y chrisstarr7/dev-memory deepseek
 
 0.5.2 修复了程序目录的 Windows ACL 创建方式：以前将 `0700` 同时用于公开 Skill 程序和私有数据，而 Windows Python 会把这种目录限制为当前用户和管理员可访问。Codex 沙箱身份可能因此读不到 Skill。现在公开程序目录继承安装父目录的 ACL，macOS/Linux 的模式和私有记忆库权限保持原策略。
 
-已有安装在业务项目根目录的**普通终端**重复执行原命令即可升级：
+已有安装在业务项目根目录的**普通终端**执行独立更新命令：
 
 ```sh
-npx -y chrisstarr7/dev-memory codex
+npx -y --prefer-online chrisstarr7/dev-memory update codex
 ```
 
 从旧版升级时，安装器会重建受管理的程序目录和子目录；相同新版重复执行时复用文件。若需要修复同版本程序目录权限，追加 `--upgrade` 强制重建。已有记忆、暂停设置、项目指令及绑定保留。完成后新建 Codex App 会话。该修复不要求给 AI 管理员权限，不运行 `RunAs`、`takeown`、`icacls /reset`，不修改整个 `.agents`、Codex 沙箱或企业权限策略。
@@ -168,12 +168,18 @@ AI 可从安装副本运行 `doctor --project-root <路径>`，检查 `project_a
 
 ## 升级与卸载
 
-**升级：在项目根目录重新执行同一在线命令。** 程序有变化时更新，相同版本复用，同时检查/更新该项目的绑定，已有记忆和暂停状态保留。其他项目的绑定不被扫描或修改。
+**升级已有安装：**
+
+```sh
+npx -y --prefer-online chrisstarr7/dev-memory update codex
+```
+
+更新要求已有受管理程序，内容相同则复用；只刷新当前项目和 Codex 用户已经存在且属于该安装的绑定。未配置的项目/用户级记忆会明确跳过，不执行首次初始化，不扫描其他项目。缺失或损坏的既有存储会报错，不会重建空库。首次安装或新项目首次启用仍使用 `npx -y --prefer-online chrisstarr7/dev-memory codex`。
 
 使用离线源码且仅更新程序时：
 
 ```sh
-python3 install.py codex
+python3 install.py update codex
 ```
 
 `--upgrade` 仅用于强制重建同版本受管理程序；普通安装和更新无需追加。安装器拒绝用旧源码覆盖较新版本。`old_program_cleanup` 如为 `pending:<目录名>`，新程序已经就位，但旧程序备份因文件占用尚未删除；确认文件不再占用后清理该具名旧程序目录。该备份不含记忆。
@@ -206,3 +212,5 @@ python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py uninstall --agent code
 更新源码不会升级旧安装副本，也不会刷新已打开会话的指令。用安装回执中的实际 Python 和 CLI 运行一次 `doctor`，查看 `skill_version`、`skill_path`、`user_activation`、`project_activation` 和每种状态的记录数。`active_count` 仅统计生效规则；`candidate_count` 是已经保存但尚未采用的习惯，普通召回不会加载其正文。确需查看时使用 `list --scope global --status candidate`，不要求日常每轮运行诊断。
 
 已经授权用户级学习、但不想初始化项目时，先升级程序，再用安装副本的 CLI 执行 `setup --user --agent codex`。这只配置全局用户引导并保留原捕获开关，不新建项目库。它不能与 `--project-root` 同时使用，其他宿主仍需各自项目适配器。完成后新建 AI 会话。安装或激活回执只证明配置状态，不证明 AI 已经记录或实际采用了习惯。
+
+安装和更新使用 `runtime-check` 验证实际安装副本的 Python、模块加载和内存 SQLite；不会因可选 Codex/Git 探测缓慢而触发完整 doctor 的安装超时。完整 `doctor` 留给实际集成排查。失败回执包含阶段和错误类型；有程序目录并不代表引导刷新成功。

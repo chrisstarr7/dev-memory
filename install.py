@@ -15,6 +15,7 @@ ALIASES = {"claude": "claude-code", "gemini": "gemini-cli", "copilot": "github-c
 def argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("agent", nargs="?", help="codex, claude, cursor, gemini, copilot, opencode, deepseek (DSH)")
+    parser.add_argument("update_agent", nargs="?", help="AI to update: update codex")
     parser.add_argument("--agent", dest="agent_option", help="Compatible explicit AI selector")
     parser.add_argument("--project", type=Path, help="Initialize this project; Codex also enables user-level global habits")
     parser.add_argument("--target", type=Path, help="Custom Skill directory")
@@ -22,6 +23,16 @@ def argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--with-codex-hooks", action="store_true", help="Explicitly configure optional Codex hooks")
     parser.add_argument("--json", action="store_true", help="Structured result for automation")
     return parser
+
+
+def parse_arguments(parser: argparse.ArgumentParser, argv: list[str] | None) -> argparse.Namespace:
+    args = parser.parse_args(argv)
+    args.operation = "update" if args.agent == "update" else "install"
+    if args.operation == "update":
+        args.agent = args.update_agent
+    elif args.update_agent:
+        parser.error("额外的 AI 参数；更新请使用 update codex。")
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,13 +54,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     parser = argument_parser()
-    args = parser.parse_args(argv)
+    args = parse_arguments(parser, argv)
     agent = ALIASES.get(args.agent or "", args.agent)
     option = ALIASES.get(args.agent_option or "", args.agent_option)
     if agent and option and agent != option:
         parser.error("两个 AI 参数不一致。")
     agent = agent or option
     if not agent:
+        if args.operation == "update":
+            parser.error("请指定更新的 AI，例如 update codex。")
         if args.json or not sys.stdin.isatty():
             parser.error("请指定 AI，例如 python3 install.py codex；非交互环境不会猜测安装目录。")
         choices = list(dev_memory.AGENT_DIRS)
@@ -69,11 +82,63 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("未知 AI；可选：" + ", ".join(dev_memory.AGENT_DIRS))
     enable_user = agent == "codex" and args.project is not None
 
-    result: dict = {}
+    result: dict = {"operation": args.operation}
+    phase = "preflight"
+    global_root = store.default_global_root()
+    refresh_project = args.project is not None
     try:
         # Codex project installation configures project and user-level guidance together.
         install_path = dev_memory._install_path(args.target, agent)
-        if args.project:
+        if args.operation == "update":
+            import dev_memory_setup
+            if not install_path.is_dir():
+                raise store.MemoryError("installation_missing", "未找到已安装的 Skill；首次安装请使用 AI 名称命令。")
+            dev_memory._check_managed_install(install_path)
+            refresh_project = False
+            result["project_setup"] = {"status": "skipped", "reason": "not_bound"}
+            if args.project:
+                project = store._reject_unsafe_project_root(args.project)
+                binding = dev_memory_setup._activation(project)["bindings"].get(agent)
+                if binding is not None:
+                    if (not isinstance(binding, dict)
+                            or not isinstance(binding.get("skill_file"), str)
+                            or Path(binding["skill_file"]).expanduser().resolve() != install_path / "SKILL.md"
+                            or not isinstance(binding.get("cli"), str)
+                            or Path(binding["cli"]).expanduser().resolve() != install_path / "scripts/dev_memory.py"
+                            or not isinstance(binding.get("global_root"), str)):
+                        raise store.MemoryError("binding_mismatch", "项目绑定不属于当前安装目录；未修改绑定。")
+                    global_root = Path(binding["global_root"]).expanduser().resolve()
+                    refresh_project = True
+            enable_user = False
+            if agent == "codex":
+                user = dev_memory_setup.user_status(install_path)
+                if user["status"] not in {"configured", "unavailable", "not_configured"}:
+                    raise store.MemoryError("user_binding_unavailable", "已有用户绑定不可用；请检查绑定后重试。")
+                enable_user = user["status"] in {"configured", "unavailable"}
+                if enable_user:
+                    user_root = Path(user["global_root"])
+                    if refresh_project and user_root != global_root:
+                        raise store.MemoryError("binding_mismatch", "项目和用户绑定使用不同全局库；未修改绑定。")
+                    global_root = user_root
+                else:
+                    result["user_activation"] = {"status": "skipped", "reason": "not_bound"}
+            # Updating guidance must never turn a missing store into a fresh one.
+            bases = ([project / ".dev-memory"] if refresh_project else [])
+            if refresh_project or enable_user:
+                bases.append(global_root / "global")
+            for base in bases:
+                if not all((base / name).is_file() for name in ("config.json", "memory.sqlite3")):
+                    raise store.MemoryError("store_unavailable", "绑定的记忆库不完整；更新不会创建新库，请先修复。")
+            kinds = (["project"] if refresh_project else []) + (["global"] if refresh_project or enable_user else [])
+            for kind in kinds:
+                _, database, config = store._config_for(kind, project if refresh_project else None, global_root)
+                connection = store._connect(database, readonly=True)
+                try:
+                    if not store._restorable_backup(connection, config, kind):
+                        raise store.MemoryError("store_validation_failed", "已有记忆库结构或完整性校验失败；更新不会重建缺失表，请先恢复存储。")
+                finally:
+                    connection.close()
+        if refresh_project:
             import dev_memory_setup
             project = store._reject_unsafe_project_root(args.project)
             guide = dev_memory_setup.guide_path(project, agent)
@@ -83,28 +148,32 @@ def main(argv: list[str] | None = None) -> int:
             import dev_memory_setup
             _, guide = dev_memory_setup.user_guide_path(agent)
             dev_memory_setup._merge_user_guide(guide.read_bytes() if guide.exists() else b"",
-                                               dev_memory_setup._user_block(install_path, sys.executable, store.default_global_root()))
-        result = dev_memory.install(args.target, args.with_codex_hooks,
-                                    args.upgrade, agent)
+                                               dev_memory_setup._user_block(install_path, sys.executable, global_root))
+        phase = "program_install"
+        result.update(dev_memory.install(args.target, args.with_codex_hooks,
+                                         args.upgrade, agent))
+        phase = "runtime_check"
         installed_cli = Path(result["path"]) / "scripts/dev_memory.py"
-        check = subprocess.run([sys.executable, "-B", str(installed_cli), "doctor"],
+        check = subprocess.run([sys.executable, "-B", str(installed_cli), "runtime-check"],
                                capture_output=True, text=True, encoding="utf-8", timeout=10)
         diagnostic = json.loads(check.stdout) if check.returncode == 0 else {}
         if (not isinstance(diagnostic, dict) or diagnostic.get("status") != "ok"
                 or diagnostic.get("base_mode") != "available"
                 or not all(isinstance(diagnostic.get(key), str) for key in ("python", "sqlite"))):
-            raise ValueError("runtime check failed")
+            raise store.MemoryError("runtime_check_failed", "程序已安装，但轻量运行检查失败；请使用 --json 查看失败阶段。")
         result["runtime_check"] = {"status": "passed", "python": diagnostic["python"], "sqlite": diagnostic["sqlite"]}
-        if args.project:
+        if refresh_project:
+            phase = "project_setup"
             import dev_memory_setup
-            setup = dev_memory_setup.setup(args.project, agent, Path(result["path"]), sys.executable)
+            setup = dev_memory_setup.setup(args.project, agent, Path(result["path"]), sys.executable, global_root)
             result["project_setup"] = setup
             if setup["status"] != "initialized":
                 result.update(status="failed", error="project_setup_failed",
                               message="程序已安装，但项目初始化未完成；请检查各存储结果。")
         if enable_user and result["status"] == "installed":
             import dev_memory_setup
-            result["user_activation"] = dev_memory_setup.setup_user(agent, Path(result["path"]), sys.executable)
+            phase = "user_activation"
+            result["user_activation"] = dev_memory_setup.setup_user(agent, Path(result["path"]), sys.executable, global_root)
             if (result["user_activation"].get("status") != "initialized"
                     or result["user_activation"].get("activation") != "configured"):
                 result.update(status="failed", error="user_activation_failed",
@@ -114,12 +183,20 @@ def main(argv: list[str] | None = None) -> int:
                           message="Skill 文件已安装且基础检查通过，但可选 hooks 配置失败；请检查 hooks 结果。")
     except store.MemoryError as exc:
         result.update(status="failed", error=exc.code, message=exc.message)
+    except subprocess.TimeoutExpired:
+        result.update(status="failed", error="installation_phase_timeout",
+                      message=f"{phase} 阶段超时；已返回的程序路径可能完成更新，记忆不会重置。")
+    except sqlite3.Error:
+        result.update(status="failed", error="store_validation_failed",
+                      message="已有记忆库校验失败；未创建替代记忆库，请先检查存储完整性。")
     except PermissionError:
         result.update(status="failed", error="permission_denied",
                       message="程序或项目路径访问被拒绝；请检查普通用户与宿主权限。已有记忆不会转存到其他范围。")
     except (OSError, ValueError, subprocess.SubprocessError):
         result.update(status="failed", error="installation_check_failed",
                       message="安装或检查失败。若已返回 path，文件可能已安装；请从该目录运行 doctor 检查。")
+    if result.get("status") == "failed":
+        result["phase"] = phase
     report(result, args, agent)
     return 0 if result["status"] == "installed" else 1
 
@@ -128,7 +205,9 @@ def report(result: dict, args: argparse.Namespace, agent: str) -> None:
     if args.json:
         print(json.dumps(result, ensure_ascii=True))
     elif result["status"] == "failed":
-        print("安装未完成：" + str(result.get("message", result.get("error", "安装检查失败。"))), file=sys.stderr)
+        print(("更新未完成：" if args.operation == "update" else "安装未完成：") + str(result.get("message", result.get("error", "安装检查失败。"))), file=sys.stderr)
+        if result.get("phase"):
+            print("失败阶段：" + result["phase"] + " (" + str(result.get("error", "unknown")) + ")", file=sys.stderr)
         if result.get("path"):
             print("程序目录：" + result["path"], file=sys.stderr)
         setup = result.get("project_setup")
@@ -144,21 +223,27 @@ def report(result: dict, args: argparse.Namespace, agent: str) -> None:
         if isinstance(user_setup, dict):
             print("Codex 用户级引导：" + str(user_setup.get("activation", "unknown")), file=sys.stderr)
         if result.get("error") == "source_older":
-            print(f"获取最新版本：npx -y --prefer-online chrisstarr7/dev-memory#main {agent}", file=sys.stderr)
+            operation = "update " if args.operation == "update" else ""
+            print(f"获取最新版本：npx -y --prefer-online chrisstarr7/dev-memory#main {operation}{agent}", file=sys.stderr)
     else:
-        print("安装成功；基础命令检查通过。")
+        print("更新成功；轻量运行检查通过。" if args.operation == "update" else "安装成功；轻量运行检查通过。")
         print("程序目录：" + result["path"])
         print("程序处理：" + str(result.get("program_action", "installed")))
         cleanup = result.get("old_program_cleanup", "")
         if isinstance(cleanup, str) and cleanup.startswith("pending:"):
             print("旧程序目录清理待完成：" + cleanup.split(":", 1)[1] + "；请在文件不再占用后清理该目录。")
-        if args.project:
+        if args.operation == "update":
+            for label, key in (("当前项目引导", "project_setup"), ("用户级引导", "user_activation")):
+                if key in result:
+                    print(label + "：" + ("已更新" if result[key].get("status") == "initialized" else "未绑定，已跳过"))
+            print("已有记忆和控制开关保留；其他项目无需重新初始化。新会话加载更新后的规则。")
+        elif args.project:
             print("项目已初始化：" + result["project_setup"]["project_root"])
             print("自动引导：" + result["project_setup"]["guide"])
             print("在该项目新建 AI 会话，直接提出开发任务即可；无需启用口令。")
-        if agent == "codex" and args.project is not None:
+        if args.operation != "update" and agent == "codex" and args.project is not None:
             print("Codex 用户级全局开发习惯已配置；在各项目新会话中生效。")
-        elif not args.project:
+        elif args.operation != "update" and not args.project:
             print("仅安装了程序。为业务项目初始化：python3 install.py " + agent + " --project /项目路径")
         if args.with_codex_hooks:
             print("可选 hooks 已配置；仍需宿主信任和真实事件验证。")
@@ -280,7 +365,7 @@ def online_main(argv: list[str] | None = None) -> int:
     import zipfile
 
     parser = argument_parser()
-    args = parser.parse_args(argv)
+    args = parse_arguments(parser, argv)
     agent = ALIASES.get(args.agent or "", args.agent)
     option = ALIASES.get(args.agent_option or "", args.agent_option)
     if agent and option and agent != option:
@@ -307,6 +392,8 @@ def online_main(argv: list[str] | None = None) -> int:
             snapshot = unpack_snapshot(download_snapshot(), source)
             command = [sys.executable, "-B", str(source / "install.py"), agent,
                        "--json", "--project", str(args.project)]
+            if args.operation == "update":
+                command.insert(3, "update")
             if args.target:
                 command += ["--target", str(args.target.expanduser().resolve())]
             if args.upgrade:
@@ -327,6 +414,9 @@ def online_main(argv: list[str] | None = None) -> int:
                                and {item.get("scope") for item in setup["stores"] if isinstance(item, dict)} == {"global", "project"})
                 valid_user = (not enable_user or (isinstance(user_setup, dict)
                               and user_setup.get("status") == "initialized" and user_setup.get("activation") == "configured"))
+                if args.operation == "update":
+                    valid_setup = isinstance(setup, dict) and (valid_setup or (setup.get("status") == "skipped" and setup.get("reason") == "not_bound"))
+                    valid_user = not enable_user or (isinstance(user_setup, dict) and (valid_user or (user_setup.get("status") == "skipped" and user_setup.get("reason") == "not_bound")))
                 if (result.get("status") != "installed" or not isinstance(result.get("path"), str) or not result["path"]
                         or not isinstance(runtime, dict) or runtime.get("status") != "passed" or not valid_setup or not valid_user):
                     raise ValueError("安装程序没有返回完整成功回执。")

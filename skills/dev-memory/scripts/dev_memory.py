@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 import json
 import os
 import re
@@ -176,6 +176,13 @@ def doctor(project_root: Path | None, global_root: Path | None) -> dict[str, Any
         "skill_path": str(PACKAGE_ROOT),
         "real_host_e2e_verified": False,
     }
+
+def runtime_check() -> dict[str, Any]:
+    """Validate installed imports and SQLite without probing hosts or private stores."""
+    with closing(sqlite3.connect(':memory:')) as conn:
+        version = conn.execute('SELECT sqlite_version()').fetchone()[0]
+    return {'status': 'ok', 'base_mode': 'available', 'python': sys.version.split()[0], 'sqlite': version}
+
 
 def context(query: str = '', *, project_root: Path | None = None, global_root: Path | None = None,
             task_id: str | None = None, session_id: str | None = None, module: str | None = None,
@@ -516,6 +523,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="dev-memory", description="Private local R&D memory for development work.")
     parser.add_argument("--global-root", type=Path, help="Override global data root (or set DEV_MEMORY_HOME).")
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser('runtime-check', help='Check installed Python/SQLite without host or store diagnostics')
     p = sub.add_parser("doctor")
     p.add_argument("--project-root", type=Path)
     p = sub.add_parser("setup", help="Initialize this project and configure automatic host instructions")
@@ -628,7 +636,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         command = args.command
         global_root = args.global_root
-        if command == "doctor":
+        if command == 'runtime-check':
+            _json_out(runtime_check())
+        elif command == "doctor":
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             _json_out(doctor(root, global_root))
         elif command == "setup":

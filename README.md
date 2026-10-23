@@ -178,7 +178,13 @@ Never bypass Windows ACLs or user controls by redirecting project data into glob
 
 ## Upgrade, references and contribution
 
-Rerun the same installation command from the project root, then open a new AI session. Existing stores, capture modes, privacy settings and unrelated instructions are preserved. Updating this GitHub checkout alone does not update the installed Skill or an already loaded conversation.
+Use the dedicated update command, then open a new AI session:
+
+```sh
+npx -y --prefer-online chrisstarr7/dev-memory update codex
+```
+
+Replace `codex` with your host parameter. Update requires an existing managed installation; it refreshes only the current project's and Codex user's existing bindings. It does not initialize an unbound project or enable previously absent user memory. Existing stores, capture modes, privacy controls and unrelated instructions remain intact. New projects still use the installation command above. Updating the source checkout alone does not update an installed Skill.
 
 - [Architecture](docs/architecture.md): components, storage boundaries and runtime behavior.
 - [Protocol](skills/dev-memory/references/protocol.md): operator commands and structured apply/maintenance contracts.

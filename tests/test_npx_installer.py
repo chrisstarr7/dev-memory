@@ -57,6 +57,23 @@ class NpxTests(unittest.TestCase):
         self.assertEqual(set(bindings),set(dev_memory.AGENT_DIRS))
         self.assertNotIn('node_modules',json.dumps(bindings))
 
+    def test_explicit_update_from_unbound_project_preserves_existing_user_binding(self):
+        first = self.run_cli('codex', '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        original = self.project
+        snapshots = {path: path.read_bytes() for path in (original / 'AGENTS.md', original / '.dev-memory/activation.json', original / '.dev-memory/config.json')}
+        self.project = self.base / 'unbound'; self.project.mkdir()
+        result = self.run_cli('update', 'codex', '--json')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['operation'], 'update')
+        self.assertEqual(payload['project_setup']['status'], 'skipped')
+        self.assertEqual(payload['user_activation']['activation'], 'configured')
+        self.assertFalse((self.project / '.dev-memory').exists())
+        self.assertFalse((self.project / 'AGENTS.md').exists())
+        for path, before in snapshots.items():
+            self.assertEqual(path.read_bytes(), before)
+
     def test_codex_default_preserves_global_controls_and_user_instructions(self):
         first = self.run_cli('codex', '--json')
         self.assertEqual(first.returncode, 0, first.stdout + first.stderr)

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// npx handles transport. The shared Python installer owns all memory behavior.
+// npx handles transport; install.py handles both codex and update codex.
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const args = process.argv.slice(2);

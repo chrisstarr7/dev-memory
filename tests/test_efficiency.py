@@ -17,6 +17,17 @@ import codex_hook
 
 
 class EfficiencyTests(MemoryTestCase):
+    def test_runtime_check_never_probes_hosts_or_private_stores(self):
+        output = io.StringIO()
+        with patch.object(store, 'locate_project_root', side_effect=AssertionError('No project discovery')), \
+             patch.object(dev_memory, 'doctor', side_effect=AssertionError('No full diagnostics')), \
+             patch.object(dev_memory.subprocess, 'run', side_effect=AssertionError('No child processes')), \
+             contextlib.redirect_stdout(output):
+            self.assertEqual(dev_memory.main(['runtime-check']), 0)
+        result = json.loads(output.getvalue())
+        self.assertEqual(result['base_mode'], 'available')
+        self.assertEqual(result['sqlite'], sqlite3.sqlite_version)
+
     def test_unverified_recall_without_cache_never_probes_git(self):
         memory_id = self.add_project_rule()
         for options in ({}, {'readonly': True, 'session_id': 'read-only'}, {'force': True}):

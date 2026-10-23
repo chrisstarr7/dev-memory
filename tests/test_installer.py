@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import builtins
 import contextlib
+from contextlib import closing
 import hashlib
 import io
 import json
@@ -156,7 +157,7 @@ $rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.
         self.assertEqual(status, 0)
         self.assertTrue((self.home / '.claude/skills/dev-memory/SKILL.md').is_file())
         self.assertFalse((self.home / '.agents').exists())
-        self.assertIn('基础命令检查通过', stdout.getvalue())
+        self.assertIn('轻量运行检查通过', stdout.getvalue())
         self.assertIn('--project', stdout.getvalue())
         self.assertNotIn('发送：', stdout.getvalue())
         self.assertFalse((self.home / '.dev-memory').exists())
@@ -351,6 +352,139 @@ $rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.
                 self.assertEqual(payload['status'], 'failed')
                 self.assertIn('path', payload)
                 self.assertNotIn('runtime_check', payload)
+
+    def test_update_requires_existing_managed_program(self):
+        result = self.run_installer('update', 'codex', '--json')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['error'], 'installation_missing')
+        self.assertEqual(payload['phase'], 'preflight')
+        self.assertFalse((self.home / '.agents').exists())
+        self.assertFalse((self.home / '.dev-memory').exists())
+
+    def test_update_program_only_does_not_enable_memory(self):
+        self.assertEqual(self.run_installer('codex', '--json').returncode, 0)
+        project = self.home / 'unbound'; project.mkdir()
+        result = self.run_installer('update', 'codex', '--project', str(project), '--json')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['operation'], 'update')
+        self.assertEqual(payload['project_setup']['status'], 'skipped')
+        self.assertEqual(payload['user_activation']['status'], 'skipped')
+        self.assertFalse((project / '.dev-memory').exists())
+        self.assertFalse((project / 'AGENTS.md').exists())
+        self.assertFalse((self.home / '.dev-memory').exists())
+        self.assertFalse((self.home / '.codex/AGENTS.md').exists())
+
+    def test_update_refreshes_existing_guides_preserving_controls_and_records(self):
+        import sqlite3
+        project = self.home / 'bound'; project.mkdir()
+        first = self.run_installer('codex', '--project', str(project), '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        configs = [project / '.dev-memory/config.json', self.home / '.dev-memory/global/config.json']
+        snapshots = {}
+        for path in configs:
+            value = json.loads(path.read_text(encoding='utf-8'))
+            value.update(capture_enabled=False, recall_enabled=False)
+            path.write_text(json.dumps(value), encoding='utf-8')
+            snapshots[path] = path.read_bytes()
+            with closing(sqlite3.connect(path.parent / 'memory.sqlite3')) as conn, conn:
+                conn.execute("INSERT INTO meta(key,value) VALUES ('synthetic_preserve','keep')")
+        guide = project / 'AGENTS.md'
+        guide.write_text('Keep unrelated instructions.\n' + guide.read_text(encoding='utf-8'), encoding='utf-8')
+        result = self.run_installer('update', 'codex', '--project', str(project), '--json')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['project_setup']['activation'], 'configured')
+        self.assertEqual(payload['user_activation']['activation'], 'configured')
+        self.assertIn('Keep unrelated instructions.', guide.read_text(encoding='utf-8'))
+        for path, before in snapshots.items():
+            self.assertEqual(path.read_bytes(), before)
+            with closing(sqlite3.connect(path.parent / 'memory.sqlite3')) as conn, conn:
+                self.assertEqual(conn.execute("SELECT value FROM meta WHERE key='synthetic_preserve'").fetchone()[0], 'keep')
+
+    def test_update_missing_bound_store_does_not_recreate_it(self):
+        project = self.home / 'bound'; project.mkdir()
+        first = self.run_installer('codex', '--project', str(project), '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        database = project / '.dev-memory/memory.sqlite3'
+        database.unlink()
+        result = self.run_installer('update', 'codex', '--project', str(project), '--json')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)['error'], 'store_unavailable')
+        self.assertFalse(database.exists())
+
+    def test_update_repairs_existing_user_runtime_without_enabling_new_binding(self):
+        import dev_memory_setup
+        project = self.home / 'bound'; project.mkdir()
+        first = self.run_installer('codex', '--project', str(project), '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        installed = Path(json.loads(first.stdout)['path'])
+        (installed / 'scripts/dev_memory.py').unlink()
+        with patch.dict(os.environ, self.env):
+            self.assertEqual(dev_memory_setup.user_status(installed)['status'], 'unavailable')
+        result = self.run_installer('update', 'codex', '--project', str(project), '--json')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)['user_activation']['activation'], 'configured')
+        self.assertTrue((installed / 'scripts/dev_memory.py').is_file())
+
+    def test_update_rejects_empty_bound_database_without_rebuilding_it(self):
+        project = self.home / 'bound'; project.mkdir()
+        first = self.run_installer('codex', '--project', str(project), '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        database = project / '.dev-memory/memory.sqlite3'
+        database.write_bytes(b'')
+        result = self.run_installer('update', 'codex', '--project', str(project), '--json')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)['error'], 'store_validation_failed')
+        self.assertEqual(database.read_bytes(), b'')
+
+    def test_update_refuses_missing_core_table_without_recreating_it(self):
+        import sqlite3
+        project = self.home / 'bound'; project.mkdir()
+        first = self.run_installer('codex', '--project', str(project), '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        database = project / '.dev-memory/memory.sqlite3'
+        with closing(sqlite3.connect(database)) as conn, conn:
+            conn.execute('DROP TABLE memories')
+        config = project / '.dev-memory/config.json'
+        before = config.read_bytes()
+        result = self.run_installer('update', 'codex', '--project', str(project), '--json')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['error'], 'store_validation_failed')
+        self.assertEqual(payload['phase'], 'preflight')
+        self.assertNotIn('path', payload)
+        self.assertEqual(config.read_bytes(), before)
+        with closing(sqlite3.connect(database)) as conn:
+            self.assertIsNone(conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='memories'").fetchone())
+
+    def test_update_does_not_rebind_project_to_another_managed_target(self):
+        project = self.home / 'bound'; project.mkdir()
+        first = self.run_installer('codex', '--project', str(project), '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        other = self.home / 'other-install'
+        second = self.run_installer('codex', '--target', str(other), '--json')
+        self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+        activation = project / '.dev-memory/activation.json'
+        before = activation.read_bytes()
+        result = self.run_installer('update', 'codex', '--target', str(other), '--project', str(project), '--json')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)['error'], 'binding_mismatch')
+        self.assertEqual(activation.read_bytes(), before)
+
+    def test_runtime_check_timeout_identifies_phase_and_preserves_installed_path(self):
+        stdout = io.StringIO()
+        def timed_out(command, **kwargs):
+            self.assertEqual(command[-1], 'runtime-check')
+            raise subprocess.TimeoutExpired(command, 10)
+        with patch.dict(os.environ, self.env), patch.object(installer.subprocess, 'run', side_effect=timed_out), contextlib.redirect_stdout(stdout):
+            code = installer.main(['codex', '--json'])
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(code, 1)
+        self.assertEqual(payload['phase'], 'runtime_check')
+        self.assertEqual(payload['error'], 'installation_phase_timeout')
+        self.assertTrue(Path(payload['path']).is_dir())
 
     def test_old_python_and_missing_sqlite_have_clear_errors(self) -> None:
         stderr = io.StringIO()

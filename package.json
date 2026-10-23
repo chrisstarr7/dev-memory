@@ -1,6 +1,6 @@
 {
   "name": "dev-memory",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "Developer-centered local memory of coding habits and reasoning preferences for AI assistants.",
   "license": "MIT",
   "repository": {
