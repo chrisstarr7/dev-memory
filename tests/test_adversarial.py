@@ -204,7 +204,8 @@ class AdversarialTests(MemoryTestCase):
             ids.append(result["stores"][0]["operations"][0]["id"])
         self.assertNotEqual(*ids)
         desired = self.add_project_rule(turn="desired", claim_type="desired")
-        observed = self.add_project_rule(turn="observed", claim_type="observed", source=self.source("observed", "code_observation"))
+        observed = self.add_project_rule(turn="observed", claim_type="observed", code_refs=["refunds.py#refund_eligible"],
+                                         source=self.source("observed", "code_observation"))
         self.assertNotEqual(desired, observed)
 
     def test_same_turn_id_in_separate_sessions_is_independent_evidence(self):

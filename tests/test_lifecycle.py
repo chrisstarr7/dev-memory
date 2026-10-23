@@ -290,12 +290,24 @@ class LifecycleTests(MemoryTestCase):
             result=self.apply(scope='project',turn=f'legacy-code-{n}',operations=[{'op':'ADD',
                 'record':self.record(kind='convention',claim_type=claim,
                     content='Always keep the observed permissive authorization behavior.',
+                    code_refs=['auth.py#authorize'],
                     source={'type':'code_observation','excerpt':'Existing code returns true without checking permission.'})}])
             self.assertEqual(result['stores'][0]['error'],'provenance_error')
         observed=self.add_project_rule(turn='observed-only',kind='project_fact',claim_type='observed',
             content='The legacy authorization path currently returns true without checking permission.',
+            code_refs=['auth.py#authorize'],
             source={'type':'code_observation','excerpt':'Observed the implementation; this is not a required behavior.'})
         self.assertEqual(store.show_record('project',observed,project_root=self.project_a)['record']['claim_type'],'observed')
+
+    def test_project_code_observation_requires_a_source_reference(self):
+        missing=self.apply(scope='project',turn='observed-no-ref',operations=[{'op':'ADD','scope':'project',
+            'record':self.record(kind='project_fact',claim_type='observed',
+                source={'type':'code_observation','excerpt':'Observed current behavior.'})}])
+        self.assertEqual(missing['stores'][0]['error'],'provenance_error')
+        saved=self.apply(scope='project',turn='observed-with-ref',operations=[{'op':'ADD','scope':'project',
+            'record':self.record(kind='project_fact',claim_type='observed',code_refs=['auth.py#authorize'],
+                source={'type':'code_observation','excerpt':'Observed current behavior.'})}])
+        self.assertEqual(saved['status'],'saved',saved)
 
     def test_seven_phase_memory_contract_and_project_switch(self):
         """Deterministic synthetic memory events; this is not an AI workflow timing test."""

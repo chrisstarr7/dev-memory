@@ -81,6 +81,8 @@ Deletion is a two-step preview/token flow. Project deletion previews project-loc
 
 This is a desired rule, with planned verification only. An observed, actually executed test result may instead supply `source.type: tool_result` and `verification` with the actual `command`, `finished_at`, `code_version`, `exit_code: 0`. Never copy example placeholders as actual verification.
 
+Keep desired contracts separate from observed implementation facts. A project record sourced as `code_observation` requires `code_refs` with the actual file path and symbol. Store an observed code fact only when it is non-obvious and useful to future work; recheck its source before relying on it because branch and commit metadata do not prove it is current.
+
 Global preference lookup includes both active rules and inferred candidates for semantic comparison. When a new explicit cross-project statement confirms a candidate, revise that ID to active/confirmed with the current revision; differing status/strength is not duplicate equivalence. Equivalent feedback already covered by a confirmed rule does not require another candidate.
 
 Basic read-only duplicate lookup takes `{"scope":"global","record":PROPOSED_RECORD}` on stdin. An outer opaque task ID is not copied into a global proposal; nested project/task identifiers are still rejected. Both `match` and `apply` accept omitted `--input` or `--input -` for stdin, with the same 1 MB/object validation as file input.

@@ -128,6 +128,8 @@ class SetupTests(unittest.TestCase):
         self.assertIn('`pending_next_turn`', block)
         self.assertIn('pause, disable, read-only, or turn opt-out settings', block)
         self.assertIn('Keep durable project rules, conventions, decisions and evidenced facts in project scope', block)
+        self.assertIn('Separate desired rules from observed facts', block)
+        self.assertIn('recheck the source before relying on them', block)
         self.assertIn('Do not retrieve or write task memories/checkpoints', block)
         self.assertLess(len(block), 1800)
 

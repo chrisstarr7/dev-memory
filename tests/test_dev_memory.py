@@ -421,7 +421,8 @@ class StoreTests(MemoryTestCase):
     def test_desired_policy_and_observed_implementation_remain_distinct(self) -> None:
         desired = self.record(title="Desired policy", content="Must reject final-sale items.")
         observed = self.record(kind="project_fact", title="Observed implementation", content="Current code permits final-sale items.",
-                               claim_type="observed", source=self.source("Observed in source inspection.", "code_observation"))
+                               claim_type="observed", code_refs=["refunds.py#refund_eligible"],
+                               source=self.source("Observed in source inspection.", "code_observation"))
         result = self.apply(scope="project", turn="desired-observed", operations=[
             {"op": "ADD", "scope": "project", "record": desired},
             {"op": "ADD", "scope": "project", "record": observed},

@@ -49,7 +49,8 @@ class NoEditCaptureTests(unittest.TestCase):
 
     def test_observed_code_fact_cannot_satisfy_user_convention(self):
         result = self.apply(claim_type='observed', source={
-            'type': 'code_observation', 'excerpt': 'Both existing classes use Swagger annotations.'})
+            'type': 'code_observation', 'excerpt': 'Both existing classes use Swagger annotations.'},
+            code_refs=['Fixture.java#annotatedModel'])
         self.assertEqual(result['status'], 'saved', result)
         self.assertFalse(evaluation.inspect_fixture(self.root)['checks']['user_sourced_active_project_convention'])
 

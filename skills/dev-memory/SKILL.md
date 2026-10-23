@@ -3,7 +3,7 @@ name: dev-memory
 description: Local development memory. For development tasks, recall relevant developer habits and authorized project rules; learn durable habits from visible user requirements, corrections and choices, preserving evidence and scope.
 license: MIT
 metadata:
-  version: "0.8.8"
+  version: "0.8.9"
   requires: "Python 3.10+ with sqlite3 and local file/process access; Git optional."
 ---
 
@@ -73,13 +73,15 @@ Consider all relevant knowledge already encountered, without scanning unrelated 
 | Failure and prevention | Verified root cause, applicability, failed approach and prevention check; exclude speculative diagnoses |
 | Decisions and stable navigation | Confirmed tradeoff/rejected alternative and rationale, or a non-obvious canonical implementation location useful in later work |
 
-Use `convention`, `business_rule`, `procedure`, `decision`, `project_fact` or `lesson` to fit the meaning; categories are examples, not an allowlist. A user-stated project rule can be active immediately (`claim_type:desired`, appropriate user source). A code/tool observation uses `claim_type:observed` and real source/code references; record what exists, never turn it into a desired rule. An unresolved hypothesis stays in conversation or an explicitly marked inactive candidate, never an active constraint. Tool verification requires actual successful tool evidence under the protocol. Do not confuse source evidence with a passed test.
+Use `convention`, `business_rule`, `procedure`, `decision`, `project_fact` or `lesson` to fit the meaning; categories are examples, not an allowlist. A user- or authoritative-spec-backed project rule is `claim_type:desired`; code/tool observations are `claim_type:observed` and cannot establish a desired rule. Never mix desired and observed claims in one record: split them only when both independently change future work; otherwise keep the desired contract and omit incidental implementation details.
+
+Treat project memory as an agent-facing index, not a project wiki. Save an observed code fact only when it is durable, non-obvious or costly to rediscover, and likely to change future work; skip details directly visible in source or already maintained in canonical documentation. A project `code_observation` must include `code_refs` naming the verified source path and symbol. Cite authoritative documents in `source_refs`. A branch or commit records provenance, not current truth: check the cited source before relying on an observed fact, then revise or archive it if it has changed. An unresolved hypothesis stays in conversation or an explicitly marked inactive candidate, never an active constraint. Tool verification requires actual successful tool evidence under the protocol. Do not confuse source evidence with a passed test.
 
 Preserve scope (repository/module/interface), conditions, exclusions and authority. Split independent rules, but keep related constraints together. If the same turn contains a project contract and a reusable development method, capture separate records only when each independently qualifies; de-identify the global method and keep inferred global preferences as candidates. Explicit cross-project user instructions retain their stated strength. Project content must never enter global fields/evidence, even when project capture is unavailable.
 
 Do not create an extra global preference by stripping the scope from the same project convention (for example, turning “these project models must follow the current annotation style” into “prefer consistent style everywhere”). A separate global increment needs its own supported reusable choice, not a generalized duplicate of the project rule.
 
-Do not save task status, to-do lists, ordinary diffs, every inspected symbol, copied documentation, speculative architecture or generic programming advice. Prefer a compact actionable rule with a canonical source reference over duplicating an entire spec. Revise an existing rule on correction, preserving history; do not manufacture supporting evidence from AI restatements. A blocked/skipped write is not a successful save; inspect each store receipt and report relevant unsaved rules before delivery.
+Do not save task status, to-do lists, ordinary diffs, every inspected symbol, copied documentation, speculative architecture or generic programming advice. Prefer a compact actionable rule or source pointer over duplicating an entire spec. Revise an existing rule on correction, preserving history; do not manufacture supporting evidence from AI restatements. A blocked/skipped write is not a successful save; inspect each store receipt and report relevant unsaved rules before delivery.
 
 ## Write clear atomic records, once
 

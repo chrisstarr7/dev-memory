@@ -698,6 +698,9 @@ def _validate_record(record: Any, scope: str, task_id: str | None, namespace_id:
     for key in ("tags", "source_refs", "code_refs", "derived_from", "promoted_global_ids"):
         if not isinstance(canonical[key], list) or any(not isinstance(item, str) for item in canonical[key]):
             raise MemoryError("validation_error", f"{key} must be a list of strings.")
+    if (scope == "project" and source.get("type") == "code_observation"
+            and not any(ref.strip() for ref in canonical["code_refs"])):
+        raise MemoryError("provenance_error", "Project code observations require a code_refs entry naming the source path and symbol.")
     if scope == "task" and not task:
         raise MemoryError("scope_error", "Task-scoped records require task_id.")
     if scope == "global" and (canonical["task_id"] or canonical["workspace_id"]):

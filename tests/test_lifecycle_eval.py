@@ -114,7 +114,8 @@ class CaptureCheckTests(MemoryTestCase):
                 with self.assertRaises(AssertionError):lifecycle.project_capture_checks(self.project_a)
 
     def test_non_user_policy_source_does_not_satisfy_requirement_capture(self):
-        self.add_project_rule(claim_type='observed',source={'type':'code_observation','excerpt':'Synthetic code observation.'})
+        self.add_project_rule(claim_type='observed',code_refs=['fixture.py#rule'],
+                              source={'type':'code_observation','excerpt':'Synthetic code observation.'})
         with self.assertRaisesRegex(AssertionError,'sourced desired rule'):
             lifecycle.project_capture_checks(self.project_a,14)
 
