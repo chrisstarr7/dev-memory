@@ -43,6 +43,8 @@ Start a **new AI session** in the project after installation or upgrade. Work no
 
 The AI asks whether information will help a future task, what evidence supports it, and where it applies. Your current request always overrides memory.
 
+Inspection/review also assesses memory when no code changes are needed. A newly stated project convention remains eligible when the code already complies. Store the durable rule within its project/module scope, rather than transient check results or an extra generalized global copy. Existing equivalents, temporary requests and privacy controls still prevent unnecessary writes.
+
 | Destination | Eligible information | Examples |
 | --- | --- | --- |
 | **Global** | De-identified, reusable developer habits and methods | Preferred explanation order; inspect existing implementations before adding code; evidence-led debugging |

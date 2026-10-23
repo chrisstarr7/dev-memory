@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "56847394ea3fa71f13ec18c49d869993264b30843c84769f5f4fe0e4cd1f418d"
+      "sha256": "2b4e46d07d87d243803b23e971e67271ef2beacd02004d9e5640621658fe31d1"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -38,7 +38,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "96abd64eb305760fa8102a459f960cc2f4a1bb5f83ba375793324e01617cf79c"
+      "sha256": "832cd4e7677997ad6eeb85c976b3fa0de6e51bd321560e190f0134790de93dee"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
@@ -46,11 +46,11 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
-      "sha256": "9af8794e04dfcca9b83b1c695cd1e8d38098ed530754119794977cf3a49c06ab"
+      "sha256": "077b1268854cd36da23ed7001b36bc04a470661456f24ead6bec7c73ef6cb23d"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
-      "sha256": "c321e055d1eec61d0475dc5f97b916f9cca1e9070b96fbc48a7145bb2c254344"
+      "sha256": "b2bd0fc4bcbbec9fc0ebd67e98b12ace597a28d463a5b786d4e9077d552ee703"
     },
     {
       "path": "skills/dev-memory/scripts/dev-memory",
@@ -58,7 +58,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "99e3c32b6f3a23ac521ff5bd8bccfb039e2d12fbb3ee2c19afbc2d857ac31ba1"
+      "sha256": "33578512cb38a2f28f824b2739355715e6a5235949382843266667b2d578f75d"
     },
     {
       "path": "LICENSE",
@@ -74,7 +74,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "e42d256061e46aabaaf5e938e1cd7bacb11af8ba41ea25613f134376d293c2ee"
+      "sha256": "0480d2e7a0868312b5da9f61ce897e23b59bab6feee039920a6f631075fe748c"
     },
     {
       "path": "bin/install.cjs",
@@ -102,15 +102,15 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "c48b84797d119633729f0520d5291ad84ecb75802f30126accf1a86428038142"
+      "sha256": "cdbc8127764a3aacc26b0f89c12e3083c65013cd7de31da0781dbd56bfb4e316"
     },
     {
       "path": "docs/readme/README.ja.md",
-      "sha256": "b5a9c3dd1e3c06d572237b4cbb06417c93faccda0ef1ec25bf611379e7c384ab"
+      "sha256": "722a95835234cd1c0aafa6df67450b0526060fe7db7b80b8fe6952e8250a7486"
     },
     {
       "path": "docs/readme/README.ko.md",
-      "sha256": "004afca36f86ea7ac29858a73db3b038ac10bbebb1199bf412ac6003e9f7aa81"
+      "sha256": "58771d4587c9e6ce7b6bf84d9d89b478960dfaf379f0c83a1972e0483cc42658"
     },
     {
       "path": "tests/test_efficiency.py",
@@ -131,6 +131,18 @@
     {
       "path": "reports/efficiency-host-0.8.0.json",
       "sha256": "ba3d4e1c7b7794806abec9c660ccdb70367c98463bdcc9c9d61fa965576e2981"
+    },
+    {
+      "path": "reports/noedit-capture-0.8.8.md",
+      "sha256": "94830aaab3d8f4057983ae33dcaa41b6365061fb693436e6314854ec569d6854"
+    },
+    {
+      "path": "evals/check_noedit_capture.py",
+      "sha256": "a75e5a8fa2cf4c0b85f8679a728fc0d58fc4390cfc82f7af31dea73ac056a9a1"
+    },
+    {
+      "path": "tests/test_noedit_capture_eval.py",
+      "sha256": "c969423f6dbd1e93212be2f24913d68e70684516d7a74c56d09e1746463e7ad5"
     },
     {
       "path": "reports/recall-performance-0.8.6.md",
@@ -266,7 +278,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "96467937037c0c403a41396f4d292cc82932120feb94388a484a5bd16c506d03"
+      "sha256": "57a369fca7dc8e98ae94bc830439d08d6f10a3f1cd8ac6c066f17999d77700fa"
     },
     {
       "path": "reports/online-installation.json",
@@ -306,7 +318,7 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "9744f0fe43f3b1b5687e3c1c8120dcae7af0cf889e1e5331dc421933fea5de6c"
+      "sha256": "1c096d66c78183b7c60962210d65dc250ec03ebe86c13a6717c49bee7c6a68b1"
     },
     {
       "path": "evals/check_deepseek.py",
@@ -331,5 +343,5 @@
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.8.7"
+  "version": "0.8.8"
 }
