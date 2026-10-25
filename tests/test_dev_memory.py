@@ -56,10 +56,10 @@ class MemoryTestCase(unittest.TestCase):
 
     def apply(self, *, scope: str, operations: list[dict], project: Path | None = None,
               turn: str = "turn-1", idem: str | None = None, task: str | None = None,
-              global_root: Path | None = None, maintenance: str = 'defer', include_task: bool = False) -> dict:
+              global_root: Path | None = None, maintenance: str = 'defer') -> dict:
         payload = {"schema_version": 1, "scope": scope, "session_id": "session-test", "turn_id": turn,
                    "idempotency_key": idem or f"idem-{turn}", "task_id": task, "operations": operations,
-                   'maintenance': maintenance, 'include_task': include_task}
+                   'maintenance': maintenance}
         return store.apply_payload(payload, project_root=project or self.project_a,
                                    global_root=global_root or self.global_root)
 
@@ -161,9 +161,9 @@ class StoreTests(MemoryTestCase):
         project = self.home / "developer-first"
         project.mkdir()
         store.init_project(project, capture_mode="developer-first")
-        payload = {"schema_version": 1, "scope": "task", "session_id": "s", "turn_id": "t",
+        payload = {"schema_version": 1, "scope": "project", "session_id": "s", "turn_id": "t",
                    "task_id": "task-1", "idempotency_key": "developer-first-add",
-                   "operations": [{"op": "CHECKPOINT", "scope": "task", "record": self.record(kind="checkpoint")}]}
+                   "operations": [{"op": "ADD", "scope": "project", "record": self.record()}]}
         result = store.apply_payload(payload, project_root=project, global_root=self.global_root)
         self.assertEqual(result["status"], "skipped_developer_first")
         base, _, config = store._config_for("project", project, self.global_root)
@@ -201,21 +201,20 @@ class StoreTests(MemoryTestCase):
         elapsed = time.perf_counter() - started
         self.assertLess(elapsed, 3.0, f"bounded recall took {elapsed:.3f}s for 300 records x10")
 
-    def test_resume_recovers_checkpoint_candidates_without_binding_a_task(self) -> None:
-        for task in ("task-a", "task-b"):
-            self.apply(scope="task", task=task, turn=task, operations=[
-                {"op": "CHECKPOINT", "scope": "task", "record": self.record(kind="checkpoint", title=task)}])
-        ordinary = store.recall("continue", project_root=self.project_a, global_root=self.global_root)
-        self.assertFalse(any(r["kind"] == "checkpoint" for block in ordinary["stores"] for r in block["records"]))
-        resumed = store.recall("continue", project_root=self.project_a, global_root=self.global_root, resume=True, force=True)
-        block = resumed["stores"][1]
-        self.assertEqual({r["task_id"] for r in block["records"]}, {"task-a", "task-b"})
-        self.assertIsNone(block["task_id"])
-        b = store.recall("continue", project_root=self.project_b, global_root=self.global_root, resume=True, force=True)
-        self.assertFalse(b["stores"][1]["records"])
-        limited = store.recall("continue", project_root=self.project_a, global_root=self.global_root, resume=True,
-                               max_details=1, force=True)
-        self.assertTrue(limited["stores"][1]["context_incomplete"])
+    def test_legacy_task_rows_do_not_enter_recall_or_maintenance(self) -> None:
+        legacy_id = self.add_project_rule(turn="legacy-task", title="Legacy task progress")
+        _, db = store.project_paths(self.project_a)
+        conn = store._connect(db)
+        conn.execute("UPDATE memories SET scope='task',kind='checkpoint' WHERE id=?", (legacy_id,))
+        conn.commit()
+        conn.close()
+        recalled = store.recall("Legacy task progress", project_root=self.project_a,
+                                global_root=self.global_root, force=True)
+        self.assertFalse(any(row["id"] == legacy_id for block in recalled["stores"] for row in block["records"]))
+        self.assertFalse(any(row["id"] == legacy_id for row in store.list_records("project", project_root=self.project_a)["records"]))
+        self.assertTrue(any(row["id"] == legacy_id for row in store.list_records("project", project_root=self.project_a, status="all")["records"]))
+        pack = store.maintenance_prepare("project", project_root=self.project_a, force=True)
+        self.assertFalse(any(row["id"] == legacy_id for row in pack.get("records", [])))
 
     def test_mixed_batch_project_context_does_not_stamp_global_records(self) -> None:
         global_rule = self.record(scope="global", kind="preference", title="Reply order", content="Conclusion first.",
@@ -224,7 +223,7 @@ class StoreTests(MemoryTestCase):
                    "task_id": "task-a", "branch": "project-A-private-branch", "commit_id": "abc123",
                    "idempotency_key": "mixed-context", "operations": [
                        {"op": "ADD", "scope": "global", "record": global_rule},
-                       {"op": "CHECKPOINT", "scope": "task", "record": self.record(kind="checkpoint")}]}
+                       {"op": "ADD", "scope": "project", "record": self.record()}]}
         result = store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)
         self.assertEqual(result["status"], "saved", result)
         global_id = result["stores"][0]["operations"][0]["id"]
@@ -291,13 +290,6 @@ class StoreTests(MemoryTestCase):
              "expected_revision": prior["revision"], "record": corrected}
         ])
         self.assertEqual(correction["status"], "saved")
-        checkpoint = {"kind": "checkpoint", "claim_type": "observed", "title": "Refund eligibility task",
-                      "content": "Corrected the project rule to 14 days. Implementation remains; next implement and run tests.",
-                      "source": self.source("The correction was saved; implementation remains.", "user_feedback")}
-        saved_checkpoint = self.apply(scope="task", turn="refund-checkpoint", task="refund-task", operations=[
-            {"op": "CHECKPOINT", "scope": "task", "record": checkpoint}
-        ])
-        self.assertEqual(saved_checkpoint["status"], "saved")
         global_preference = self.record(scope="global", kind="preference", title="Progress reporting",
                                         content="Keep progress reports concise and state tests only when actually run.",
                                         conditions="", exceptions="", do="", dont="", verification_steps="")
@@ -307,13 +299,12 @@ class StoreTests(MemoryTestCase):
         self.assertEqual(global_saved["status"], "saved")
 
         resumed = store.recall("refund eligibility", project_root=self.project_a, global_root=self.global_root,
-                               session_id="new-a-session", task_id="refund-task", force=True)
+                               session_id="new-a-session", force=True)
         resumed_records = [row for block in resumed["stores"] for row in block["records"]]
         corrected_rule = next(row for row in resumed_records if row["id"] == rule_id)
         self.assertIn("14 days", corrected_rule["content"])
         self.assertNotIn("30 days", corrected_rule["content"])
-        self.assertTrue(any(row["kind"] == "checkpoint" and "next implement" in row["content"]
-                            for row in resumed_records))
+        self.assertFalse(any(row["kind"] == "checkpoint" for row in resumed_records))
 
         project_b = store.recall("refund eligibility", project_root=self.project_b, global_root=self.global_root,
                                  session_id="b-session", force=True)
@@ -399,24 +390,9 @@ class StoreTests(MemoryTestCase):
             conn.execute("UPDATE memories SET claim_type='hypothesis' WHERE id=?", (legacy_id,))
             conn.commit()
         recalled = store.recall('Unconfirmed naming', project_root=self.project_a,
-            global_root=self.global_root, include_task=False, force=True)
+            global_root=self.global_root, force=True)
         self.assertNotIn(legacy_id, [r['id'] for r in recalled['stores'][1]['records']])
         self.assertTrue(store.show_record('project', legacy_id, project_root=self.project_a)['record'])
-        checkpoints = []
-        for turn in ('older', 'newer'):
-            result = self.apply(scope='task', task='legacy-resume', turn=turn,
-                operations=[{'op':'CHECKPOINT', 'record':self.record(kind='checkpoint', claim_type='observed',
-                    title=turn, content='Synthetic checkpoint ' + turn)}])
-            checkpoints.append(result['stores'][0]['operations'][0]['id'])
-        with closing(sqlite3.connect(db)) as conn:
-            conn.execute("UPDATE memories SET status='active' WHERE id=?", (checkpoints[0],))
-            conn.execute("UPDATE memories SET claim_type='hypothesis' WHERE id=?", (checkpoints[1],))
-            conn.commit()
-        resumed = store.recall('continue', project_root=self.project_a, global_root=self.global_root,
-                               resume=True, force=True)
-        resumed_ids = [r['id'] for r in resumed['stores'][1]['records']]
-        self.assertIn(checkpoints[0], resumed_ids)
-        self.assertNotIn(checkpoints[1], resumed_ids)
 
     def test_desired_policy_and_observed_implementation_remain_distinct(self) -> None:
         desired = self.record(title="Desired policy", content="Must reject final-sale items.")
@@ -566,32 +542,15 @@ class StoreTests(MemoryTestCase):
             store.consolidate_sources("project", [first], project_root=self.project_b)
         self.assertEqual(caught.exception.code, "scope_error")
 
-    def test_task_checkpoint_is_project_local_and_recallable(self) -> None:
-        checkpoint = {"kind": "checkpoint", "claim_type": "observed", "title": "当前断点",
-                      "content": "已修好解析；还未运行回归。", "source": {"type": "tool_result"}}
-        result = self.apply(scope="task", task="task-42", turn="checkpoint", operations=[
-            {"op": "CHECKPOINT", "scope": "task", "record": checkpoint}
-        ])
-        self.assertEqual(result["status"], "saved")
-        recalled = store.recall("", project_root=self.project_a, task_id="task-42", force=True)
-        self.assertTrue(any(r["kind"] == "checkpoint" for s in recalled["stores"] for r in s["records"]))
-
-    def test_two_sessions_keep_separate_task_bindings(self) -> None:
-        for session, task in (("session-one", "task-one"), ("session-two", "task-two")):
-            payload = {"schema_version": 1, "scope": "task", "session_id": session, "turn_id": f"turn-{task}",
-                       "idempotency_key": f"idem-{task}", "task_id": task, "operations": [
-                {"op": "CHECKPOINT", "scope": "task", "record": {"kind": "checkpoint", "claim_type": "observed",
-                    "title": task, "content": f"progress {task}", "source": {"type": "tool_result"}}}
-            ]}
-            self.assertEqual(store.apply_payload(payload, project_root=self.project_a, global_root=self.global_root)["status"], "saved")
-        one = store.recall("", project_root=self.project_a, session_id="session-one", force=True)
-        two = store.recall("", project_root=self.project_a, session_id="session-two", force=True)
-        one_records = [r for block in one["stores"] for r in block["records"]]
-        two_records = [r for block in two["stores"] for r in block["records"]]
-        self.assertTrue(any(r["task_id"] == "task-one" for r in one_records))
-        self.assertFalse(any(r["task_id"] == "task-two" for r in one_records))
-        self.assertTrue(any(r["task_id"] == "task-two" for r in two_records))
-        self.assertFalse(any(r["task_id"] == "task-one" for r in two_records))
+    def test_task_scope_and_checkpoint_writes_are_rejected(self) -> None:
+        with self.assertRaises(store.MemoryError) as caught:
+            self.apply(scope="task", task="task-42", turn="old-scope", operations=[
+                {"op": "CHECKPOINT", "scope": "task", "record": self.record(kind="checkpoint")}])
+        self.assertEqual(caught.exception.code, "scope_error")
+        with self.assertRaises(store.MemoryError) as caught:
+            self.apply(scope="project", turn="old-operation", operations=[
+                {"op": "CHECKPOINT", "scope": "project", "record": self.record()}])
+        self.assertEqual(caught.exception.code, "scope_error")
 
     def test_chinese_and_code_terms_recall_with_bounds(self) -> None:
         self.add_project_rule(title="退款服务 RefundPolicy ECONNRESET", content="退款条件含 ECONNRESET 排查。")

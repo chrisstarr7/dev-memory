@@ -56,12 +56,7 @@ class LifecycleTests(MemoryTestCase):
             }])
             self.assertEqual(failed['stores'][0]['error'], error)
 
-    def test_use_cannot_escape_task_or_place_project_path_in_global_receipt(self):
-        task = self.apply(scope='task', task='first-task', operations=[{'op':'CHECKPOINT','record':self.record()}])
-        task_id = task['stores'][0]['operations'][0]['id']
-        failed = self.apply(scope='task', task='other-task', turn='wrong-task-use', operations=[{
-            'op':'USE','scope':'task','id':task_id,'expected_revision':1,'reason':'Continued work.','action_ref':'next-step'}])
-        self.assertEqual(failed['stores'][0]['error'], 'scope_error')
+    def test_use_cannot_place_project_path_in_global_receipt(self):
         preference = self.apply(scope='global', turn='pref', operations=[{'op':'ADD','record':self.record(scope='global',kind='preference')}])
         pref_id = preference['stores'][0]['operations'][0]['id']
         failed = self.apply(scope='global', turn='global-path-use', operations=[{
@@ -93,64 +88,25 @@ class LifecycleTests(MemoryTestCase):
         self.assertTrue(first['stores'][1]['candidate_limit_reached'])
         self.assertNotEqual(store.recall('schema',**args)['stores'][1]['status'],'cached')
 
-    def test_latest_checkpoint_wins_even_with_identical_timestamps(self):
-        ids=[]
-        with patch.object(store,'utc_now',return_value='2026-01-01T00:00:00+00:00'):
-            for n in range(7):
-                result=self.apply(scope='task',task='cycle',turn=f'stage-{n}',operations=[{'op':'CHECKPOINT',
-                    'record':self.record(kind='checkpoint',title=f'Stage {n}',content=f'Completed stage {n}; next stage {n+1}.')}])
-                ids.append(result['stores'][0]['operations'][0]['id'])
-        records=store.list_records('project',project_root=self.project_a,status='all')['records']
-        self.assertEqual([r['id'] for r in records if r['status']=='active'],[ids[-1]])
-        result=store.recall('continue',project_root=self.project_a,global_root=self.global_root,resume=True,force=True)
-        self.assertEqual([r['id'] for r in result['stores'][1]['records']],[ids[-1]])
-        for old in ids[:-1]:
-            detail=store.show_record('project',old,project_root=self.project_a)
-            self.assertEqual(detail['record']['status'],'superseded')
-            self.assertEqual(len(detail['evidence']),1)
-            self.assertEqual(len(detail['revisions']),1)
-
     def test_context_can_recall_and_maintain_only_global_and_project_memory(self):
-        self.apply(scope='project', task='opaque-feedback-task', turn='project-rule-before-task', operations=[{
-            'op':'ADD', 'scope':'project', 'record':self.record(title='Durable project rule') }])
+        legacy_id = self.add_project_rule(turn='legacy-progress', title='Old task progress')
         _, db = store.project_paths(self.project_a)
         with contextlib.closing(sqlite3.connect(db)) as conn:
-            self.assertIsNone(conn.execute("SELECT 1 FROM session_bindings WHERE session_id='session-test'").fetchone())
-        saved = self.apply(scope='task', task='legacy-task', operations=[{'op':'CHECKPOINT',
-            'record':self.record(kind='checkpoint', title='Legacy checkpoint', content='Old task progress.') }])
-        checkpoint_id = saved['stores'][0]['operations'][0]['id']
-        complete = store.recall('continue', project_root=self.project_a, global_root=self.global_root,
-                                session_id='session-test', resume=True, force=True)
-        self.assertIn(checkpoint_id, [r['id'] for r in complete['stores'][1]['records']])
-
+            conn.execute("UPDATE memories SET scope='task',kind='checkpoint' WHERE id=?", (legacy_id,))
+            conn.commit()
+            self.assertIsNone(conn.execute("SELECT 1 FROM sqlite_master WHERE name='session_bindings'").fetchone())
+        project_id = self.add_project_rule(turn='durable-rule', title='Durable project rule')
         current = dev_memory.context('continue', project_root=self.project_a, global_root=self.global_root,
-                                     session_id='session-test', resume=True, force=True, include_task=False)
-        self.assertNotIn(checkpoint_id, [r['id'] for r in current['stores'][1]['records']])
-        self.assertIsNone(current['stores'][1].get('task_id'))
-        self.assertEqual(current['stores'][1]['maintenance']['status'], 'waiting')
+                                     session_id='session-test', force=True)
+        self.assertNotIn(legacy_id, [r['id'] for r in current['stores'][1]['records']])
+        self.assertIn(project_id, [r['id'] for r in current['stores'][1]['records']])
         self.assertEqual(current['stores'][1]['maintenance']['pending_up_to_threshold'], 1)
-        self.assertEqual(store.show_record('project', checkpoint_id,
-                                          project_root=self.project_a)['record']['status'], 'active')
         cli = subprocess.run([sys.executable, str(dev_memory.__file__), '--global-root', str(self.global_root),
                               'context', '--project-root', str(self.project_a), '--query', 'continue',
-                              '--session-id', 'session-test', '--resume', '--exclude-task', '--force'],
+                              '--session-id', 'session-test', '--force'],
                              cwd=self.project_a, capture_output=True, text=True, encoding='utf-8', check=True)
         response = json.loads(cli.stdout)
-        self.assertNotIn(checkpoint_id, [r['id'] for r in response['stores'][1]['records']])
-        self.assertEqual(response['stores'][1]['maintenance']['pending_up_to_threshold'], 1)
-
-    def test_new_checkpoint_retires_only_its_own_task_and_invalidates_summary(self):
-        ids={}
-        for task in ('cycle','other'):
-            r=self.apply(scope='task',task=task,turn=task,operations=[{'op':'CHECKPOINT','record':self.record(kind='checkpoint',title=task)}])
-            ids[task]=r['stores'][0]['operations'][0]['id']
-        summary=self.record(kind='summary',title='Old progress summary',derived_from=[ids['cycle']],
-                            expected_source_revisions={ids['cycle']:1})
-        r=self.apply(scope='task',task='cycle',turn='summary',operations=[{'op':'ADD','record':summary}])
-        sid=r['stores'][0]['operations'][0]['id']
-        self.apply(scope='task',task='cycle',turn='next',operations=[{'op':'CHECKPOINT','record':self.record(kind='checkpoint',content='Tested; next fix boundary bug.')}])
-        self.assertEqual(store.show_record('project',ids['other'],project_root=self.project_a)['record']['status'],'active')
-        self.assertEqual(store.show_record('project',sid,project_root=self.project_a)['record']['status'],'stale')
+        self.assertNotIn(legacy_id, [r['id'] for r in response['stores'][1]['records']])
 
     def test_combined_context_reuses_recall_and_checks_maintenance_without_doctor_probes(self):
         self.add_project_rule()
@@ -208,7 +164,7 @@ class LifecycleTests(MemoryTestCase):
                 store._store_record(conn,record)
             conn.commit()
         with patch.object(store.time,'monotonic',side_effect=[0]+[2]*100):
-            result=store._recall_store('global',None,self.global_root,'convention',task_id=None,session_id=None,
+            result=store._recall_store('global',None,self.global_root,'convention',session_id=None,
                 module=None,max_candidates=20,max_details=5,max_chars=4000,force=True,readonly=True)
         self.assertEqual(result['status'],'deferred')
         self.assertTrue(result['context_incomplete'])
@@ -234,14 +190,14 @@ class LifecycleTests(MemoryTestCase):
             self.add_project_rule(turn=f'rule-{n}',content=f'Project payment rule {n}.',
                 conditions='',exceptions='',do='',dont='',verification_steps='')
         kwargs=dict(query='payment',project_root=self.project_a,global_root=self.global_root,session_id='borrow')
-        first=dev_memory.context(**kwargs,include_task=False)
+        first=dev_memory.context(**kwargs)
         self.assertEqual(len(first['stores'][1]['records']),3)
         self.assertFalse(first['stores'][1]['context_incomplete'])
-        second=dev_memory.context(**kwargs,include_task=False)
+        second=dev_memory.context(**kwargs)
         self.assertEqual([r['status'] for r in second['stores']],['cached','cached'])
         self.apply(scope='global',turn='confirmed-global',operations=[{'op':'ADD','record':self.record(
             scope='global',kind='preference',title='Reporting',content='Report outcomes before remaining gaps.')}])
-        changed=dev_memory.context(**kwargs,include_task=False)
+        changed=dev_memory.context(**kwargs)
         self.assertEqual(len(changed['stores'][0]['records']),1)
         self.assertLessEqual(len(changed['stores'][1]['records']),2)
         self.assertTrue(changed['stores'][1]['context_incomplete'])
@@ -328,7 +284,7 @@ class LifecycleTests(MemoryTestCase):
                     'expected_revision':1,'record':corrected}])
                 self.assertEqual(changed['stores'][0]['operations'][0]['id'],mid)
             context=dev_memory.context(query='refund eligibility',project_root=self.project_a,
-                global_root=self.global_root,session_id='cycle',include_task=False)
+                global_root=self.global_root,session_id='cycle')
             bucket=context['stores'][1]
             relevant={r['id']:r for r in bucket['records']}
             if mid not in relevant:
@@ -349,7 +305,7 @@ class LifecycleTests(MemoryTestCase):
         self.assertEqual(len(history['revisions']),1)
         _,db=store.project_paths(self.project_a)
         with contextlib.closing(sqlite3.connect(db)) as conn:
-            self.assertEqual(conn.execute('SELECT COUNT(*) FROM session_bindings').fetchone()[0],0)
+            self.assertIsNone(conn.execute("SELECT 1 FROM sqlite_master WHERE name='session_bindings'").fetchone())
             self.assertEqual(conn.execute('SELECT COUNT(*) FROM receipts').fetchone()[0],2)
         b=dev_memory.context(query='cancellation',project_root=self.project_b,global_root=self.global_root,force=True)
         self.assertIn(pid,[r['id'] for r in b['stores'][0]['records']])

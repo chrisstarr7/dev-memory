@@ -45,7 +45,7 @@ with tempfile.TemporaryDirectory() as td:
         for _ in range(10):
             start=time.perf_counter()
             with patch.object(store,'_connect',traced):
-                result=cli.context(f'shard{size-1}',project_root=project,global_root=glob,force=True,include_task=False)
+                result=cli.context(f'shard{size-1}',project_root=project,global_root=glob,force=True)
             times.append((time.perf_counter()-start)*1000)
         with contextlib.closing(connect(db,readonly=True)) as conn:
             plan=[r[3] for r in conn.execute('EXPLAIN QUERY PLAN '+queries[-1])]

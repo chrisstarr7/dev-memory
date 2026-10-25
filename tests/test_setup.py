@@ -69,7 +69,7 @@ class SetupTests(unittest.TestCase):
                 self.assertEqual(saved['status'], 'saved', saved)
                 memory_id = saved['stores'][0]['operations'][0]['id']
                 recalled = store.recall(title, project_root=self.project,
-                    global_root=self.global_root, include_task=False, force=True)
+                    global_root=self.global_root, force=True)
                 self.assertIn(memory_id, [r['id'] for r in recalled['stores'][1]['records']])
         self.assertEqual(store.list_records('global', global_root=self.global_root)['records'], [])
 
@@ -79,7 +79,7 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(result['mode'], 'developer-first')
         for force in (True, False):
             recalled = store.recall('naming', project_root=self.project, global_root=self.global_root,
-                                    session_id='mode-check', force=force, include_task=False)
+                                    session_id='mode-check', force=force)
             self.assertEqual(recalled['stores'][1]['capture_mode'], 'developer-first')
         payload = dict(schema_version=1, scope='project', session_id='s', turn_id='t',
             idempotency_key='blocked', operations=[dict(op='ADD', record=dict(
@@ -121,7 +121,7 @@ class SetupTests(unittest.TestCase):
         block = guide.split(setup.BEGIN, 1)[1].split(setup.END, 1)[0]
 
         self.assertIn('use dev-memory automatically', block)
-        self.assertIn('one bounded `context --exclude-task', block)
+        self.assertIn('one bounded `context`', block)
         self.assertIn('material project/module/topic change', block)
         self.assertIn('Save explicit corrections before affected edits', block)
         self.assertIn('quiet task boundary', block)
@@ -130,7 +130,7 @@ class SetupTests(unittest.TestCase):
         self.assertIn('Keep durable project rules, conventions, decisions and evidenced facts in project scope', block)
         self.assertIn('Separate desired rules from observed facts', block)
         self.assertIn('recheck the source before relying on them', block)
-        self.assertIn('Do not retrieve or write task memories/checkpoints', block)
+        self.assertIn('do not persist checkpoints', block)
         self.assertLess(len(block), 1800)
 
     def test_empty_override_does_not_hide_existing_team_instructions(self):

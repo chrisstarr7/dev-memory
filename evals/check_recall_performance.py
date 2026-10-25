@@ -85,7 +85,7 @@ def worker(args):
                 store._queue_maintenance(conn, mid)
             conn.commit()
         return {'seeded': args.size}
-    common = dict(project_root=project, global_root=global_root, include_task=False)
+    common = dict(project_root=project, global_root=global_root)
     query = f'shard{args.size - 1}'
     operations = {
         'readonly_narrow': lambda _: store.recall(query, readonly=True, force=True, **common),
@@ -110,7 +110,7 @@ def worker(args):
     def cli(_):
         result = subprocess.run([sys.executable, '-B', str(args.scripts / 'dev_memory.py'),
                                  '--global-root', str(global_root), 'context', '--project-root', str(project),
-                                 '--exclude-task', '--query', query], capture_output=True, text=True,
+                                 '--query', query], capture_output=True, text=True,
                                 encoding='utf-8', timeout=30)
         assert result.returncode == 0, result.stdout + result.stderr
         return json.loads(result.stdout)

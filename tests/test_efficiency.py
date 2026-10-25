@@ -33,7 +33,7 @@ class EfficiencyTests(MemoryTestCase):
         for options in ({}, {'readonly': True, 'session_id': 'read-only'}, {'force': True}):
             with patch.object(store, '_run_git', side_effect=AssertionError('No Git needed without cache or verification')):
                 result = store.recall('refund', project_root=self.project_a, global_root=self.global_root,
-                                      include_task=False, **options)
+                                      **options)
             self.assertEqual([r['id'] for r in result['stores'][1]['records']], [memory_id])
             self.assertIsNone(result['stores'][1]['records'][0]['verification_status'])
 
@@ -53,7 +53,7 @@ class EfficiencyTests(MemoryTestCase):
             with patch.object(store, '_workspace_signature',
                               **({'return_value':None} if expected == 'workspace_unknown' else {'wraps':store._workspace_signature})) as fingerprint:
                 result = store.recall('refund', project_root=self.project_a, global_root=self.global_root,
-                                      include_task=False, readonly=True)
+                                      readonly=True)
             records = result['stores'][1]['records']
             self.assertEqual(len(records), 2)
             self.assertEqual({r['verification_status'] for r in records}, {expected})
@@ -184,7 +184,7 @@ class EfficiencyTests(MemoryTestCase):
                       title='Evidence before edits',tags=['delivery'])
         memory_id = self.apply(scope='global',operations=[{'op':'ADD','record':record}])['stores'][0]['operations'][0]['id']
         result = store.recall('修复间歇性错误',intent='bugfix',project_root=self.project_b,
-                              global_root=self.global_root,force=True,include_task=False)
+                              global_root=self.global_root,force=True)
         self.assertIn(memory_id, [r['id'] for r in result['stores'][0]['records']])
 
     def test_rare_concrete_term_beats_recent_generic_matches(self):
@@ -215,10 +215,10 @@ class EfficiencyTests(MemoryTestCase):
         self.assertEqual(result['stores'][0]['maintenance']['status'],'due')
         self.assertNotIn('records',result['stores'][0]['maintenance'])
         with patch.object(store,'_related_records',side_effect=AssertionError('No semantic pack during coding')):
-            ctx = dev_memory.context(query='rule',project_root=self.project_a,global_root=self.global_root,include_task=False)
+            ctx = dev_memory.context(query='rule',project_root=self.project_a,global_root=self.global_root)
         self.assertEqual(ctx['stores'][1]['maintenance']['status'],'due')
         self.assertNotIn('records',ctx['stores'][1]['maintenance'])
-        pack = store.maintenance_prepare('project',project_root=self.project_a,include_task=False)
+        pack = store.maintenance_prepare('project',project_root=self.project_a)
         self.assertEqual(pack['status'],'prepare')
         self.assertLessEqual(len(pack['records']),8)
 

@@ -196,13 +196,7 @@ class AdversarialTests(MemoryTestCase):
             {"op": "ADD", "scope": "project", "record": self.record(content="different") }])
         self.assertEqual(result["stores"][0]["error"], "idempotency_conflict")
 
-    def test_task_and_claim_type_are_dedup_boundaries(self):
-        ids = []
-        for i, task in enumerate(("task-a", "task-b")):
-            result = self.apply(scope="task", task=task, turn=f"task-{i}", operations=[
-                {"op": "CHECKPOINT", "scope": "task", "record": self.record(kind="checkpoint") }])
-            ids.append(result["stores"][0]["operations"][0]["id"])
-        self.assertNotEqual(*ids)
+    def test_claim_type_is_a_dedup_boundary(self):
         desired = self.add_project_rule(turn="desired", claim_type="desired")
         observed = self.add_project_rule(turn="observed", claim_type="observed", code_refs=["refunds.py#refund_eligible"],
                                          source=self.source("observed", "code_observation"))

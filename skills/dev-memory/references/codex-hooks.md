@@ -5,7 +5,7 @@ Hooks are not installed by default. Normal automatic use comes from host-native 
 | Event | Work |
 | --- | --- |
 | `SessionStart` startup | Returns concise workflow guidance; no store read. |
-| `SessionStart` resume/compact | Tells the primary AI to force one focused recall after context loss; the adapter does not retrieve task checkpoints. |
+| `SessionStart` resume/compact | Tells the primary AI to force one focused global/project recall after context loss; it does not save conversation progress. |
 | `UserPromptSubmit` ordinary prompt | No lookup, Git probe, cache write or receipt. |
 | `UserPromptSubmit` recognized private-turn request | Saves only opaque suppression IDs in applicable initialized stores. Unknown IDs/storage are reported honestly; no prompt is retained. |
 | Old `Stop` registrations | Harmless no-op. Reconfiguration removes only this adapter's old Stop handler. No compulsory NOOP or recovery turn. |

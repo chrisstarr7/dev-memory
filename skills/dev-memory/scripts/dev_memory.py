@@ -54,14 +54,6 @@ def _die(code: str, message: str, status: int = 2) -> None:
     _json_out({"status": "failed", "error": code, "message": message})
     raise SystemExit(status)
 
-def _scope_root(args: argparse.Namespace) -> tuple[str, Path | None]:
-    scope = getattr(args, "scope", None)
-    root_arg = getattr(args, "project_root", None)
-    root = store.locate_project_root(Path.cwd(), root_arg) if root_arg else store.locate_project_root(Path.cwd())
-    if scope in {"project", "task"} and root is None:
-        raise store.MemoryError("project_root_required", "Use --project-root or run inside a Git worktree.")
-    return scope, root
-
 def _git_info(root: Path) -> dict[str, Any]:
     def run(args: list[str]) -> str | None:
         try:
@@ -186,17 +178,15 @@ def runtime_check() -> dict[str, Any]:
 
 
 def context(query: str = '', *, project_root: Path | None = None, global_root: Path | None = None,
-            task_id: str | None = None, session_id: str | None = None, module: str | None = None,
+            session_id: str | None = None, module: str | None = None,
             turn_id: str | None = None,
             max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
-            force: bool = False, readonly: bool = False, resume: bool = False,
-            include_task: bool = True, intent: str | None = None,
+            force: bool = False, readonly: bool = False, intent: str | None = None,
             with_maintenance: bool = False) -> dict[str, Any]:
     """One normal startup call: bounded recall and pending check, no host probes/init."""
-    result = store.recall(query, project_root=project_root, global_root=global_root, task_id=task_id,
+    result = store.recall(query, project_root=project_root, global_root=global_root,
                           session_id=session_id, module=module, max_candidates=max_candidates,
-                          max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, resume=resume,
-                          include_task=include_task, intent=intent)
+                          max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, intent=intent)
     for bucket in result['stores']:
         if readonly:
             bucket['maintenance'] = {'status': 'not_requested_readonly'}
@@ -206,7 +196,7 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
             try:
                 bucket['maintenance'] = store.maintenance_prepare(bucket['scope'], project_root=project_root, global_root=global_root,
                                                                   session_id=session_id, turn_id=turn_id,
-                                                                  include_task=include_task, include_records=with_maintenance)
+                                                                  include_records=with_maintenance)
             except (store.MemoryError, sqlite3.Error, OSError):
                 bucket['maintenance'] = {'status': 'deferred', 'reason': 'storage_unavailable'}
     project_activation = activation.status(project_root)
@@ -495,10 +485,10 @@ def uninstall(target: Path | None, agent: str = "codex") -> dict[str, Any]:
 
 def _scope_arg(args: argparse.Namespace) -> tuple[str, Path | None]:
     scope = args.scope
-    if scope not in {"global", "project", "task"}:
-        raise store.MemoryError("scope_error", "Use global, project, or task for this command.")
+    if scope not in {"global", "project"}:
+        raise store.MemoryError("scope_error", "Use global or project for this command.")
     root = store.locate_project_root(Path.cwd(), args.project_root) if getattr(args, "project_root", None) else store.locate_project_root(Path.cwd())
-    if scope in {"project", "task"} and root is None:
+    if scope == "project" and root is None:
         raise store.MemoryError("project_root_required", "Use --project-root or run inside a Git worktree.")
     return scope, root
 
@@ -542,11 +532,9 @@ def _parser() -> argparse.ArgumentParser:
         p = sub.add_parser(name)
         p.add_argument("--query", default="")
         p.add_argument('--intent', choices=tuple(store.INTENTS), help='Task intent expands recall across topic wording/languages; never filters categories')
-        p.add_argument("--resume", action="store_true", help="Include recent checkpoint candidates when continuing without a task ID")
-        p.add_argument("--exclude-task", action="store_true", help="Exclude legacy task records from recall and context maintenance")
+        p.add_argument('--exclude-task', action='store_true', help=argparse.SUPPRESS)  # Compatibility with older host guidance.
         p.add_argument("--project-root", type=Path)
         p.add_argument("--global-only", action="store_true", help="Use only the user global store, even inside a project")
-        p.add_argument("--task-id")
         p.add_argument("--session-id")
         if name == 'context':
             p.add_argument("--turn-id", help="Suppress repeated maintenance packs and honor a turn opt-out")
@@ -582,7 +570,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="Review pending records below the threshold at a task boundary")
     p.add_argument("--session-id")
     p.add_argument("--turn-id")
-    p.add_argument('--exclude-task', action='store_true', help='Exclude legacy task records from maintenance')
+    p.add_argument('--exclude-task', action='store_true', help=argparse.SUPPRESS)
     p = sub.add_parser("skip")
     p.add_argument("--scope", choices=("global", "project", "both"), default="project")
     p.add_argument("--project-root", type=Path)
@@ -667,23 +655,18 @@ def main(argv: list[str] | None = None) -> int:
             root = None if args.global_only else store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             recall_func = context if command == "context" else store.recall
             _json_out(recall_func(
-                args.query, project_root=root, global_root=global_root, task_id=args.task_id,
+                args.query, project_root=root, global_root=global_root,
                 session_id=args.session_id, module=args.module if args.module is not None else _module_label(root), max_candidates=args.max_candidates,
-                max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, resume=args.resume,
-                include_task=not args.exclude_task, intent=args.intent,
+                max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, intent=args.intent,
                 **({'turn_id':args.turn_id, 'with_maintenance':args.with_maintenance} if command == 'context' else {}),
             ))
         elif command == "show":
             scope, root = _scope_arg(args)
-            if scope == "task":
-                scope = "project"
             result = store.show_current(scope, args.ids or [args.id], project_root=root, global_root=global_root) if args.current or args.ids else store.show_record(scope, args.id, project_root=root, global_root=global_root)
             store._ensure_not_sensitive(result)
             _json_out(result)
         elif command == "list":
             scope, root = _scope_arg(args)
-            if scope == "task":
-                scope = "project"
             _json_out(store.list_records(scope, project_root=root, global_root=global_root,
                                          status=args.status, limit=args.limit))
         elif command == "apply":
@@ -711,8 +694,7 @@ def main(argv: list[str] | None = None) -> int:
                 try:
                     results.append(store.maintenance_prepare(kind, project_root=root if kind == "project" else None,
                                                             global_root=global_root, force=args.force,
-                                                            session_id=args.session_id, turn_id=args.turn_id,
-                                                            include_task=not args.exclude_task))
+                                                            session_id=args.session_id, turn_id=args.turn_id))
                 except (store.MemoryError, sqlite3.Error, OSError) as exc:
                     results.append({"scope": kind, "status": "failed", "error": getattr(exc, "code", "storage_unavailable")})
             failures = sum(r["status"] == "failed" for r in results)
@@ -726,18 +708,12 @@ def main(argv: list[str] | None = None) -> int:
                                                 project_root=root, global_root=global_root))
         elif command == "consolidate":
             scope, root = _scope_arg(args)
-            if scope == "task":
-                scope = "project"
             _json_out(store.consolidate_sources(scope, args.ids, project_root=root, global_root=global_root))
         elif command == "export":
             scope, root = _scope_arg(args)
-            if scope == "task":
-                scope = "project"
             _json_out(store.export_views(scope, project_root=root, global_root=global_root))
         elif command == "forget":
             scope, root = _scope_arg(args)
-            if scope == "task":
-                scope = "project"
             if args.action == "preview":
                 _json_out(store.forget_preview(scope, args.id, project_root=root, global_root=global_root))
             elif not args.confirm:
@@ -746,13 +722,9 @@ def main(argv: list[str] | None = None) -> int:
                 _json_out(store.forget_apply(scope, args.id, args.confirm, project_root=root, global_root=global_root))
         elif command == "backup":
             scope, root = _scope_arg(args)
-            if scope == "task":
-                scope = "project"
             _json_out(store.backup_store(scope, project_root=root, global_root=global_root))
         elif command == "restore":
             scope, root = _scope_arg(args)
-            if scope == "task":
-                scope = "project"
             _json_out(store.restore_store(scope, args.backup, project_root=root, global_root=global_root))
         elif command == 'storage':
             scope, root = _scope_arg(args)
@@ -760,8 +732,6 @@ def main(argv: list[str] | None = None) -> int:
                                            reclaim=args.reclaim, backup_keep=args.backup_keep))
         elif command == "capture":
             scope, root = _scope_arg(args)
-            if scope == "task":
-                scope = "project"
             capture_enabled = args.action == "on"
             recall_enabled = args.action != "disable"
             if scope == "project":

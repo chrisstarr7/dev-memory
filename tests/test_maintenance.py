@@ -16,7 +16,7 @@ from test_dev_memory import MemoryTestCase, store
 class MaintenanceTests(MemoryTestCase):
     def apply(self, **kwargs):
         # These tests exercise full maintenance packs, which are now explicitly requested.
-        return super().apply(maintenance='prepare', include_task=True, **kwargs)
+        return super().apply(maintenance='prepare', **kwargs)
 
     def test_summary_cannot_activate_candidates_or_strengthen_sources(self):
         for n, fields in enumerate([{'status':'candidate'}, {'strength':'soft'}]):
@@ -557,17 +557,12 @@ class MaintenanceTests(MemoryTestCase):
         self.assertEqual(result['status'],'saved',result)
         self.assertEqual(store.list_records('project',project_root=self.project_a)['records'],[])
 
-    def test_project_rule_is_deduplicated_across_tasks_but_task_constraints_are_separate(self):
+    def test_project_rule_is_deduplicated_across_tasks(self):
         first=self.apply(scope='project',task='old-task',operations=[{'op':'ADD','record':self.record()}])['stores'][0]['operations'][0]['id']
         result=self.apply(scope='project',task='new-task',turn='new-task',operations=[{'op':'ADD','record':self.record(title='Different title')}])
         self.assertEqual(result['stores'][0]['operations'][0]['id'],first)
         match=store.match_payload({'scope':'project','task_id':'third-task','record':self.record()},project_root=self.project_a)
         self.assertIn(first,[r['id'] for r in match['records']])
-        ids=[]
-        for task in ('task-one','task-two'):
-            result=self.apply(scope='task',task=task,turn=task,operations=[{'op':'ADD','record':self.record()}])
-            ids.append(result['stores'][0]['operations'][0]['id'])
-        self.assertNotEqual(*ids)
 
     def test_reactivated_alias_cannot_create_a_merge_cycle(self):
         first=self.add_project_rule(content='Require all conditions.')
@@ -588,16 +583,6 @@ class MaintenanceTests(MemoryTestCase):
             'meaning_preserved':True,'reason':'Shorter summary.'}])
         self.assertEqual(result['stores'][0]['error'],'scope_error')
         self.assertEqual(store.show_record('global',memory_id,global_root=self.global_root)['record']['revision'],1)
-
-    def test_task_pack_exposes_record_scope_for_a_valid_review(self):
-        result=self.apply(scope='task',task='active-task',operations=[{'op':'CHECKPOINT','record':self.record(content='Actual progress. '*100)}])
-        pack=result['stores'][0]['maintenance']
-        self.assertEqual(pack['record_scope'],'task')
-        self.assertEqual(pack['task_id'],'active-task')
-        result=self.apply(scope='project',task=pack['task_id'],turn='review-task',operations=[{'op':'MAINTENANCE_REVIEW',
-            'scope':pack['record_scope'],'expected_revisions':{r['id']:r['revision'] for r in pack['records']},'reason':'Read this task checkpoint.'}])
-        self.assertEqual(result['status'],'checked_noop',result)
-
 
 class MaintenanceObserverTests(unittest.TestCase):
     def test_usage_observation_requires_successful_structured_receipt(self):

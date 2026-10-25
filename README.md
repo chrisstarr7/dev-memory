@@ -49,13 +49,16 @@ Inspection/review also assesses memory when no code changes are needed. A newly 
 | --- | --- | --- |
 | **Global** | De-identified, reusable developer habits and methods | Preferred explanation order; inspect existing implementations before adding code; evidence-led debugging |
 | **Current project** | Durable conventions, contracts, constraints, decisions and evidenced facts | Coding and documentation rules; business states; API/data contracts; transaction, security and ownership boundaries |
-| **Conversation only** | One-time requests, task progress, unconfirmed guesses and sensitive content | “Skip tests this time”; today's todo list; an untested root-cause theory; credentials |
+
+These are the **only two persistent memory scopes**. The AI host already holds the current conversation. One-time requests, task progress and unconfirmed guesses stay there; Dev Memory does not save a conversation or task checkpoint. Credentials must not be stored in either scope.
 
 Project memory can also cover verification and acceptance rules, compatibility, deployment/environment constraints, performance limits, dependencies, migrations, and verified incident lessons with their conditions and prevention checks. It is not limited to a fixed list of categories. Do not snapshot whole files or treat every implementation detail as a permanent rule. Observed behavior and desired behavior are different claims; code that happens to exist does not establish the user's preferred design.
 
 **Global evidence has two paths:** an explicit ongoing cross-project instruction can be an active confirmed rule immediately. A first reusable user choice/correction can be saved as an **inactive candidate**; two genuinely independent task signals can promote it to a soft preference. Recall, AI repetition and summarization create no new evidence. Candidates are saved records, but do not instruct the assistant.
 
-**Project capture defaults:** new projects use `full-project`, allowing eligible project knowledge without a separate save command. `developer-first` is an optional mode that blocks new project records. Upgrading preserves existing modes and pause/disable/read-only controls; an older developer-first project requires an explicit switch. Unknown business decisions remain questions; unconfirmed hypotheses are not active rules and are excluded from normal recall. Normal Skill use excludes legacy task memories and checkpoints.
+**Project capture defaults:** new projects use `full-project`, allowing eligible project knowledge without a separate save command. `developer-first` is an optional mode that blocks new project records. Upgrading preserves existing modes and pause/disable/read-only controls; an older developer-first project requires an explicit switch. Unknown business decisions remain questions; unconfirmed hypotheses are not active rules and are excluded from normal recall. Older project databases may contain task/checkpoint records; this version does not create, recall, maintain or export them. It preserves those old rows for explicit audit or deletion rather than silently destroying user data.
+
+Files under `reports/` describe historical runs and may mention the former checkpoint behavior.
 
 ## Architecture and storage boundaries
 
@@ -79,6 +82,8 @@ flowchart TB
 
 There is no central database containing every project. One initialized-project recall consults global and current-project stores; it does not enumerate other projects. Project business, paths, code and customer details must never enter global memory. Separate clones/worktrees have separate project stores by default. SQLite is authoritative; Markdown views can be rebuilt.
 
+Session/turn IDs and hashed context cache keys are operational metadata for retries, opt-outs and avoiding duplicate recall. They do not contain conversation text or form a third memory scope. To inspect old task rows, use `list --scope project --status all`; remove a specific record only through the explicit `forget preview` / `forget apply` flow.
+
 ## Recall and capture
 
 ```mermaid
@@ -93,7 +98,7 @@ flowchart TD
     K --> F
 ```
 
-- Recall is part of the primary workflow. One focused `context --exclude-task` lookup supplies a bounded set of relevant rules; valid context is reused. Context loss requires a fresh lookup. Default body budget is five records / 4000 characters, normally reserving three global and two project records; unloaded or incomplete results may require targeted follow-up. If global scope has no eligible rules or recall is disabled there, the project borrows that unused capacity; the total budget stays unchanged.
+- Recall is part of the primary workflow. One focused `context` lookup supplies a bounded set of relevant rules; valid context is reused. Context loss requires a fresh lookup. Default body budget is five records / 4000 characters, normally reserving three global and two project records; unloaded or incomplete results may require targeted follow-up. If global scope has no eligible rules or recall is disabled there, the project borrows that unused capacity; the total budget stays unchanged.
 - The primary AI evaluates capture during its existing reasoning. Important corrections are captured before affected edits; ordinary eligible changes are batched before final delivery. Equivalent records are reused or revised, with evidence and history preserved.
 - An optional host-provided read-only reviewer can help with complex assessment when useful work overlaps. If used, the primary AI joins it, applies eligible records and checks receipts **before ending the response**. A launched reviewer is not a successful save. There is no required extra model call or continuous conversation listener.
 - Global and project writes have separate transactions: one can succeed while the other fails. A write failure must be reported accurately. See the [protocol](skills/dev-memory/references/protocol.md) for operation schemas, source requirements, revision guards and retrieval limits.
