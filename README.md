@@ -35,7 +35,7 @@ For another AI host, replace `codex` with its parameter:
 
 Installation needs Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The memory runtime uses only the Python standard library. Choose the host running the assistant: DeepSeek through OpenCode uses `opencode`.
 
-Codex setup enables global habits for your user and project memory for the current project. In an uninitialized project, its user guidance recalls global habits only. Run the install command again in each project that needs its own memory. Other hosts currently use project guidance only. After installation or upgrade, start a new AI session in the project. You can then work normally without invoking the Skill or saying “remember this.” Stores start empty.
+Codex setup enables global habits for your user and project memory for the current project. In an uninitialized project, its user guidance recalls global habits only. Run the install command again in each project that needs its own memory. Other hosts currently use project guidance only. After installation or upgrade, start a new AI session in the project. You can then work normally without invoking the Skill or saying “remember this.” New stores start empty; existing records are retained.
 
 See [installation and removal](docs/installation.md) for alternate paths, permissions, and host details.
 
@@ -50,39 +50,41 @@ Dev Memory has **two persistent scopes**:
 
 Temporary requests, work in progress, and unconfirmed guesses stay in the current conversation. Dev Memory does not save conversation transcripts or task checkpoints. A new chat may need to inspect the code to recover progress. Never save credentials in either scope.
 
-Project knowledge can include acceptance rules, compatibility, deployment constraints, migrations, and verified incident lessons. A code observation describes what exists; it does not establish what the user wants. The assistant keeps the original scope and checks for equivalent records before writing. A review-only task can still reveal a durable new rule, even when the code already complies.
+Project knowledge can include acceptance rules, compatibility, deployment constraints, migrations, and verified incident lessons. Save a code observation only if it is durable, non-obvious, and likely to change future work; it describes what exists, not what the user wants. The assistant keeps the original scope and checks for equivalent records before writing. A review-only task can still reveal a durable new rule, even when the code already complies.
 
-For global habits, an explicit ongoing cross-project instruction can become an active rule immediately. A reusable choice or correction without that explicit scope is first saved as an **inactive candidate**. It becomes an active soft preference only after evidence from two independent tasks. AI summaries and repeated recall do not count as new evidence.
+For global habits, an explicit ongoing cross-project instruction can become an active rule immediately. A reusable requirement, choice, or correction without that explicit scope is first saved as an **inactive candidate**. It becomes an active soft preference only after evidence from two independent tasks. AI summaries and repeated recall do not count as new evidence.
 
 New project stores use `full-project` mode, which allows eligible project knowledge to be saved automatically. The optional `developer-first` mode blocks new project records. Upgrades preserve existing modes and pause, disable, and read-only controls; switching an older project to `full-project` is explicit.
 
 ## How it works
 
-For an initialized project, the diagrams follow [Mermaid flowchart notation](https://mermaid.js.org/syntax/flowchart.html): rounded nodes mark entry and exit, rectangles mark actions, and diamonds mark decisions. Each decision has labeled branches.
+For an initialized project, this [Mermaid flowchart](https://mermaid.js.org/syntax/flowchart.html) shows how recall guides the task and how new information is assessed during the work:
 
 ```mermaid
 flowchart TD
-    S([Task starts or topic changes]) --> R[Focused lookup: global and current project]
-    R --> V[Check current instructions and project evidence]
-    V --> C{Confirmed correction affects the next edit?}
-    C -->|Yes| P[Assess and save if eligible before the edit]
-    P --> W[Do the task]
-    C -->|No| W
-    W --> N{Other durable evidence at turn end?}
-    N -->|Yes| Q[Assess and save if eligible before delivery]
-    Q --> F([Deliver result])
-    N -->|No| F
+    S([Task starts or topic changes]) --> R[Recall global and current project memory]
+    R --> A[Turn applicable active memory into task decisions and checks]
+    A --> W[Do the task; note new information as it appears]
+    W --> E[Assess future use, evidence, durability, scope, controls and existing records]
+    E --> G{Eligible change to save?}
+    G -->|No| F([Deliver result])
+    G -->|Yes| P[Add or update in the owning store; check the receipt]
+    P --> F
 ```
 
-Each “assess and save” step checks user controls, privacy, scope, evidence, and equivalent records, then inspects the actual store receipt if a write was attempted. An important correction is handled before the affected edit; ordinary increments are handled before delivery. Current instructions take priority over memory, and old observations or test results are rechecked against the workspace. Global and project writes have separate receipts; report a failed or partial write accurately. No eligible increment means no empty write.
+The capture question applies to requirements, choices, conventions, decisions, verified facts, methods, and corrections—not just mistakes. Assess new information when it appears and at turn end, including review-only work. Save an important correction before the edit it affects; save other eligible increments before delivery.
+
+Current instructions take priority over memory. The AI turns applicable active records, including their conditions and exceptions, into task decisions and checks; inactive candidates are not instructions. Recheck old observations and test results against the workspace. Recall supplies context to the AI; a returned record alone does not prove the AI followed it.
+
+Global and project writes have separate receipts; report a failed or partial write accurately. No eligible increment means no empty write.
 
 ## Organization
 
-Changed records enter a queue in their own store. Five pending records, a pending body of at least 1,200 characters, or an unreviewed change waiting seven days can make one related group due for review.
+Changed active rules and inactive non-hypothesis candidates enter a queue in their own store. Five pending records, a pending body of at least 1,200 characters, or an unreviewed change waiting the default seven-day interval can make one related group due for review.
 
 ```mermaid
 flowchart TD
-    S([A record changes]) --> Q[Queue its revision in the owning store]
+    S([An eligible rule or candidate changes]) --> Q[Queue its revision in the owning store]
     Q --> D{Review due?}
     D -->|No| L([Leave queued for later])
     D -->|Yes| M[Return due metadata]
