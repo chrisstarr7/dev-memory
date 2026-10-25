@@ -1,6 +1,6 @@
 <h1 align="center">dev-memory</h1>
 
-<p align="center"><strong>Local memory for how you develop and how each project works.</strong></p>
+<p align="center"><strong>Local memory for your development habits and project rules.</strong></p>
 
 <p align="center">
   <a href="https://github.com/chrisstarr7/dev-memory/actions/workflows/check.yml"><img src="https://github.com/chrisstarr7/dev-memory/actions/workflows/check.yml/badge.svg" alt="Program checks" /></a>
@@ -11,194 +11,100 @@
 
 <p align="center"><strong>English</strong> · <a href="docs/readme/README.zh-CN.md">简体中文</a> · <a href="docs/readme/README.ja.md">日本語</a> · <a href="docs/readme/README.ko.md">한국어</a></p>
 
-Dev Memory is a portable Skill and local Python program for AI-assisted development. It recalls relevant developer habits and project knowledge, learns durable information from actual requirements and evidence, and keeps the sources and revision history inspectable. Your assistant makes the semantic decisions; SQLite validates and stores the records.
+Dev Memory is a Skill and local Python program for AI-assisted development. It helps your assistant recall relevant habits and project rules, then save durable knowledge backed by requirements or evidence. The assistant judges meaning; the program validates and stores records in SQLite.
 
-[Install](#quick-start) · [What gets remembered](#what-gets-remembered) · [Architecture](#architecture-and-storage-boundaries) · [Workflow](#recall-and-capture) · [Maintenance](#automatic-organization-and-summaries) · [Controls](#control-memory) · [Troubleshooting](#if-memory-is-missing)
+## Install
 
-## Quick start
-
-From **your development project's root**, run:
+Run this from the root of a development project:
 
 ```sh
-npx -y --prefer-online chrisstarr7/dev-memory <agent>
+npx -y --prefer-online chrisstarr7/dev-memory codex
 ```
 
-Replace `<agent>` with the host parameter below. Requirements: Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The runtime uses the Python standard library; memory operations do not need npx or an external memory service.
+For another AI host, replace `codex` with its parameter:
 
-| AI host | Parameter | Project guidance |
+| Host | Parameter | Project guidance |
 | --- | --- | --- |
-| Codex | `codex` | `AGENTS.md`, or an existing nonempty `AGENTS.override.md` |
+| Codex | `codex` | `AGENTS.md` or an existing nonempty `AGENTS.override.md` |
 | Claude Code | `claude` | `CLAUDE.local.md` |
 | Cursor | `cursor` | `.cursor/rules/dev-memory.mdc` |
 | Gemini CLI | `gemini` | `GEMINI.md` |
 | GitHub Copilot | `copilot` | `.github/copilot-instructions.md` |
 | OpenCode | `opencode` | `AGENTS.md` |
-| DeepSeek Harness (DSH) | `deepseek` | `AGENTS.md` |
+| DeepSeek Harness | `deepseek` | `AGENTS.md` |
 
-**For Codex:** `npx -y --prefer-online chrisstarr7/dev-memory codex` configures user-level global habits **and** the current project in one installation. In other uninitialized projects, the Codex user guidance recalls only global habits; it does not create their project stores. Run the same command from each additional project that needs its own memory. Other hosts currently use project guidance, without this Codex user-level adapter. Choose the actual host: using a DeepSeek model through OpenCode requires `opencode`, not `deepseek`.
+Installation needs Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The memory runtime uses only the Python standard library. Choose the host running the assistant: DeepSeek through OpenCode uses `opencode`.
 
-Start a **new AI session** in the project after installation or upgrade. Work normally: you do not need to invoke the Skill, label each instruction's scope, or say “remember this.” Initial stores are empty; no personal habits are invented or pre-seeded. Setup receipts verify files and stores, not that a particular model followed every instruction. See [installation and removal](docs/installation.md) for paths, alternate installers, permissions and host requirements.
+Codex setup enables global habits for your user and project memory for the current project. In an uninitialized project, its user guidance recalls global habits only. Run the install command again in each project that needs its own memory. Other hosts currently use project guidance only. After installation or upgrade, start a new AI session in the project. You can then work normally without invoking the Skill or saying “remember this.” Stores start empty.
 
-## What gets remembered
+See [installation and removal](docs/installation.md) for alternate paths, permissions, and host details.
 
-The AI asks whether information will help a future task, what evidence supports it, and where it applies. Your current request always overrides memory.
+## What it remembers
 
-Inspection/review also assesses memory when no code changes are needed. A newly stated project convention remains eligible when the code already complies. Store the durable rule within its project/module scope, rather than transient check results or an extra generalized global copy. Existing equivalents, temporary requests and privacy controls still prevent unnecessary writes.
+Dev Memory has **two persistent scopes**:
 
-| Destination | Eligible information | Examples |
+| Scope | What belongs there | Example |
 | --- | --- | --- |
-| **Global** | De-identified, reusable developer habits and methods | Preferred explanation order; inspect existing implementations before adding code; evidence-led debugging |
-| **Current project** | Durable conventions, contracts, constraints, decisions and evidenced facts | Coding and documentation rules; business states; API/data contracts; transaction, security and ownership boundaries |
+| Global | De-identified development habits useful across projects | Check for a suitable existing implementation before adding one |
+| Current project | Durable rules, contracts, decisions, and evidenced facts | API requirements, security boundaries, coding conventions |
 
-These are the **only two persistent memory scopes**. The AI host already holds the current conversation. One-time requests, task progress and unconfirmed guesses stay there; Dev Memory does not save a conversation or task checkpoint. Credentials must not be stored in either scope.
+Temporary requests, work in progress, and unconfirmed guesses stay in the current conversation. Dev Memory does not save conversation transcripts or task checkpoints. A new chat may need to inspect the code to recover progress. Never save credentials in either scope.
 
-Project memory can also cover verification and acceptance rules, compatibility, deployment/environment constraints, performance limits, dependencies, migrations, and verified incident lessons with their conditions and prevention checks. It is not limited to a fixed list of categories. Do not snapshot whole files or treat every implementation detail as a permanent rule. Observed behavior and desired behavior are different claims; code that happens to exist does not establish the user's preferred design.
+Project knowledge can include acceptance rules, compatibility, deployment constraints, migrations, and verified incident lessons. A code observation describes what exists; it does not establish what the user wants. The assistant keeps the original scope and checks for equivalent records before writing. A review-only task can still reveal a durable new rule, even when the code already complies.
 
-**Global evidence has two paths:** an explicit ongoing cross-project instruction can be an active confirmed rule immediately. A first reusable user choice/correction can be saved as an **inactive candidate**; two genuinely independent task signals can promote it to a soft preference. Recall, AI repetition and summarization create no new evidence. Candidates are saved records, but do not instruct the assistant.
+For global habits, an explicit ongoing cross-project instruction can become an active rule immediately. A reusable choice or correction without that explicit scope is first saved as an **inactive candidate**. It becomes an active soft preference only after evidence from two independent tasks. AI summaries and repeated recall do not count as new evidence.
 
-**Project capture defaults:** new projects use `full-project`, allowing eligible project knowledge without a separate save command. `developer-first` is an optional mode that blocks new project records. Upgrading preserves existing modes and pause/disable/read-only controls; an older developer-first project requires an explicit switch. Unknown business decisions remain questions; unconfirmed hypotheses are not active rules and are excluded from normal recall. Older project databases may contain task/checkpoint records; this version does not create, recall, maintain or export them. It preserves those old rows for explicit audit or deletion rather than silently destroying user data.
+New project stores use `full-project` mode, which allows eligible project knowledge to be saved automatically. The optional `developer-first` mode blocks new project records. Upgrades preserve existing modes and pause, disable, and read-only controls; switching an older project to `full-project` is explicit.
 
-Files under `reports/` describe historical runs and may mention the former checkpoint behavior.
+## How it works
 
-## Architecture and storage boundaries
+1. **Recall:** At the start of relevant work or after a topic change, the assistant makes one focused lookup across global and current-project memory. Results are bounded; it loads missing records only when needed.
+2. **Work:** Current user instructions and project evidence take priority over recalled records. The assistant verifies old code observations and test results against the current workspace.
+3. **Record:** It saves eligible long-lived requirements, corrections, or habits in the right store and checks the commit receipt. With no eligible change, it makes no empty write. Global and project writes have separate receipts, so partial success is reported as such.
+4. **Organize:** When enough changed records are pending, the assistant may review one related group at a quiet task boundary. It can merge equivalents, shorten redundant prose, or improve tags while preserving conditions and evidence.
 
-```mermaid
-flowchart TB
-    H["AI host: loads project / user guidance"] --> A["Current AI: relevance, scope, evidence and meaning"]
-    A --> S["Skill + protocol: bounded workflow and controls"]
-    S --> C["Local Python CLI: validation and transactions"]
-    C <--> G[("Global SQLite: developer habits")]
-    C <--> P[("Current project SQLite: project knowledge")]
-    G --> V["Optional Markdown reading views"]
-    P --> V
-    O[("Other project's SQLite")] -. "Not opened by this task" .-> X["Separate project boundary"]
-```
+There is no daemon, continuous conversation listener, or required extra model call. Organization runs only during authorized interactions, respects pause/disable/read-only controls, and leaves unread or uncertain records for later. The [protocol](skills/dev-memory/references/protocol.md) documents the limits, source rules, and revision checks.
+
+## Storage and privacy
 
 | Location | Contents |
 | --- | --- |
-| `~/.dev-memory/global/` | Global database, configuration and optional views/backups |
-| `<project-root>/.dev-memory/` | Project database, configuration and private activation binding |
-| Host's installed `skills/dev-memory/` | Public Skill, CLI and reference files; not the private memory store |
+| `~/.dev-memory/global/` | Global SQLite store, configuration, optional views and backups |
+| `<project-root>/.dev-memory/` | This project's SQLite store and activation binding |
 
-There is no central database containing every project. One initialized-project recall consults global and current-project stores; it does not enumerate other projects. Project business, paths, code and customer details must never enter global memory. Separate clones/worktrees have separate project stores by default. SQLite is authoritative; Markdown views can be rebuilt.
+One project lookup opens the global store and that project’s store; it does not search other projects. Separate clones and worktrees have separate project stores by default. SQLite is authoritative; optional Markdown views can be rebuilt. Session and turn IDs support retries, opt-outs, and recall caching. They are operational metadata, not a third memory scope.
 
-Session/turn IDs and hashed context cache keys are operational metadata for retries, opt-outs and avoiding duplicate recall. They do not contain conversation text or form a third memory scope. To inspect old task rows, use `list --scope project --status all`; remove a specific record only through the explicit `forget preview` / `forget apply` flow.
+The core has no telemetry or automatic memory upload. Text recalled into a hosted AI is still subject to that host’s data policy. Global records and their evidence must exclude project names, business details, code, paths, customer data, raw dialogue, logs, and secrets. Backups contain private data too.
 
-## Recall and capture
+Older databases may contain task/checkpoint rows. This version does not create, recall, maintain, or export them. It retains those rows for explicit audit or deletion: use `list --scope project --status all`, then the `forget preview` / `forget apply` workflow. Historical files under `reports/` may describe the former behavior.
 
-```mermaid
-flowchart TD
-    R["Task begins, resumes or changes topic"] --> L["One focused context lookup: global + current project"]
-    L --> W["Apply relevant rules under current instructions; do the work"]
-    W --> E{"New durable evidence?"}
-    E -- "No" --> F["Deliver; no empty write"]
-    E -- "Yes" --> J["Check user controls, privacy, scope and equivalent records"]
-    J --> B["Revise or add in the owning store"]
-    B --> K["Inspect each store's commit receipt"]
-    K --> F
-```
+## Control it in plain language
 
-- Recall is part of the primary workflow. One focused `context` lookup supplies a bounded set of relevant rules; valid context is reused. Context loss requires a fresh lookup. Default body budget is five records / 4000 characters, normally reserving three global and two project records; unloaded or incomplete results may require targeted follow-up. If global scope has no eligible rules or recall is disabled there, the project borrows that unused capacity; the total budget stays unchanged.
-- The primary AI evaluates capture during its existing reasoning. Important corrections are captured before affected edits; ordinary eligible changes are batched before final delivery. Equivalent records are reused or revised, with evidence and history preserved.
-- An optional host-provided read-only reviewer can help with complex assessment when useful work overlaps. If used, the primary AI joins it, applies eligible records and checks receipts **before ending the response**. A launched reviewer is not a successful save. There is no required extra model call or continuous conversation listener.
-- Global and project writes have separate transactions: one can succeed while the other fails. A write failure must be reported accurately. See the [protocol](skills/dev-memory/references/protocol.md) for operation schemas, source requirements, revision guards and retrieval limits.
+- “For this project, document changes to API request and response fields.”
+- “Across all projects, check existing implementations before adding code.”
+- “Pause global learning but keep reading existing habits.”
+- “Do not save any memory from this turn.”
+- “Show the relevant memories.”
+- “Preview records to delete before forgetting them.”
 
-## Throughout the development lifecycle
+The current request always takes priority. To investigate missing capture or recall, ask the assistant to run the **installed** CLI’s `doctor` once. Check activation, capture mode, store access, candidate versus active status, and actual write receipts. An installation receipt or a model’s “remembered” message alone does not prove a record was saved or used.
 
-| Phase | How memory participates |
-| --- | --- |
-| Requirements | Recall current business rules; save confirmed durable requirements and exceptions. |
-| Design | Reuse contracts and decisions; keep provisional assumptions out of active rules. |
-| Implementation | Apply conventions and canonical capabilities; distinguish observed legacy behavior from required behavior. |
-| Verification | Recall acceptance/regression obligations; old test evidence is version-bound, not a fresh pass. |
-| Correction | Save important corrections before affected edits; invalidate obsolete derived summaries. |
-| Delivery | Follow artifact/reporting rules, finish eligible capture and inspect receipts; do not save task progress. |
-| Next task/project | Focused recall from global and the current project; fetch missing relevant rules and keep projects isolated. |
+## Update
 
-## Automatic organization and summaries
-
-“Automatic” means the assistant handles eligible work during authorized interactions. There is **no daemon, timer, background summarization model or full-library sweep**.
-
-```mermaid
-flowchart TD
-    C["Capture changes an active rule or inactive candidate"] --> Q["Queue its current revision in its own store"]
-    Q --> D{"5 pending records, body >=1200 chars, or 7 days?"}
-    D -- "No" --> N["Keep pending; continue normal work"]
-    D -- "Yes" --> M["context / apply return due metadata only"]
-    M --> B["Natural task boundary: fetch one related pack per store"]
-    B --> R["AI reads full records and checks meaning + revisions"]
-    R --> A["Merge exact equivalents, compact, retag or mark reviewed"]
-    A --> K["Atomic apply; inspect receipt"]
-    K --> T["Remaining work waits for a later user turn"]
-```
-
-The trigger starts a store-local cycle. Once started, later interactions can finish the below-threshold tail. Each user turn processes at most **one related topic per store**, capped at **8 records / 12000 characters**. Eligible inactive candidates can also be organized, while retaining candidate status; unresolved hypotheses are excluded. Stable unchanged records do not need repeated summaries. A protocol upgrade may queue existing eligible active and candidate records once. Oversized anchors are reported and skipped while selecting a fitting topic; oversized or unread records remain explicit follow-up work. A character cap is never permission to discard a condition. Paused, disabled, excluded and read-only stores retain their controls.
-
-| Action | What it changes | What it preserves |
-| --- | --- | --- |
-| **Compact** | Shortens one current record's prose | Conditions, exceptions, negative requirements, strength, scope, evidence and old revisions |
-| **Merge duplicates** | Keeps one equivalent canonical rule; supersedes duplicates | Original evidence/history and inspectable source links; incompatible rules stay separate |
-| **Retag / review** | Improves classification or marks fully read revisions as reviewed | Meaning and evidence; no new observation or preference |
-| **Derived summary** | Creates a reviewed, source-linked reading aid within one scope | Active, compatible atomic sources; no stronger claim than the sources; source changes invalidate the derived summary |
-| **Archive** | Removes a rule from ordinary recall when newer confirmed evidence or demonstrated expiry supports it | Audit history; age alone does not prove obsolescence |
-
-Automatic organization cannot invent facts, turn summaries into user evidence, promote candidates just by combining them, silently resolve incompatible business rules, or move project content into global scope. A summary is not independent confirmation. Semantic equivalence is an AI judgment; structural checks cannot prove two differently worded rules mean the same thing. If uncertain, retain the originals and mark only what was actually reviewed. Topic retrieval is bounded and does not guarantee discovery of every semantic conflict, especially across differently classified records. Summary preparation also respects disabled/excluded recall and the 8-record / 12000-character budget.
-
-**Context cleanup is separate from disk cleanup.** Compaction and merging reduce active text, while old bodies and provenance remain on disk. Explicit `storage` inspection/reclamation can clear disposable caches, retired search terms and free pages; validated same-store backup retention is separately user-selected. Evidence, revisions, privacy receipts and forgotten-record suppression are not an automatic retention target. Permanent forget requires the deletion workflow. No fixed lossless disk cap is promised.
-
-## Control memory
-
-Normal requirements need no scope label; scope names below are useful when changing the controls themselves.
-
-| Goal | Example instruction |
-| --- | --- |
-| Record a project convention | “For this repository, document new or changed API request/response fields in the interface document.” |
-| Record a project contract | “A cancelled order must not be charged again; preserve this in future changes.” |
-| Express a confirmed global habit | “Across all projects, reuse a suitable existing implementation before adding one.” |
-| Correct an existing rule | “Revise that convention: generated files are excluded.” |
-| Enable / restrict project capture | “Switch this project to full-project.” / “Switch it to developer-first.” |
-| Pause global learning, keep recall | “Pause global habit writes, but keep reading them.” |
-| Disable / resume global memory | “Stop global reading and writing.” / “Resume reading and learning global habits.” |
-| Exclude this turn | “Do not save any memory from this turn.” |
-| Inspect / organize | “Show relevant memories.” / “Organize pending related records without losing conditions or exceptions.” |
-| Forget | “Preview the records to delete; wait for my confirmation before deleting.” |
-
-## Privacy and limitations
-
-The core stores memory locally and has no telemetry or automatic memory upload. Installation downloads public program files; it does not publish private stores. However, memory passages supplied to a hosted AI are subject to that host's data policy. “Local SQLite” does not mean a hosted model never sees recalled text.
-
-Global records and their evidence must be de-identified: no project names, business entities, code, paths, customers, credentials, raw dialogue or logs. Program checks reject known sensitive/project markers; semantic privacy still requires AI review. Never store secrets in either scope. Store controls and turn opt-outs override routine learning and maintenance. Backups also contain private data.
-
-Installation, unit tests and successful SQL writes do not prove that every real AI session correctly classifies natural language, obeys guidance, or has negligible latency. Host permission/trust settings still apply. Optional Codex hooks are a separate integration, not a prerequisite for project-guided use or proof of event delivery.
-
-## If memory is missing
-
-Ask the assistant to inspect the **installed** CLI's `doctor` output once, not every coding turn:
-
-1. Check installed version, activation binding, Python/CLI paths and store readability/writability.
-2. Check project capture mode and pause/disable/read-only/turn controls. An older `developer-first` mode can explain missing new project records.
-3. Distinguish **saved candidates**, **active rules**, and **recall matches**. A candidate is stored but inactive; zero lexical matches does not mean the database is empty.
-4. Check write receipts and source evidence. A model saying “remembered” without a receipt is not proof. Inspect relevant records and revisions rather than scanning all projects.
-5. For Codex, `automatic_mode: not_configured` refers to optional hook setup; separately inspect project activation and store status. It alone does not show a broken Skill.
-
-Never bypass Windows ACLs or user controls by redirecting project data into global storage. See [installation diagnostics](docs/installation.md) and [verification evidence](reports/verification.md).
-
-## Upgrade, references and contribution
-
-Use the dedicated update command, then open a new AI session:
+For an existing managed installation, run the update command from the project and start a new AI session:
 
 ```sh
 npx -y --prefer-online chrisstarr7/dev-memory update codex
 ```
 
-Replace `codex` with your host parameter. Update requires an existing managed installation; it refreshes only the current project's and Codex user's existing bindings. It does not initialize an unbound project or enable previously absent user memory. Existing stores, capture modes, privacy controls and unrelated instructions remain intact. New projects still use the installation command above. Updating the source checkout alone does not update an installed Skill.
+Replace `codex` with your host parameter. Update preserves existing stores, controls, and unrelated instructions. It does not initialize an unbound project. Updating a source checkout alone does not update the installed Skill.
 
-- [Architecture](docs/architecture.md): components, storage boundaries and runtime behavior.
-- [Protocol](skills/dev-memory/references/protocol.md): operator commands and structured apply/maintenance contracts.
-- [Installation and removal](docs/installation.md): hosts, paths, alternate installation and troubleshooting.
-- [Verification reports](reports/verification.md): actual program/host checks and known gaps.
-- [0.8.4 maintenance review](reports/maintenance-review-0.8.4.md).
-- [0.8.5 lifecycle exercise and review](reports/lifecycle-review-0.8.5.md).
+## More detail
+
+- [Architecture](docs/architecture.md): components and storage boundaries.
+- [Protocol](skills/dev-memory/references/protocol.md): CLI operations, evidence, maintenance, and limits.
+- [Installation and removal](docs/installation.md): hosts, paths, and troubleshooting.
+- [Verification evidence](reports/verification.md): completed checks and known gaps.
 - [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE).
 
-Report sanitized issues at [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues). Do not attach private databases, credentials or raw conversations.
+Report sanitized issues at [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues). Do not attach private databases, credentials, or raw conversations.
