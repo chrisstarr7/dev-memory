@@ -58,12 +58,45 @@ New project stores use `full-project` mode, which allows eligible project knowle
 
 ## How it works
 
-1. **Recall:** At the start of relevant work or after a topic change, the assistant makes one focused lookup across global and current-project memory. Results are bounded; it loads missing records only when needed.
-2. **Work:** Current user instructions and project evidence take priority over recalled records. The assistant verifies old code observations and test results against the current workspace.
-3. **Record:** It saves eligible long-lived requirements, corrections, or habits in the right store and checks the commit receipt. With no eligible change, it makes no empty write. Global and project writes have separate receipts, so partial success is reported as such.
-4. **Organize:** When enough changed records are pending, the assistant may review one related group at a quiet task boundary. It can merge equivalents, shorten redundant prose, or improve tags while preserving conditions and evidence.
+For an initialized project, the diagrams follow [Mermaid flowchart notation](https://mermaid.js.org/syntax/flowchart.html): rounded nodes mark entry and exit, rectangles mark actions, and diamonds mark decisions. Each decision has labeled branches.
 
-There is no daemon, continuous conversation listener, or required extra model call. Organization runs only during authorized interactions, respects pause/disable/read-only controls, and leaves unread or uncertain records for later. The [protocol](skills/dev-memory/references/protocol.md) documents the limits, source rules, and revision checks.
+```mermaid
+flowchart TD
+    S([Task starts or topic changes]) --> R[Focused lookup: global and current project]
+    R --> V[Check current instructions and project evidence]
+    V --> C{Confirmed correction affects the next edit?}
+    C -->|Yes| P[Assess and save if eligible before the edit]
+    P --> W[Do the task]
+    C -->|No| W
+    W --> N{Other durable evidence at turn end?}
+    N -->|Yes| Q[Assess and save if eligible before delivery]
+    Q --> F([Deliver result])
+    N -->|No| F
+```
+
+Each “assess and save” step checks user controls, privacy, scope, evidence, and equivalent records, then inspects the actual store receipt if a write was attempted. An important correction is handled before the affected edit; ordinary increments are handled before delivery. Current instructions take priority over memory, and old observations or test results are rechecked against the workspace. Global and project writes have separate receipts; report a failed or partial write accurately. No eligible increment means no empty write.
+
+## Organization
+
+Changed records enter a queue in their own store. Five pending records, a pending body of at least 1,200 characters, or an unreviewed change waiting seven days can make one related group due for review.
+
+```mermaid
+flowchart TD
+    S([A record changes]) --> Q[Queue its revision in the owning store]
+    Q --> D{Review due?}
+    D -->|No| L([Leave queued for later])
+    D -->|Yes| M[Return due metadata]
+    M --> B{Quiet task boundary?}
+    B -->|No| L
+    B -->|Yes| R[Read one related pack]
+    R --> C{Safe action justified after full review?}
+    C -->|No| L
+    C -->|Yes| A[Merge, compact, retag or mark reviewed]
+    A --> F[Revision-checked apply and inspect receipt]
+    F --> E([Finish; remaining work waits])
+```
+
+One turn handles at most one related pack per store, with a limit of 8 records and 12,000 characters. Unread, oversized, or uncertain records stay explicit and queued; a character limit never permits dropping a condition. Organization preserves evidence and inactive candidate status. There is no daemon, continuous conversation listener, or required extra model call. The [protocol](skills/dev-memory/references/protocol.md) specifies operations, controls, and revision checks.
 
 ## Storage and privacy
 
