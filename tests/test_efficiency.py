@@ -43,7 +43,7 @@ class EfficiencyTests(MemoryTestCase):
             else:
                 # The fixture is outside Git; counting still checks privacy protection once.
                 self.assertEqual([(call.args[0], call.args[1]) for call in git.call_args_list], [
-                    (self.project_a, ['--literal-pathspecs', 'ls-files', '--', store.PROJECT_DIR_NAME])])
+                    (self.project_a.resolve(), ['--literal-pathspecs', 'ls-files', '--', store.PROJECT_DIR_NAME])])
                 self.assertEqual(result['stores'][1]['recall_tracking'], 'recorded')
 
     def test_uncached_verified_recall_checks_one_snapshot_and_preserves_staleness(self):
