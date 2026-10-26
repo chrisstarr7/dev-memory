@@ -28,14 +28,23 @@ class EfficiencyTests(MemoryTestCase):
         self.assertEqual(result['base_mode'], 'available')
         self.assertEqual(result['sqlite'], sqlite3.sqlite_version)
 
-    def test_unverified_recall_without_cache_never_probes_git(self):
+    def test_unverified_recall_without_cache_only_checks_git_write_protection(self):
         memory_id = self.add_project_rule()
         for options in ({}, {'readonly': True, 'session_id': 'read-only'}, {'force': True}):
-            with patch.object(store, '_run_git', side_effect=AssertionError('No Git needed without cache or verification')):
+            with patch.object(store, '_run_git', wraps=store._run_git) as git, \
+                 patch.object(store, '_workspace_signature', side_effect=AssertionError('No workspace scan needed')):
                 result = store.recall('refund', project_root=self.project_a, global_root=self.global_root,
                                       **options)
             self.assertEqual([r['id'] for r in result['stores'][1]['records']], [memory_id])
             self.assertIsNone(result['stores'][1]['records'][0]['verification_status'])
+            if options.get('readonly'):
+                git.assert_not_called()
+                self.assertEqual(result['stores'][1]['recall_tracking'], 'skipped_readonly')
+            else:
+                # The fixture is outside Git; counting still checks privacy protection once.
+                self.assertEqual([(call.args[0], call.args[1]) for call in git.call_args_list], [
+                    (self.project_a, ['--literal-pathspecs', 'ls-files', '--', store.PROJECT_DIR_NAME])])
+                self.assertEqual(result['stores'][1]['recall_tracking'], 'recorded')
 
     def test_uncached_verified_recall_checks_one_snapshot_and_preserves_staleness(self):
         path = self.project_a / 'refunds.py'
