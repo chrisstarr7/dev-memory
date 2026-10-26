@@ -557,6 +557,13 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--project-root", type=Path)
     p.add_argument("--status", default="active")
     p.add_argument("--limit", type=int, default=50)
+    p = sub.add_parser("recall-stats", help="Show memory recall totals for a UTC month or month range")
+    p.add_argument("--scope", choices=("global", "project", "both"), required=True)
+    p.add_argument("--project-root", type=Path)
+    month_group = p.add_mutually_exclusive_group()
+    month_group.add_argument("--month", help="UTC month in YYYY-MM format")
+    month_group.add_argument("--from-month", help="First UTC month in YYYY-MM format")
+    p.add_argument("--to-month", help="Last UTC month in YYYY-MM format; pair with --from-month")
     p = sub.add_parser("apply")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--module")
@@ -669,6 +676,22 @@ def main(argv: list[str] | None = None) -> int:
             scope, root = _scope_arg(args)
             _json_out(store.list_records(scope, project_root=root, global_root=global_root,
                                          status=args.status, limit=args.limit))
+        elif command == "recall-stats":
+            root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
+            if args.scope in {"project", "both"} and root is None:
+                raise store.MemoryError("project_root_required", "Use --project-root or run inside a Git worktree.")
+            if args.month:
+                if args.to_month:
+                    raise store.MemoryError("validation_error", "Use --month alone or pair --from-month with --to-month.")
+                start_month = end_month = args.month
+            elif args.from_month and args.to_month:
+                start_month, end_month = args.from_month, args.to_month
+            else:
+                raise store.MemoryError("validation_error", "Use --month or both --from-month and --to-month.")
+            scopes = ("global", "project") if args.scope == "both" else (args.scope,)
+            stores = [store.recall_stats(scope, start_month, end_month, project_root=root if scope == "project" else None,
+                                         global_root=global_root) for scope in scopes]
+            _json_out({"status": "ok", "from_month": start_month, "to_month": end_month, "stores": stores})
         elif command == "apply":
             payload = _read_payload(args.input)
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)

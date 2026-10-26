@@ -330,6 +330,12 @@ CREATE TABLE IF NOT EXISTS session_context(
  session_id TEXT NOT NULL, context_key TEXT NOT NULL, updated_at TEXT NOT NULL,
  PRIMARY KEY(session_id,context_key)
 );
+CREATE TABLE IF NOT EXISTS recall_counts(
+ memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+ month TEXT NOT NULL, recall_count INTEGER NOT NULL CHECK(recall_count > 0),
+ PRIMARY KEY(memory_id,month)
+);
+CREATE INDEX IF NOT EXISTS recall_count_month ON recall_counts(month,memory_id);
 CREATE TABLE IF NOT EXISTS merged_aliases(
  source_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
  canonical_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE
@@ -371,6 +377,37 @@ def _connect(db_path: Path, readonly: bool = False) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA busy_timeout=3000")
     return conn
+
+def _ensure_recall_counts_schema(conn: sqlite3.Connection) -> None:
+    conn.execute("""CREATE TABLE IF NOT EXISTS recall_counts(
+        memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+        month TEXT NOT NULL, recall_count INTEGER NOT NULL CHECK(recall_count > 0),
+        PRIMARY KEY(memory_id,month))""")
+    conn.execute("CREATE INDEX IF NOT EXISTS recall_count_month ON recall_counts(month,memory_id)")
+
+def _record_recall_counts(db_path: Path, memory_ids: list[str]) -> bool:
+    if not memory_ids:
+        return True
+    conn = None
+    try:
+        conn = _connect(db_path)
+        conn.execute("BEGIN IMMEDIATE")
+        _ensure_recall_counts_schema(conn)
+        month = datetime.now(timezone.utc).strftime("%Y-%m")
+        conn.executemany(
+            """INSERT INTO recall_counts(memory_id,month,recall_count) VALUES(?,?,1)
+            ON CONFLICT(memory_id,month) DO UPDATE SET recall_count=recall_count+1""",
+            ((memory_id, month) for memory_id in memory_ids),
+        )
+        conn.commit()
+        return True
+    except (MemoryError, OSError, sqlite3.Error):
+        if conn is not None:
+            conn.rollback()
+        return False
+    finally:
+        if conn is not None:
+            conn.close()
 
 def _init_database(db_path: Path, namespace_id: str, storage_kind: str) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -1896,15 +1933,23 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 break
             unloaded.append(descriptor)
             index_chars += size
+        recall_tracking = None
+        if details:
+            recall_tracking = "skipped_readonly" if readonly else (
+                "recorded" if _record_recall_counts(db_path, [record["id"] for record in details]) else "unavailable"
+            )
         if session_id and not readonly and not remaining and can_cache:
             _claim_context(kind, db_path, config, session_id, cache_key, True)
-        return {
+        result = {
             "scope": kind, "status": "ok", "records": details, "matched_count": candidate_count, **capture,
             "context_incomplete": bool(remaining), "remaining_ids": remaining,
             "unloaded_candidates": unloaded,
             "candidate_limit_reached": candidate_limit_reached or bool(overflow_ids),
             "namespace_id": config["namespace_id"], "data_revision": current_revision,
         }
+        if recall_tracking is not None:
+            result["recall_tracking"] = recall_tracking
+        return result
     except sqlite3.OperationalError:
         return {"scope": kind, "status": "deferred", "reason": "query_budget_or_storage_failure", "context_incomplete": True, "records": []}
     except (sqlite3.Error, OSError, MemoryError):
@@ -1988,8 +2033,46 @@ def show_current(kind: str, memory_ids: list[str], *, project_root: Path | None 
                 remaining.append(memory_id)
             else:
                 records.append(record); used += size
-        return {'scope': kind, 'status': 'ok', 'records': records, 'remaining_ids': remaining,
-                'missing_ids': missing, 'context_incomplete': bool(remaining or missing), 'audit_not_loaded': True}
+    finally:
+        conn.close()
+    result = {'scope': kind, 'status': 'ok', 'records': records, 'remaining_ids': remaining,
+              'missing_ids': missing, 'context_incomplete': bool(remaining or missing), 'audit_not_loaded': True}
+    if records:
+        result['recall_tracking'] = (
+            'skipped_capture_disabled' if not config.get('capture_enabled', True) or config.get('excluded') is True else
+            'recorded' if _record_recall_counts(db, [record['id'] for record in records]) else 'unavailable'
+        )
+    return result
+
+def recall_stats(kind: str, start_month: str, end_month: str | None = None, *, project_root: Path | None = None,
+                 global_root: Path | None = None) -> dict[str, Any]:
+    end_month = end_month or start_month
+    month_pattern = r"\d{4}-(0[1-9]|1[0-2])"
+    if (not re.fullmatch(month_pattern, start_month) or not re.fullmatch(month_pattern, end_month)
+            or start_month > end_month):
+        raise MemoryError('validation_error', 'Month range must use YYYY-MM format and be in ascending order.')
+    try:
+        datetime.strptime(start_month, "%Y-%m")
+        datetime.strptime(end_month, "%Y-%m")
+    except ValueError as exc:
+        raise MemoryError('validation_error', 'Month range must contain valid calendar months.') from exc
+    _, db, _ = _config_for(kind, project_root, global_root)
+    conn = _connect(db, readonly=True)
+    try:
+        exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='recall_counts'").fetchone()
+        if not exists:
+            return {'scope': kind, 'from_month': start_month, 'to_month': end_month,
+                    'timezone': 'UTC', 'total_recalls': 0, 'memories': []}
+        rows = conn.execute(
+            """SELECT c.memory_id,m.title,m.status,SUM(c.recall_count)
+            FROM recall_counts c JOIN memories m ON m.id=c.memory_id
+            WHERE c.month BETWEEN ? AND ? GROUP BY c.memory_id,m.title,m.status
+            ORDER BY SUM(c.recall_count) DESC,m.title,m.id""",
+            (start_month, end_month),
+        ).fetchall()
+        memories = [{'id': row[0], 'title': row[1], 'status': row[2], 'recall_count': row[3]} for row in rows]
+        return {'scope': kind, 'from_month': start_month, 'to_month': end_month, 'timezone': 'UTC',
+                'total_recalls': sum(row['recall_count'] for row in memories), 'memories': memories}
     finally:
         conn.close()
 
@@ -2265,6 +2348,8 @@ def storage_report(kind: str, *, project_root: Path | None = None, global_root: 
         cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat(timespec='seconds')
         counts = {table: conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
                   for table in ('memories', 'evidence', 'revisions', 'receipts', 'session_context', 'forgotten')}
+        counts['recall_counts'] = (conn.execute('SELECT COUNT(*) FROM recall_counts').fetchone()[0]
+                                   if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='recall_counts'").fetchone() else 0)
         reclaimable_cache = conn.execute('SELECT COUNT(*) FROM session_context WHERE updated_at<?', (cutoff,)).fetchone()[0]
         retired_terms = conn.execute("SELECT COUNT(*) FROM search_terms s JOIN memories m ON m.id=s.memory_id WHERE m.status IN ('archived','superseded','stale')").fetchone()[0]
         free_bytes = conn.execute('PRAGMA freelist_count').fetchone()[0] * conn.execute('PRAGMA page_size').fetchone()[0]
@@ -2409,6 +2494,7 @@ def restore_store(kind: str, backup_path: Path, *, project_root: Path | None = N
     conn = _connect(db_path)
     try:
         conn.execute("ATTACH DATABASE ? AS restore_source", (str(source_path),))
+        _ensure_recall_counts_schema(conn)
         current_ns = conn.execute("SELECT value FROM meta WHERE key='namespace_id'").fetchone()
         backup_ns = conn.execute("SELECT value FROM restore_source.meta WHERE key='namespace_id'").fetchone()
         integrity = conn.execute("PRAGMA restore_source.integrity_check").fetchone()
@@ -2422,9 +2508,9 @@ def restore_store(kind: str, backup_path: Path, *, project_root: Path | None = N
         private_receipts = conn.execute("SELECT idempotency_key,session_id,turn_id,status,checked_at,result_json,payload_hash FROM receipts WHERE status='skipped_private'").fetchall()
         previous_revision = data_revision(db_path)
         conn.execute("BEGIN IMMEDIATE")
-        for table in ("maintenance_pending", "merged_aliases", "session_context", "receipts", "revisions", "evidence", "search_terms", "derived_edges", "memories", "meta", "forgotten"):
+        for table in ("maintenance_pending", "merged_aliases", "session_context", "receipts", "revisions", "evidence", "search_terms", "derived_edges", "recall_counts", "memories", "meta", "forgotten"):
             conn.execute(f"DELETE FROM main.{table}")
-        for table in ("meta", "memories", "evidence", "revisions", "search_terms", "derived_edges", "receipts", "session_context", "forgotten", "merged_aliases", "maintenance_pending"):
+        for table in ("meta", "memories", "evidence", "revisions", "search_terms", "derived_edges", "recall_counts", "receipts", "session_context", "forgotten", "merged_aliases", "maintenance_pending"):
             current_cols = [row[1] for row in conn.execute(f"PRAGMA main.table_info({table})")]
             source_cols = {row[1] for row in conn.execute(f"PRAGMA restore_source.table_info({table})")}
             if not source_cols:

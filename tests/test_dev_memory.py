@@ -8,6 +8,7 @@ import tempfile
 import time
 import unittest
 import zipfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -200,6 +201,90 @@ class StoreTests(MemoryTestCase):
             self.assertTrue(recalled["stores"][0]["candidate_limit_reached"])
         elapsed = time.perf_counter() - started
         self.assertLess(elapsed, 3.0, f"bounded recall took {elapsed:.3f}s for 300 records x10")
+
+    def test_monthly_recall_counts_only_details_returned_and_preserve_cache_revision(self) -> None:
+        saved = self.apply(scope="global", global_root=self.global_root, turn="recall-count-seed", operations=[
+            {"op": "ADD", "scope": "global", "record": self.record(
+                scope="global", kind="preference", title="Recall count fixture",
+                content="For recall-count-fixture queries, use this durable rule.")}
+        ])
+        memory_id = saved["stores"][0]["operations"][0]["id"]
+        _, db = store.global_paths(self.global_root)
+        conn = store._connect(db)
+        conn.execute("DROP TABLE recall_counts")  # Simulate a pre-upgrade store; first recall migrates lazily.
+        conn.commit()
+        conn.close()
+        conn = store._connect(db, readonly=True)
+        revision_before = int(conn.execute("SELECT value FROM meta WHERE key='data_revision'").fetchone()[0])
+        conn.close()
+
+        first = store.recall("recall-count-fixture", global_root=self.global_root, session_id="recall-session")
+        self.assertEqual(first["stores"][0]["recall_tracking"], "recorded")
+        self.assertTrue(any(row["id"] == memory_id for row in first["stores"][0]["records"]))
+        cached = store.recall("recall-count-fixture", global_root=self.global_root, session_id="recall-session")
+        self.assertEqual(cached["stores"][0]["status"], "cached")
+        no_details = store.recall("recall-count-fixture", global_root=self.global_root, max_details=0, force=True)
+        self.assertFalse(no_details["stores"][0]["records"])
+        forced = store.recall("recall-count-fixture", global_root=self.global_root,
+                              session_id="recall-session", force=True)
+        self.assertEqual(forced["stores"][0]["recall_tracking"], "recorded")
+
+        month = datetime.now(timezone.utc).strftime("%Y-%m")
+        stats = store.recall_stats("global", month, global_root=self.global_root)
+        self.assertEqual(stats["total_recalls"], 2)
+        self.assertEqual(stats["memories"], [{"id": memory_id, "title": "Recall count fixture",
+                                              "status": "active", "recall_count": 2}])
+        self.assertEqual(store.recall_stats("global", month, month, global_root=self.global_root)["total_recalls"], 2)
+        previous_month = (datetime.now(timezone.utc).replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+        conn = store._connect(db)
+        conn.execute("INSERT INTO recall_counts(memory_id,month,recall_count) VALUES(?,?,3)", (memory_id, previous_month))
+        conn.commit()
+        conn.close()
+        self.assertEqual(store.recall_stats("global", previous_month, month,
+                                            global_root=self.global_root)["total_recalls"], 5)
+        conn = store._connect(db, readonly=True)
+        revision_after = int(conn.execute("SELECT value FROM meta WHERE key='data_revision'").fetchone()[0])
+        conn.close()
+        self.assertEqual(revision_before, revision_after)
+        backup = store.backup_store("global", global_root=self.global_root)["backup"]
+        store.recall("recall-count-fixture", global_root=self.global_root, force=True)
+        restored = store.restore_store("global", Path(backup), global_root=self.global_root)
+        self.assertEqual(restored["status"], "restored")
+        self.assertEqual(store.recall_stats("global", month, global_root=self.global_root)["total_recalls"], 2)
+        cli_output = []
+        with patch.object(dev_memory, "_json_out", side_effect=cli_output.append):
+            self.assertEqual(dev_memory.main(["--global-root", str(self.global_root), "recall-stats",
+                                              "--scope", "global", "--month", month]), 0)
+        self.assertEqual(cli_output[0]["stores"][0]["total_recalls"], 2)
+        cli_output.clear()
+        with patch.object(dev_memory, "_json_out", side_effect=cli_output.append):
+            self.assertEqual(dev_memory.main(["--global-root", str(self.global_root), "recall-stats",
+                                              "--scope", "global", "--from-month", previous_month,
+                                              "--to-month", month]), 0)
+        self.assertEqual(cli_output[0]["stores"][0]["total_recalls"], 5)
+        with self.assertRaises(store.MemoryError) as invalid_month:
+            store.recall_stats("global", "0000-01", global_root=self.global_root)
+        self.assertEqual(invalid_month.exception.code, "validation_error")
+
+    def test_monthly_recall_counts_obey_readonly_controls_and_forget(self) -> None:
+        memory_id = self.add_project_rule()
+        query = "refund"
+        readonly = store.recall(query, project_root=self.project_a, global_root=self.global_root,
+                                readonly=True, force=True)
+        self.assertEqual(readonly["stores"][1]["recall_tracking"], "skipped_readonly")
+        store.set_capture("project", False, project_root=self.project_a)
+        paused = store.recall(query, project_root=self.project_a, global_root=self.global_root, force=True)
+        self.assertTrue(paused["stores"][1]["records"])
+        month = datetime.now(timezone.utc).strftime("%Y-%m")
+        self.assertEqual(store.recall_stats("project", month, project_root=self.project_a)["total_recalls"], 0)
+        store.set_capture("project", True, project_root=self.project_a)
+        store.recall(query, project_root=self.project_a, global_root=self.global_root, force=True)
+        shown = store.show_current("project", [memory_id], project_root=self.project_a)
+        self.assertEqual(shown["recall_tracking"], "recorded")
+        self.assertEqual(store.recall_stats("project", month, project_root=self.project_a)["total_recalls"], 2)
+        preview = store.forget_preview("project", memory_id, project_root=self.project_a)
+        store.forget_apply("project", memory_id, preview["confirmation_token"], project_root=self.project_a)
+        self.assertEqual(store.recall_stats("project", month, project_root=self.project_a)["total_recalls"], 0)
 
     def test_legacy_task_rows_do_not_enter_recall_or_maintenance(self) -> None:
         legacy_id = self.add_project_rule(turn="legacy-task", title="Legacy task progress")

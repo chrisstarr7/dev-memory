@@ -15,6 +15,8 @@ Use the CLI at `<this-skill-directory>/scripts/dev_memory.py`; resolve its absol
 
 Before affected development work, run one bounded `context --query "TASK TERMS" --intent INTENT --session-id SESSION --turn-id TURN` call. Add the active `--project-root PATH`; with only Codex user-level activation, use `--global-only`. An initialized project uses one combined global/project recall, not a second global-only call. Other hosts need project setup. Use opaque local session/turn IDs if the host exposes none, and reuse them for retries.
 
+Successful detail recall also increments a per-memory monthly counter in that store. Candidate indexes, cached results, read-only calls and capture-paused stores do not increment it. This measures content returned to the assistant, not proven use. For a requested report, use `recall-stats --scope global|project|both --month YYYY-MM [--project-root PATH]`; sum a range with `--from-month YYYY-MM --to-month YYYY-MM`. Periods use UTC. Do not run statistics during ordinary development.
+
 Choose intent using the reasoning already needed for the task; no separate classifier call:
 
 | Task | `--intent` | Query terms |

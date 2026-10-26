@@ -113,6 +113,10 @@ The core has no telemetry or automatic memory upload. Text recalled into a hoste
 
 Older databases may contain task/checkpoint rows. This version does not create, recall, maintain, or export them. It retains those rows for explicit audit or deletion: use `list --scope project --status all`, then the `forget preview` / `forget apply` workflow. Historical files under `reports/` may describe the former behavior.
 
+## Recall statistics
+
+When a memory's full details are returned, its UTC monthly counter increments in that store. Candidate indexes, cached results, read-only calls and capture-paused stores do not increment. This measures delivery to the assistant, not confirmed use. Run `<python> <skill>/scripts/dev_memory.py --global-root <global-root> recall-stats --scope both --month 2026-10 --project-root .` for a month; use `--from-month 2026-07 --to-month 2026-09` for a quarter. Reports do not store prompts or conversation text.
+
 ## Control it in plain language
 
 - “For this project, document changes to API request and response fields.”
