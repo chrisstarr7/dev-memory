@@ -2056,7 +2056,10 @@ def recall_stats(kind: str, start_month: str, end_month: str | None = None, *, p
         datetime.strptime(end_month, "%Y-%m")
     except ValueError as exc:
         raise MemoryError('validation_error', 'Month range must contain valid calendar months.') from exc
-    _, db, _ = _config_for(kind, project_root, global_root)
+    _, db, config = _config_for(kind, project_root, global_root)
+    if not config.get('recall_enabled', True) or config.get('excluded'):
+        return {'scope': kind, 'status': 'disabled', 'from_month': start_month,
+                'to_month': end_month, 'timezone': 'UTC', 'total_recalls': 0, 'memories': []}
     conn = _connect(db, readonly=True)
     try:
         exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='recall_counts'").fetchone()

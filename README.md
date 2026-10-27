@@ -117,6 +117,12 @@ Older databases may contain task/checkpoint rows. This version does not create, 
 
 When a memory's full details are returned, its UTC monthly counter increments in that store. Candidate indexes, cached results, read-only calls and capture-paused stores do not increment. This measures delivery to the assistant, not confirmed use. Run `<python> <skill>/scripts/dev_memory.py --global-root <global-root> recall-stats --scope both --month 2026-10 --project-root .` for a month; use `--from-month 2026-07 --to-month 2026-09` for a quarter. Reports do not store prompts or conversation text.
 
+## Local memory dashboard
+
+Run `<python> <skill>/scripts/dev_memory.py dashboard serve` to open an on-demand page bound to `127.0.0.1`. Each run uses a temporary access token; closing the command stops the page. It reads the global store and every registered project store separately. Existing initialized projects can be added on the page or with `dashboard add --project-root /absolute/project/path`. New project setups register themselves. `dashboard list` shows registered paths and namespace IDs; `dashboard remove --namespace-id ID` removes a catalog entry without deleting memory. The catalog contains only local paths and store identities. It does not scan your disk or copy project records into the global store.
+
+The dashboard shows exact record bodies, provenance, revisions, status and monthly detail-return counts. Search within a store is paginated; cross-store search is limited to the first 50 matches and says when more exist. Read-only recall preview shows what the current query would return without incrementing counters. A return count is not proof the AI applied a rule, and periods before counting existed cannot be reconstructed. Disabled or excluded stores remain visible in the project list but do not expose memory content. Management actions use the existing revision-checked apply and two-step forget protocols; backups stay in their owning store. The local page does not use external assets or upload memory.
+
 ## Control it in plain language
 
 - “For this project, document changes to API request and response fields.”

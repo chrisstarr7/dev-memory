@@ -1,6 +1,6 @@
 {
   "name": "dev-memory",
-  "version": "0.8.9",
+  "version": "0.9.0",
   "description": "Developer-centered local memory of coding habits and reasoning preferences for AI assistants.",
   "license": "MIT",
   "repository": {
@@ -29,6 +29,7 @@
     "skills/dev-memory/scripts/dev_memory.py",
     "skills/dev-memory/scripts/dev_memory_store.py",
     "skills/dev-memory/scripts/dev_memory_setup.py",
+    "skills/dev-memory/scripts/dev_memory_dashboard.py",
     "skills/dev-memory/scripts/codex_hook.py",
     "skills/dev-memory/scripts/dev-memory"
   ]

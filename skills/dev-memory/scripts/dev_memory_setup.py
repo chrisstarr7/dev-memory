@@ -150,9 +150,17 @@ def setup(root: Path, agent: str, skill: Path, python: str, global_root: Path | 
                 'error': getattr(exc, 'code', 'activation_unavailable')}
     finally:
         lock.unlink(missing_ok=True)
+    try:
+        from dev_memory_dashboard import register_project
+        register_project(root, global_root)
+        dashboard_registration = 'registered'
+    except (store.MemoryError, OSError):
+        # Host activation is already complete; the optional dashboard catalog can be repaired separately.
+        dashboard_registration = 'unavailable'
     project_mode = next((item.get('capture_mode') for item in results if item.get('scope') == 'project'), 'unknown')
     return {'status': 'initialized', 'project_root': str(root), 'agent': agent,
             'stores': results, 'guide': str(guide), 'activation': 'configured',
+            'dashboard_registration': dashboard_registration,
             'mode': project_mode, 'requires_new_session': True,
             'per_turn_event_enforcement': False, 'host_e2e_verified': False}
 

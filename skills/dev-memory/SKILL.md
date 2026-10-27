@@ -3,13 +3,15 @@ name: dev-memory
 description: Local development memory. For development tasks, recall relevant developer habits and authorized project rules; learn durable habits from visible user requirements, corrections and choices, preserving evidence and scope.
 license: MIT
 metadata:
-  version: "0.8.9"
+  version: "0.9.0"
   requires: "Python 3.10+ with sqlite3 and local file/process access; Git optional."
 ---
 
 # dev-memory
 
 Use the CLI at `<this-skill-directory>/scripts/dev_memory.py`; resolve its absolute path from this loaded Skill. With an active project, read `.dev-memory/activation.json` and use this host's Python, CLI, global root and project root. Place the top-level `--global-root PATH` before the subcommand; place `--project-root PATH` after it. Installing program files alone does not authorize capture. The explicit project setup authorizes its workflow; Codex's recommended installer also configures user-level global habits. Respect pause, disable, read-only, exclusion and turn opt-out throughout. If instructions, a store or permissions are unavailable, report the actual gap.
+
+The optional `dashboard` command is for a human to inspect and manage local stores on demand. Do not launch it during ordinary AI recall or capture. Its project catalog stores paths and namespace IDs only; project content remains in each project database. Viewing and recall preview do not count as AI recall.
 
 ## Recall once, use throughout the task
 

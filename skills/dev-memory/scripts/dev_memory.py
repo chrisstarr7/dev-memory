@@ -26,7 +26,7 @@ SKILL_FILES = [
     "agents/openai.yaml", "assets/config.example.json",
     "references/protocol.md", "references/codex-hooks.md", "references/verification.md",
     "references/setup.md",
-    "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/dev_memory_setup.py", "scripts/codex_hook.py", "scripts/dev-memory",
+    "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/dev_memory_setup.py", "scripts/dev_memory_dashboard.py", "scripts/codex_hook.py", "scripts/dev-memory",
 ]
 RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "README.md", "LICENSE", ".gitignore", "install.py", "package.json", "bin/install.cjs", "CONTRIBUTING.md", "SECURITY.md",
@@ -37,7 +37,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "reports/recall-performance-0.8.6.md", "evals/check_recall_performance.py",
     "reports/lifecycle-review-0.8.5.md", "tests/test_lifecycle_eval.py", "reports/maintenance-review-0.8.4.md", "reports/project-capture-review-0.8.3.md", "tests/test_capture_learning.py", "evals/check_capture.py", "reports/capture-review-0.8.2.md",
     "reports/capture-host-0.8.2.json", "reports/capture-program-0.8.2.json",
-    "tests/test_dev_memory.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
+    "tests/test_dev_memory.py", "tests/test_dashboard.py", "tests/test_maintenance.py", "tests/test_lifecycle.py", "tests/test_adversarial.py", "tests/test_installer.py", "tests/test_setup.py", "tests/test_online_installer.py", "tests/test_npx_installer.py", "tests/install_smoke.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "evals/check_maintenance.py", "evals/check_lifecycle.py",
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/benchmark-0.7.0.md", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json", "reports/multi-project-review.md", "reports/memory-cycle-review.md",
@@ -564,6 +564,11 @@ def _parser() -> argparse.ArgumentParser:
     month_group.add_argument("--month", help="UTC month in YYYY-MM format")
     month_group.add_argument("--from-month", help="First UTC month in YYYY-MM format")
     p.add_argument("--to-month", help="Last UTC month in YYYY-MM format; pair with --from-month")
+    p = sub.add_parser("dashboard", help="Open or manage the private local memory dashboard")
+    p.add_argument("action", choices=("serve", "add", "remove", "list"), nargs="?", default="serve")
+    p.add_argument("--project-root", type=Path, help="Initialized project to register")
+    p.add_argument("--namespace-id", help="Registered project identity for remove")
+    p.add_argument("--no-open", action="store_true", help="Print the local URL without opening a browser")
     p = sub.add_parser("apply")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--module")
@@ -692,6 +697,20 @@ def main(argv: list[str] | None = None) -> int:
             stores = [store.recall_stats(scope, start_month, end_month, project_root=root if scope == "project" else None,
                                          global_root=global_root) for scope in scopes]
             _json_out({"status": "ok", "from_month": start_month, "to_month": end_month, "stores": stores})
+        elif command == "dashboard":
+            import dev_memory_dashboard as dashboard
+            if args.action == "serve":
+                dashboard.serve(global_root, project_root=args.project_root, open_browser=not args.no_open)
+            elif args.action == "add":
+                if args.project_root is None:
+                    raise store.MemoryError("project_root_required", "Use --project-root to register a project.")
+                _json_out({"status": "registered", **dashboard.register_project(args.project_root, global_root)})
+            elif args.action == "remove":
+                if not args.namespace_id:
+                    raise store.MemoryError("validation_error", "Use --namespace-id from dashboard list.")
+                _json_out({"status": "removed" if dashboard.remove_project(args.namespace_id, global_root) else "not_registered"})
+            else:
+                _json_out({"status": "ok", "projects": dashboard.projects(global_root)})
         elif command == "apply":
             payload = _read_payload(args.input)
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
