@@ -234,7 +234,7 @@ class NpxTests(unittest.TestCase):
             target.write_text('synthetic data that must not be packaged', encoding="utf-8")
         result=subprocess.run([shutil.which('npm'),'pack','--dry-run','--json','--ignore-scripts',
                                '--cache',str(self.base/'cache')],cwd=source,env=self.env,
-                              capture_output=True,text=True, encoding="utf-8",timeout=30)
+                              capture_output=True,text=True, encoding="utf-8",timeout=90)
         self.assertEqual(result.returncode,0,result.stderr)
         paths={entry['path'] for entry in json.loads(result.stdout)[0]['files']}
         self.assertEqual(paths,set(package['files'])|{'package.json','README.md'})

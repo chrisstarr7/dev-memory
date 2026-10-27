@@ -62,7 +62,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "2f5af74b3acf8b6c807eb5ade6507705f561a6cbed5d210ca47d5df94c43a800"
+      "sha256": "2d3278c0d29b5654a9f1df2b15e5d3ff70db747122a56c6c5cdef0289ee755e8"
     },
     {
       "path": "LICENSE",
@@ -106,7 +106,7 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "2d3a1bc8a012241cbcb93e955e0059a983239ffb632138d3835012c698f015fa"
+      "sha256": "f5ebab7927557ce96943aa016d2fa6cee7ff9ad687fee7d62775eeeaf2a81bac"
     },
     {
       "path": "docs/readme/README.ja.md",
@@ -226,7 +226,7 @@
     },
     {
       "path": "tests/test_npx_installer.py",
-      "sha256": "a69126ebd0de6ed174fa2f05b044b1afecca4e1581da611c9357f0c688c1f069"
+      "sha256": "e6407b05d192850328dde72283cb8f025abc97f42c28fec3eff3d140baf9f9e3"
     },
     {
       "path": "tests/install_smoke.py",

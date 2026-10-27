@@ -119,9 +119,23 @@ When a memory's full details are returned, its UTC monthly counter increments in
 
 ## Local memory dashboard
 
-Run `<python> <skill>/scripts/dev_memory.py dashboard serve` to open an on-demand page bound to `127.0.0.1`. Each run uses a temporary access token; closing the command stops the page. It reads the global store and every registered project store separately. Existing initialized projects can be added on the page or with `dashboard add --project-root /absolute/project/path`. New project setups register themselves. `dashboard list` shows registered paths and namespace IDs; `dashboard remove --namespace-id ID` removes a catalog entry without deleting memory. The catalog contains only local paths and store identities. It does not scan your disk or copy project records into the global store.
+The dashboard runs locally on demand. For a Codex installation on macOS or Linux:
 
-The dashboard shows exact record bodies, provenance, revisions, status and monthly detail-return counts. Search within a store is paginated; cross-store search is limited to the first 50 matches and says when more exist. Read-only recall preview shows what the current query would return without incrementing counters. A return count is not proof the AI applied a rule, and periods before counting existed cannot be reconstructed. Disabled or excluded stores remain visible in the project list but do not expose memory content. Management actions use the existing revision-checked apply and two-step forget protocols; backups stay in their owning store. The local page does not use external assets or upload memory.
+```sh
+python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py dashboard serve
+```
+
+Use the installed Skill path for another host or location. The command opens the browser; press `Ctrl+C` in the terminal to stop the server.
+
+| Task | How |
+| --- | --- |
+| View memory | Select **Global** or a registered project; open a record to see its full text, evidence, and revisions. |
+| Find records | Filter by status or search titles and bodies. A project list has pages; cross-project search shows at most 50 matches. |
+| Preview recall | Enter task terms on a store page. The preview is read-only and does not increment recall counts. |
+| Add an existing project | Use **Project management → Add**, or run `dashboard add --project-root /absolute/project/path` with the same CLI. New project setups register automatically. |
+| Manage records | Use the record page to revise or archive eligible records, or preview the impact before permanent forgetting. Back up a store from **Project management**. |
+
+`dashboard list` shows registered paths and IDs; `dashboard remove --namespace-id ID` removes only the catalog entry. A disabled or excluded store shows no memory content. Monthly counts mean full details were returned to the AI, not that the AI followed them; earlier periods cannot be reconstructed. The page binds only to `127.0.0.1`, uses a temporary access token, and does not upload memory or combine project databases.
 
 ## Control it in plain language
 
