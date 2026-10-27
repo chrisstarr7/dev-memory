@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
+from socketserver import TCPServer
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 import dev_memory_store as store
@@ -577,7 +578,14 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
             except (store.MemoryError, OSError, sqlite3.Error, UnicodeError, ValueError) as exc:
                 self._respond(app._shell("操作未完成", f'<section class=panel>{_h(exc)}<p><a href="/">返回看板</a></p></section>'), 400)
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    class LocalServer(ThreadingHTTPServer):
+        def server_bind(self) -> None:
+            # HTTPServer's default calls getfqdn() on startup; loopback DNS can stall CI hosts.
+            TCPServer.server_bind(self)
+            self.server_name = "127.0.0.1"
+            self.server_port = self.server_address[1]
+
+    server = LocalServer(("127.0.0.1", 0), Handler)
     server.daemon_threads = True
     url = f"http://127.0.0.1:{server.server_port}/?{urlencode({'access': access})}"
     print(url, flush=True)

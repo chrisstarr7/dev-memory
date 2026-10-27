@@ -50,7 +50,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_dashboard.py",
-      "sha256": "6a85dbbca96026b16cf1e26e73fd564e76e37845a580fc5d116da69d3efc5dec"
+      "sha256": "94992880484e0a457a47a5f304a9602d4bb93682616a1d17182157eddf0334da"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -198,7 +198,7 @@
     },
     {
       "path": "tests/test_dashboard.py",
-      "sha256": "2178dc0fe4163c9391b565244ae3e47612c78f390662122a92fa3a08292a0105"
+      "sha256": "e0a2e1d1584a44438760262d1778166aa18cb34f29be2e929b4836fb80b1258a"
     },
     {
       "path": "tests/test_maintenance.py",

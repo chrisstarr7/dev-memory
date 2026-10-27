@@ -182,7 +182,7 @@ class DashboardTests(MemoryTestCase):
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
                                             urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
         try:
-            url = lines.get(timeout=10).strip()
+            url = lines.get(timeout=30).strip()
             self.assertTrue(url.startswith("http://127.0.0.1:"), url)
             with opener.open(url, timeout=5) as response:
                 body = response.read().decode()
