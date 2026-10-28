@@ -229,6 +229,33 @@ class DashboardTests(MemoryTestCase):
                 self.assertIn("Ctrl+C", errors)
                 self.assertNotIn("Traceback", errors)
 
+    def test_unreadable_project_catalog_keeps_global_view_and_does_not_raise_server_error(self) -> None:
+        self._seed()
+        scripts = str(Path(dashboard.__file__).parent)
+        code = ("import sys\nfrom pathlib import Path\n"
+                f"sys.path.insert(0, {scripts!r})\n"
+                "import dev_memory_dashboard as dashboard\n"
+                "dashboard.projects = lambda _root=None: (_ for _ in ()).throw(PermissionError('access denied'))\n"
+                f"dashboard.serve(Path({str(self.global_root)!r}), open_browser=False)\n")
+        process = subprocess.Popen([sys.executable, "-u", "-c", code], stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, text=True)
+        lines: queue.Queue[str] = queue.Queue()
+        threading.Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True).start()
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                             urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+        try:
+            url = lines.get(timeout=15).strip()
+            with opener.open(url, timeout=5) as response:
+                body = response.read().decode()
+                self.assertEqual(response.status, 200)
+                self.assertIn("项目列表暂不可用", body)
+                self.assertIn("记忆总览", body)
+                self.assertIn("Reuse implementations", body)
+        finally:
+            process.kill()
+            _, errors = process.communicate(timeout=5)
+        self.assertNotIn("Traceback", errors)
+
     def test_live_loopback_page_rejects_foreign_host_and_missing_csrf(self) -> None:
         self._seed()
         script = Path(dashboard.__file__).with_name("dev_memory.py")

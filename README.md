@@ -115,102 +115,50 @@ Older databases may contain task/checkpoint rows. This version does not create, 
 
 ## Local semantic recall
 
-The upgrade keeps existing `memory.sqlite3` files, records, evidence, history, counts, and capture controls. Each scope stores its original text and its optional sqlite-vec index in the **same database**. Global and project databases stay separate. Shared model files and an isolated Python environment live under `<global-root>/vector-runtime/`; project environments are not modified.
+Each memory scope keeps its original text and optional vector index in the same SQLite database. The original text remains authoritative. Install or update prepares a local model when possible; if it is unavailable, keyword search and memory storage continue to work. Ordinary development does not download models. Similarity helps find candidates but does not change their status.
 
-Install/update prepares the local model once when possible. Ordinary recall never downloads packages or models. The assistant still decides what deserves memory; the embedding model only helps retrieve eligible records with different wording. Keyword recall remains available when the model or extension is unavailable. Candidate records do not become active through similarity.
+An unfinished vector calculation does not affect the saved memory. The dashboard shows index status and never starts model inference just because it is open. See [vector setup and recovery](skills/dev-memory/references/vectors.md) for platform details and diagnostics.
 
-```mermaid
-flowchart TD
-    Save[AI submits a supported memory] --> Raw[Commit original text and pending vector state]
-    Raw --> Worker[Bounded local background vector calculation]
-    Worker --> Check[Recheck record revision and capture controls]
-    Check --> Ready[Commit vector for the current revision]
-    Worker -->|Unavailable or timed out| Pending[Keep original text; leave vector pending]
-    Query[AI submits task terms] --> Lex[Keyword recall]
-    Query --> Semantic[Bounded local semantic recall]
-    Lex --> Merge[Merge candidates and recheck current source records]
-    Semantic --> Merge
-    Merge --> AI[Return original text within existing context limits]
-    Dashboard[Local dashboard] --> View[Read original text and vector readiness from the same database]
-```
+## Local dashboard
 
-A background vector batch has a 10-second execution budget; final delivery waits at most 3 additional seconds within the remaining batch budget. The assistant checks raw-save receipts and finishes pending vector work before its final response. An unfinished vector is reported as pending, not as a failed original save. Query vector work has a 5-second budget for the combined recall; timeout falls back to keywords. These are limits, not measured latency promises. Original text is saved before model work so an interrupted host does not lose the record.
-
-When the requested work and its checks are complete, the assistant first posts a short progress notice that the deliverable is ready and memory finalization is being checked. It then completes the bounded finish step before its final response. On timeout, it reports that original text is saved and vectors remain pending. A recall miss does not automatically create a memory.
-
-For diagnostics or recovery, use the installed Python CLI (replace the two placeholders):
-
-```text
-<Python> <Skill>/scripts/dev_memory.py vectors setup
-<Python> <Skill>/scripts/dev_memory.py vectors status --scope both --project-root .
-<Python> <Skill>/scripts/dev_memory.py vectors sync --scope both --project-root .
-<Python> <Skill>/scripts/dev_memory.py vectors finish --scope both --project-root . --wait-seconds 3
-```
-
-For a custom global root, place `--global-root <path>` **before** `vectors`. `sync` schedules bounded work; it does not make every historical record immediately ready. The dashboard distinguishes current ready vectors, pending work, and unavailable runtime. Merely browsing the dashboard does not start inference. See [vector runtime and recovery](skills/dev-memory/references/vectors.md) for platform requirements, states, and deletion/restore behavior.
-
-## Recall statistics
-
-When a memory's full details are returned, its UTC monthly counter increments in that store. Candidate indexes, cached results, read-only calls and capture-paused stores do not increment. This measures delivery to the assistant, not confirmed use. Run `<python> <skill>/scripts/dev_memory.py --global-root <global-root> recall-stats --scope both --month 2026-10 --project-root .` for a month; use `--from-month 2026-07 --to-month 2026-09` for a quarter. Reports do not store prompts or conversation text.
-
-## Local memory dashboard
-
-Update an existing installation first: `npx -y --prefer-online chrisstarr7/dev-memory update codex`. The dashboard runs locally on demand.
-
-For a Codex installation in **Windows PowerShell**:
-
-```powershell
-py -3 "$env:USERPROFILE\.agents\skills\dev-memory\scripts\dev_memory.py" dashboard serve
-```
-
-If `py` is unavailable, use `python` (Python 3.10+) or `& "C:\path\to\python.exe"` instead. Avoid the WindowsApps `python3` placeholder: it may exit without starting Python.
-
-For **macOS or Linux**:
+With Node.js 22+ and Python 3.10+, run this from a project directory on Windows, macOS, or Linux:
 
 ```sh
-python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py dashboard serve
+npx -y --prefer-online chrisstarr7/dev-memory dashboard
 ```
 
-Use the installed Skill path for another host or location. The terminal prints a full local URL and attempts to open the browser; if that fails, copy the URL into your browser. Keep the terminal open; press `Ctrl+C` to stop the server. Add `--no-open` to skip automatic browser launch. The URL contains a temporary access credential; do not share it.
+It starts the dashboard locally and tries to open your browser. If no browser opens, copy the URL printed in the terminal. Keep the terminal open and press `Ctrl+C` to stop the server. It listens only on the local machine; its temporary access URL is private and must not be shared.
 
-| Task | How |
-| --- | --- |
-| View memory | Select **Global** or a registered project; open a record to see its full text, evidence, and revisions. |
-| View vector data | Open a memory and expand **查看实际存储的向量数据** to inspect all 384 stored values, model fingerprint, source revision and update time. Stale vectors are labeled; viewing does not run inference or increment recall counts. |
-| Find records | Filter by status or search titles and bodies. A project list has pages; cross-project search shows at most 50 matches. |
-| Preview recall | Enter task terms on a store page. The preview is read-only and does not increment recall counts. |
-| Add an existing project | Use **Project management → Add**, or run `dashboard add --project-root /absolute/project/path` with the same CLI. New project setups register automatically. |
-| Manage records | Use the record page to revise or archive eligible records, or preview the impact before permanent forgetting. Back up a store from **Project management**. |
+Use the dashboard to view memory text, evidence, revisions and stored vectors; search records; preview recall; manage registered projects; and create backups. Monthly recall counts mean full memory details were returned to the AI, not that the AI adopted them; earlier periods cannot be reconstructed.
 
-`dashboard list` shows registered paths and IDs; `dashboard remove --namespace-id ID` removes only the catalog entry. A disabled or excluded store shows no memory content. Monthly counts mean full details were returned to the AI, not that the AI followed them; earlier periods cannot be reconstructed. The page binds only to `127.0.0.1`, uses a temporary access token, and does not upload memory or combine project databases.
+If Windows reports a project-list permission error, the dashboard can still show global memory. See [Windows dashboard permissions](docs/installation.md#windows-dashboard-permissions) to repair the local folder, then restart it.
 
-## Control it in plain language
+## Memory controls
 
-- “For this project, document changes to API request and response fields.”
-- “Across all projects, check existing implementations before adding code.”
-- “Pause global learning but keep reading existing habits.”
-- “Do not save any memory from this turn.”
-- “Show the relevant memories.”
-- “Preview records to delete before forgetting them.”
+You can ask the assistant to:
 
-The current request always takes priority. To investigate missing capture or recall, ask the assistant to run the **installed** CLI’s `doctor` once. Check activation, capture mode, store access, candidate versus active status, and actual write receipts. An installation receipt or a model’s “remembered” message alone does not prove a record was saved or used.
+- Pause global memory writes while continuing to read existing rules.
+- Skip memory writes for one turn.
+- Show relevant memories.
+- Preview the records affected before deleting them.
+
+The current request always takes priority over memory. If capture or recall seems wrong, ask the assistant to run `doctor` from the installed program and check its actual result.
 
 ## Update
 
-For an existing managed installation, run the update command from the project and start a new AI session:
+Run this from the project, then start a new AI session:
 
 ```sh
 npx -y --prefer-online chrisstarr7/dev-memory update codex
 ```
 
-Replace `codex` with your host parameter. Update preserves existing stores, controls, and unrelated instructions. It does not initialize an unbound project. Updating a source checkout alone does not update the installed Skill.
+Replace `codex` with your host parameter. Updates preserve existing stores, controls, and unrelated instructions. Install separately in each project that needs project memory.
 
-## More detail
+## Help and references
 
-- [Architecture](docs/architecture.md): components and storage boundaries.
-- [Protocol](skills/dev-memory/references/protocol.md): CLI operations, evidence, maintenance, and limits.
-- [Installation and removal](docs/installation.md): hosts, paths, and troubleshooting.
-- [Verification evidence](reports/verification.md): completed checks and known gaps.
-- [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE).
+- [Installation, removal, and troubleshooting](docs/installation.md)
+- [Vector setup and recovery](skills/dev-memory/references/vectors.md)
+- [Architecture](docs/architecture.md) · [Protocol](skills/dev-memory/references/protocol.md)
+- [Verification](reports/verification.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
-Report sanitized issues at [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues). Do not attach private databases, credentials, or raw conversations.
+Report sanitized issues at [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues). Do not attach databases, credentials, or raw conversations.

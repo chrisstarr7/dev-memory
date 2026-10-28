@@ -190,6 +190,14 @@ class NpxTests(unittest.TestCase):
                 self.assertFalse((self.project/'.dev-memory').exists())
                 self.assertEqual(list(self.home.iterdir()),[])
 
+    def test_dashboard_alias_routes_to_the_bundled_dashboard_cli(self):
+        result = self.run_cli('dashboard', '--help')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('usage: dev-memory dashboard', result.stdout)
+        self.assertIn('--no-open', result.stdout)
+        self.assertFalse((self.home / '.agents').exists())
+        self.assertFalse((self.home / '.dev-memory').exists())
+
     def test_source_failure_does_not_become_wrapper_success(self):
         (self.project/'AGENTS.md').write_text('<!-- dev-memory:managed:start -->', encoding="utf-8")
         result=self.run_cli('codex','--json')

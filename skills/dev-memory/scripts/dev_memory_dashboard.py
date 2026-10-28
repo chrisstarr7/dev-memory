@@ -91,6 +91,12 @@ class Dashboard:
         self.global_root = global_root
         self.csrf = secrets.token_urlsafe(32)
 
+    def _registered_projects(self) -> tuple[list[dict[str, str]], Exception | None]:
+        try:
+            return projects(self.global_root), None
+        except (store.MemoryError, OSError, sqlite3.Error) as exc:
+            return [], exc
+
     def _target(self, key: str) -> tuple[str, Path | None]:
         if key == "global":
             return "global", None
@@ -121,9 +127,13 @@ class Dashboard:
 
     def _shell(self, title: str, body: str) -> str:
         nav = ['<a href="/?scope=global">全局记忆</a>']
-        for row in projects(self.global_root):
+        rows, catalog_error = self._registered_projects()
+        for row in rows:
             key = row["namespace_id"]
             nav.append(f'<a href="/?scope={_h(key)}" title="{_h(row["path"])}">{_h(Path(row["path"]).name)}</a>')
+        if catalog_error:
+            body = ('<section class=panel><h2>项目列表暂不可用</h2>'
+                    '<p>仍可查看全局记忆。请检查本机看板目录的读取权限，修复后重启看板。</p></section>' + body)
         return ("<!doctype html><html lang=zh-CN><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
                 f"<title>{_h(title)} · Dev Memory</title><style>"
                 "body{font:15px/1.6 system-ui,-apple-system,sans-serif;color:#20242c;background:#f5f7fa;margin:0}"
@@ -202,7 +212,8 @@ class Dashboard:
         month = params.get("month", datetime.now(timezone.utc).strftime("%Y-%m"))
         if not re.fullmatch(r"[1-9]\d{3}-(0[1-9]|1[0-2])", month):
             month = datetime.now(timezone.utc).strftime("%Y-%m")
-        keys = ["global", *(row["namespace_id"] for row in projects(self.global_root))]
+        project_rows, _ = self._registered_projects()
+        keys = ["global", *(row["namespace_id"] for row in project_rows)]
         if key not in keys and key != "all":
             raise store.MemoryError("project_not_registered", "Unknown dashboard scope.")
         cards = []

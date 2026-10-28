@@ -115,102 +115,50 @@ flowchart TD
 
 ## 本地语义召回
 
-升级沿用已有 `memory.sqlite3`，保留原文、证据、修订历史、召回统计和控制开关。每个作用域的原文与 sqlite-vec 向量索引放在**同一个数据库**；全局和项目仍各用自己的库，不跨项目集中保存数据。模型文件与独立 Python 环境共享在 `<全局根目录>/vector-runtime/`，不修改项目的 Python 环境。
+每个记忆库继续使用现有 SQLite 文件：中文原文是权威数据，向量索引是可选的检索辅助。安装或更新时会尝试准备本地模型；模型不可用时，原文和关键词检索仍可使用。普通开发不会下载模型。向量检索只帮助找候选，不会改变记忆的有效状态。
 
-安装／更新会尝试一次性准备依赖和模型；失败会明确显示向量降级，原文存储和关键词检索继续可用。仅需离线基础安装时添加 `--without-vectors`。普通开发期间不下载模型或依赖。AI 仍负责记忆资格、作用域和证据判断；向量模型只补充语义候选，不会把未生效候选晋升为规则。
+未完成的向量计算不会影响已保存的原文。看板可查看索引状态；浏览看板不会启动模型推理。平台要求、恢复方法和诊断命令见[向量运行说明](../../skills/dev-memory/references/vectors.md)。
 
-```mermaid
-flowchart TD
-    Save[AI 提交符合规则的记忆] --> Raw[提交中文原文和向量待处理状态]
-    Raw --> Worker[本地后台限时计算向量]
-    Worker --> Check[复核记录版本和控制开关]
-    Check --> Ready[提交当前版本向量]
-    Worker -->|不可用或超时| Pending[保留原文与待补齐状态]
-    Query[AI 提交任务词] --> Lex[关键词召回]
-    Query --> Semantic[限时本地语义召回]
-    Lex --> Merge[合并候选并核对权威原文]
-    Semantic --> Merge
-    Merge --> AI[按现有预算返回中文原文]
-    Dashboard[本地看板] --> View[读取同库中的原文和向量状态]
-```
+## 本地看板
 
-后台每批向量计算预算 10 秒；最终回复前最多额外等待 3 秒，且不超过该批剩余预算。AI 必须检查原文保存回执，并在结束前完成有界收尾。到期后原文仍已保存，向量明确显示待补齐。整次组合召回的查询向量预算为 5 秒，超时回退关键词。上述数字是执行上限，不是实测耗时或提速承诺。原文先落库可防止宿主中断时整条记忆丢失。
-
-主体工作和本轮要求的检查完成后，AI 会先发一条可见进度提示，例如：“修复和本轮检查已完成，可以先查看或自行提交代码；我正在确认记忆向量化结果。”随后继续完成有界收尾，再给最终答复。若仍在运行，会如实说明；若超时，会说明“原文已保存，向量待补齐”，避免用户误以为业务工作还未完成。检索没有命中不会自动触发存储，仍需通过长期记忆资格判断。
-
-诊断和补齐使用已安装的 Python CLI；替换下面的解释器和 Skill 路径：
-
-```text
-<Python解释器> <Skill目录>/scripts/dev_memory.py vectors setup
-<Python解释器> <Skill目录>/scripts/dev_memory.py vectors status --scope both --project-root .
-<Python解释器> <Skill目录>/scripts/dev_memory.py vectors sync --scope both --project-root .
-<Python解释器> <Skill目录>/scripts/dev_memory.py vectors finish --scope both --project-root . --wait-seconds 3
-```
-
-自定义全局根目录时，将 `--global-root <路径>` 放在 `vectors` **之前**。`sync` 只调度有限批次，不代表历史记录已全部完成向量化。看板显示当前版本向量已就绪、待补齐或运行时不可用；普通浏览不启动推理。详细平台要求和恢复方式见[向量运行说明](../../skills/dev-memory/references/vectors.md)。
-
-## 召回统计
-
-记忆正文实际返回给 AI 时，会在对应存储中递增该记忆的 UTC 月度计数。候选索引、缓存结果、只读调用和暂停捕获的存储不计数。这表示内容已返回，不证明 AI 实际采用。运行 `<Python解释器> <Skill目录>/scripts/dev_memory.py --global-root <全局记忆目录> recall-stats --scope both --month 2026-10 --project-root .` 查看单月；将 `--month` 替换为 `--from-month 2026-07 --to-month 2026-09` 可汇总季度。统计不保存提示词或对话内容。
-
-## 本地记忆看板
-
-已安装旧版的用户先更新：`npx -y --prefer-online chrisstarr7/dev-memory update codex`。看板按需在本机运行。
-
-**Windows PowerShell** 中，Codex 默认安装位置使用：
-
-```powershell
-py -3 "$env:USERPROFILE\.agents\skills\dev-memory\scripts\dev_memory.py" dashboard serve
-```
-
-没有 `py` 时，改用 `python`（需 Python 3.10+），或 `& "C:\实际路径\python.exe"`。不要使用 WindowsApps 中的 `python3` 占位程序，它可能直接退出而没有输出。
-
-**macOS 或 Linux** 使用：
+已安装 Node.js 22+ 和 Python 3.10+ 后，在项目目录运行这一条命令；Windows、macOS 和 Linux 均可使用：
 
 ```sh
-python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py dashboard serve
+npx -y --prefer-online chrisstarr7/dev-memory dashboard
 ```
 
-其他宿主或安装位置请替换 Skill 路径。终端会打印完整的本机访问链接并尝试打开浏览器；浏览器未自动打开时，复制该链接手动访问。需保持终端运行，按 `Ctrl+C` 关闭服务。添加 `--no-open` 可只启动服务、不自动打开浏览器。链接含临时访问凭据，请勿分享。
+命令会在本机启动看板并尝试打开浏览器。若浏览器没有打开，复制终端打印的地址到浏览器；保持终端运行，按 `Ctrl+C` 停止服务。看板只监听本机地址，不会上传记忆；地址含临时访问凭据，不要分享。
 
-| 要做什么 | 如何操作 |
-| --- | --- |
-| 查看记忆 | 选择**全局记忆**或已登记项目；打开记录查看原文、依据和修订历史。 |
-| 查看向量数据 | 打开记忆详情，展开**查看实际存储的向量数据**，可查看完整 384 维数值、模型指纹、索引原文版本及更新时间。旧向量会明确标注，查看不触发推理或增加召回次数。 |
-| 查找记录 | 按状态筛选，或搜索标题和正文。单库可翻页；跨项目搜索最多显示 50 条。 |
-| 预览召回 | 在单库页面输入任务词；预览只读，不增加召回次数。 |
-| 添加已有项目 | 在**项目管理 → 添加已有项目**中登记，或用同一 CLI 运行 `dashboard add --project-root /项目绝对路径`。新项目初始化后会自动登记。 |
-| 管理记录 | 在详情页修订或归档符合条件的记录；永久遗忘前先查看影响范围。备份入口在**项目管理**。 |
+看板支持查看原文、依据、修订历史和向量数据，搜索及筛选记录，预览召回，管理项目和备份。月度召回次数表示完整记忆曾返回给 AI，不代表 AI 一定采用；启用统计前的历史无法补算。
 
-`dashboard list` 可查看已登记路径和 ID；`dashboard remove --namespace-id ID` 只移除目录项，不删除记忆。禁用或排除的库不展示记忆正文。月度次数表示详情曾返回给 AI，不代表 AI 已执行；启用计数前的历史无法补算。页面仅绑定 `127.0.0.1`，每次启动使用临时访问凭据，不上传记忆，也不合并各项目数据库。
+若 Windows 页面提示项目列表权限错误，看板仍可显示全局记忆。按[Windows 看板权限修复](../installation.md#windows-dashboard-permissions)修复后重启看板。
 
-## 用自然语言控制
+## 记忆控制
 
-- “这个项目新增或修改接口字段时，同步更新接口文档。”
-- “以后所有项目，新增代码前先检查现有实现。”
-- “暂停全局习惯写入，但继续读取已有记录。”
-- “这一轮不要保存任何记忆。”
+可以直接告诉 AI：
+
+- “暂停全局记忆写入，但继续读取已有记录。”
+- “这一轮不要保存记忆。”
 - “查看相关记忆。”
-- “删除前先预览要遗忘的记录。”
+- “删除前先预览影响范围。”
 
-当前要求始终高于记忆。如果发现没有记录或召回，让 AI 对**已安装的程序**运行一次 `doctor`，检查激活绑定、捕获模式、存储权限、候选与有效规则的区别，以及真实写入回执。安装回执或 AI 口头声称“已记住”，都不能单独证明记录已保存或使用。
+当前要求始终优先于记忆。若记忆没有保存或无法读取，让 AI 对已安装程序运行一次 `doctor`，并核对实际回执；口头确认不等于写入成功。
 
 ## 更新
 
-已有受管理安装时，在项目中执行更新命令，然后开启新的 AI 会话：
+在项目目录运行更新命令，并在完成后开启新会话：
 
 ```sh
 npx -y --prefer-online chrisstarr7/dev-memory update codex
 ```
 
-其他宿主替换 `codex` 参数。更新保留已有记忆库、控制设置和无关引导内容，也不会初始化未绑定的项目。只更新源码工作区，不会自动更新已安装 Skill。
+更新会保留现有记忆库、控制设置和无关引导内容。需要在其他项目启用项目记忆时，在该项目中单独执行安装命令。
 
-## 更多资料
+## 参考与问题反馈
 
-- [架构说明](../architecture.md)：组件与存储边界。
-- [操作协议](../../skills/dev-memory/references/protocol.md)：CLI 操作、证据、整理和限制。
-- [安装与卸载](../installation.md)：宿主、路径和问题排查。
-- [验证证据](../../reports/verification.md)：已完成的检查及已知缺口。
-- [安全](../../SECURITY.md) · [贡献](../../CONTRIBUTING.md) · [MIT 许可](../../LICENSE)。
+- [安装、卸载与排障](../installation.md)
+- [向量运行说明](../../skills/dev-memory/references/vectors.md)
+- [架构说明](../architecture.md) · [操作协议](../../skills/dev-memory/references/protocol.md)
+- [验证记录](../../reports/verification.md) · [安全](../../SECURITY.md) · [贡献](../../CONTRIBUTING.md)
 
-请通过 [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues) 提交脱敏问题。不要附带私有数据库、凭证或原始对话。
+请通过 [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues) 提交脱敏问题，不要附上数据库、凭证或原始对话。

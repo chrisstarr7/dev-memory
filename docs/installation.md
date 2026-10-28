@@ -80,6 +80,29 @@ npx -y chrisstarr7/dev-memory codex --target ./tools/dev-memory
 
 依据：[Python 3.14 mkdir 权限](https://docs.python.org/3.14/library/os.html#os.mkdir)、[Python 3.10.15 的同类行为](https://docs.python.org/3.10/library/os.html#os.mkdir)、[OpenAI Windows 沙箱文档](https://learn.chatgpt.com/docs/windows/windows-sandbox)、[受保护目录规则](https://learn.chatgpt.com/docs/agent-approvals-security#protected-paths-in-writable-roots)。Windows 程序 ACL 测试与桌面 App 验证状态见 [报告](../reports/windows-access.json)。
 
+## Windows dashboard permissions
+
+If the browser shows a project-catalog `PermissionError`, the dashboard server is running but Windows denied access to `.dev-memory\dashboard\projects.json`. The catalog contains project paths and IDs only; it is separate from the SQLite memory stores.
+
+First try granting the current user access to the catalog:
+
+```powershell
+$catalog = "$env:USERPROFILE\.dev-memory\dashboard\projects.json"
+$identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+icacls.exe $catalog /grant "${identity}:M"
+```
+
+If that returns `Access is denied`, open PowerShell as Administrator and take ownership of that **single catalog file**, then grant access as above:
+
+```powershell
+$catalog = "$env:USERPROFILE\.dev-memory\dashboard\projects.json"
+$identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+takeown.exe /F $catalog
+icacls.exe $catalog /grant "${identity}:M"
+```
+
+Use the configured global root if it is not the default. Restart the dashboard after the permission repair. Do not apply recursive ownership or ACL changes to the memory databases.
+
 ## 给 AI 的安装流程
 
 用户要求安装并初始化时：
