@@ -382,6 +382,7 @@ class DashboardTests(MemoryTestCase):
             with opener.open(url, timeout=5) as response:
                 body = response.read().decode()
                 self.assertEqual(response.headers["Cache-Control"], "no-store")
+                self.assertEqual(response.headers['Referrer-Policy'], 'same-origin')
                 self.assertIn("记忆总览", body)
                 csp = response.headers["Content-Security-Policy"]
                 nonce = re.search(r"script-src 'nonce-([^']+)'", csp)

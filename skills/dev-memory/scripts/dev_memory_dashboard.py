@@ -624,7 +624,8 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(encoded)))
             self.send_header("Cache-Control", "no-store")
-            self.send_header("Referrer-Policy", "no-referrer")
+            # Chromium sends Origin:null on navigation POSTs under no-referrer.
+            self.send_header("Referrer-Policy", "same-origin")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Content-Security-Policy", f"default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{app.script_nonce}'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
             if location:
