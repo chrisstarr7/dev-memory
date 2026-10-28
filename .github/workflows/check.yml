@@ -8,6 +8,7 @@ jobs:
   test:
     env:
       PYTHONUTF8: '1'
+      DEV_MEMORY_VECTOR_SETUP: '0'
     strategy:
       fail-fast: false
       matrix:

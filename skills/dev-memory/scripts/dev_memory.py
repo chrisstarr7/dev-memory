@@ -25,8 +25,8 @@ SKILL_FILES = [
     "SKILL.md", "LICENSE", MARKER,
     "agents/openai.yaml", "assets/config.example.json",
     "references/protocol.md", "references/codex-hooks.md", "references/verification.md",
-    "references/setup.md",
-    "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/dev_memory_setup.py", "scripts/dev_memory_dashboard.py", "scripts/codex_hook.py", "scripts/dev-memory",
+    "references/setup.md", "references/vectors.md",
+    "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/dev_memory_setup.py", "scripts/dev_memory_dashboard.py", "scripts/dev_memory_vectors.py", "scripts/dev_memory_vector_setup.py", "scripts/codex_hook.py", "scripts/dev-memory",
 ]
 RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "README.md", "LICENSE", ".gitignore", "install.py", "package.json", "bin/install.cjs", "CONTRIBUTING.md", "SECURITY.md",
@@ -41,6 +41,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/benchmark-0.7.0.md", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json", "reports/multi-project-review.md", "reports/memory-cycle-review.md",
+    "tests/test_vectors.py", "tests/test_vector_setup.py", "tests/test_vector_integration.py", ".github/workflows/vectors.yml",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
               "gemini-cli": ".gemini/skills", "github-copilot": ".copilot/skills", "opencode": ".config/opencode/skills",
@@ -199,6 +200,16 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
                                                                   include_records=with_maintenance)
             except (store.MemoryError, sqlite3.Error, OSError):
                 bucket['maintenance'] = {'status': 'deferred', 'reason': 'storage_unavailable'}
+        if not readonly and bucket['status'] == 'ok' and bucket.get('capture_enabled'):
+            import dev_memory_vectors as vectors
+            if vectors.enabled(global_root):
+                index = vectors.status(bucket['scope'], project_root=project_root, global_root=global_root)
+                if index.get('status') == 'pending':
+                    try:
+                        index = vectors.schedule(bucket['scope'], project_root=project_root, global_root=global_root)
+                    except (store.MemoryError, sqlite3.Error, OSError):
+                        index = {'status': 'deferred', 'reason': 'index_unavailable'}
+                bucket['vector_index'] = index
     project_activation = activation.status(project_root)
     result['activation'] = project_activation
     result['mode'] = 'read_only' if readonly else ('project_guided' if project_activation['status'] == 'configured' else 'base')
@@ -569,6 +580,11 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--project-root", type=Path, help="Initialized project to register")
     p.add_argument("--namespace-id", help="Registered project identity for remove")
     p.add_argument("--no-open", action="store_true", help="Print the local URL without opening a browser")
+    p = sub.add_parser('vectors', help='Prepare, inspect or finish local semantic indexing')
+    p.add_argument('action', choices=('setup', 'status', 'sync', 'finish'))
+    p.add_argument('--scope', choices=('global', 'project', 'both'), default='both')
+    p.add_argument('--project-root', type=Path)
+    p.add_argument('--wait-seconds', type=float, default=3)
     p = sub.add_parser("apply")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--module")
@@ -642,6 +658,28 @@ def main(argv: list[str] | None = None) -> int:
         elif command == "doctor":
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             _json_out(doctor(root, global_root))
+        elif command == 'vectors':
+            import dev_memory_vectors as vectors
+            if args.action == 'setup':
+                from dev_memory_vector_setup import setup as vector_setup
+                result = vector_setup(global_root or store.default_global_root())
+                _json_out(result)
+                return 0 if result.get('status') == 'ready' else 1
+            root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
+            kinds = ('global', 'project') if args.scope == 'both' and root else ((args.scope,) if args.scope != 'both' else ('global',))
+            if args.scope == 'project' and root is None:
+                raise store.MemoryError('project_root_required', 'Use --project-root for project vectors.')
+            import time
+            deadline = time.monotonic() + max(0, min(3, args.wait_seconds))
+            buckets = []
+            for kind in kinds:
+                kwargs = {'project_root': root if kind == 'project' else None, 'global_root': global_root}
+                if args.action == 'finish':
+                    item = vectors.finish(kind, wait_seconds=max(0, deadline-time.monotonic()), **kwargs)
+                else:
+                    item = (vectors.status if args.action == 'status' else vectors.schedule)(kind, **kwargs)
+                buckets.append({'scope': kind, **item})
+            _json_out({'status': 'ok', 'stores': buckets})
         elif command == "setup":
             result = (activation.setup_user(args.agent, PACKAGE_ROOT, sys.executable, global_root) if args.user else
                       activation.setup(args.project_root or Path.cwd(), args.agent, PACKAGE_ROOT, sys.executable, global_root))

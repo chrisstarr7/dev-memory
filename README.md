@@ -33,7 +33,7 @@ For another AI host, replace `codex` with its parameter:
 | OpenCode | `opencode` | `AGENTS.md` |
 | DeepSeek Harness | `deepseek` | `AGENTS.md` |
 
-Installation needs Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The memory runtime uses only the Python standard library. Choose the host running the assistant: DeepSeek through OpenCode uses `opencode`.
+Installation needs Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The base memory runtime uses the Python standard library. Installation also attempts to prepare local vector search in an isolated environment; dependency or model setup failure leaves base memory available and reports vector degradation. Use `--without-vectors` for a basic offline installation. Choose the host running the assistant: DeepSeek through OpenCode uses `opencode`.
 
 Codex setup enables global habits for your user and project memory for the current project. In an uninitialized project, its user guidance recalls global habits only. Run the install command again in each project that needs its own memory. Other hosts currently use project guidance only. After installation or upgrade, start a new AI session in the project. You can then work normally without invoking the Skill or saying “remember this.” New stores start empty; existing records are retained.
 
@@ -113,19 +113,63 @@ The core has no telemetry or automatic memory upload. Text recalled into a hoste
 
 Older databases may contain task/checkpoint rows. This version does not create, recall, maintain, or export them. It retains those rows for explicit audit or deletion: use `list --scope project --status all`, then the `forget preview` / `forget apply` workflow. Historical files under `reports/` may describe the former behavior.
 
+## Local semantic recall
+
+The upgrade keeps existing `memory.sqlite3` files, records, evidence, history, counts, and capture controls. Each scope stores its original text and its optional sqlite-vec index in the **same database**. Global and project databases stay separate. Shared model files and an isolated Python environment live under `<global-root>/vector-runtime/`; project environments are not modified.
+
+Install/update prepares the local model once when possible. Ordinary recall never downloads packages or models. The assistant still decides what deserves memory; the embedding model only helps retrieve eligible records with different wording. Keyword recall remains available when the model or extension is unavailable. Candidate records do not become active through similarity.
+
+```mermaid
+flowchart TD
+    Save[AI submits a supported memory] --> Raw[Commit original text and pending vector state]
+    Raw --> Worker[Bounded local background vector calculation]
+    Worker --> Check[Recheck record revision and capture controls]
+    Check --> Ready[Commit vector for the current revision]
+    Worker -->|Unavailable or timed out| Pending[Keep original text; leave vector pending]
+    Query[AI submits task terms] --> Lex[Keyword recall]
+    Query --> Semantic[Bounded local semantic recall]
+    Lex --> Merge[Merge candidates and recheck current source records]
+    Semantic --> Merge
+    Merge --> AI[Return original text within existing context limits]
+    Dashboard[Local dashboard] --> View[Read original text and vector readiness from the same database]
+```
+
+A background vector batch has a 10-second execution budget; final delivery waits at most 3 additional seconds within the remaining batch budget. The assistant checks raw-save receipts and finishes pending vector work before its final response. An unfinished vector is reported as pending, not as a failed original save. Query vector work has a 5-second budget for the combined recall; timeout falls back to keywords. These are limits, not measured latency promises. Original text is saved before model work so an interrupted host does not lose the record.
+
+For diagnostics or recovery, use the installed Python CLI (replace the two placeholders):
+
+```text
+<Python> <Skill>/scripts/dev_memory.py vectors setup
+<Python> <Skill>/scripts/dev_memory.py vectors status --scope both --project-root .
+<Python> <Skill>/scripts/dev_memory.py vectors sync --scope both --project-root .
+<Python> <Skill>/scripts/dev_memory.py vectors finish --scope both --project-root . --wait-seconds 3
+```
+
+For a custom global root, place `--global-root <path>` **before** `vectors`. `sync` schedules bounded work; it does not make every historical record immediately ready. The dashboard distinguishes current ready vectors, pending work, and unavailable runtime. Merely browsing the dashboard does not start inference. See [vector runtime and recovery](skills/dev-memory/references/vectors.md) for platform requirements, states, and deletion/restore behavior.
+
 ## Recall statistics
 
 When a memory's full details are returned, its UTC monthly counter increments in that store. Candidate indexes, cached results, read-only calls and capture-paused stores do not increment. This measures delivery to the assistant, not confirmed use. Run `<python> <skill>/scripts/dev_memory.py --global-root <global-root> recall-stats --scope both --month 2026-10 --project-root .` for a month; use `--from-month 2026-07 --to-month 2026-09` for a quarter. Reports do not store prompts or conversation text.
 
 ## Local memory dashboard
 
-The dashboard runs locally on demand. For a Codex installation on macOS or Linux:
+Update an existing installation first: `npx -y --prefer-online chrisstarr7/dev-memory update codex`. The dashboard runs locally on demand.
+
+For a Codex installation in **Windows PowerShell**:
+
+```powershell
+py -3 "$env:USERPROFILE\.agents\skills\dev-memory\scripts\dev_memory.py" dashboard serve
+```
+
+If `py` is unavailable, use `python` (Python 3.10+) or `& "C:\path\to\python.exe"` instead. Avoid the WindowsApps `python3` placeholder: it may exit without starting Python.
+
+For **macOS or Linux**:
 
 ```sh
 python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py dashboard serve
 ```
 
-Use the installed Skill path for another host or location. The command opens the browser; press `Ctrl+C` in the terminal to stop the server.
+Use the installed Skill path for another host or location. The terminal prints a full local URL and attempts to open the browser; if that fails, copy the URL into your browser. Keep the terminal open; press `Ctrl+C` to stop the server. Add `--no-open` to skip automatic browser launch. The URL contains a temporary access credential; do not share it.
 
 | Task | How |
 | --- | --- |

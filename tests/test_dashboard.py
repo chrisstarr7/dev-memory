@@ -8,6 +8,7 @@ import sys
 import threading
 import urllib.error
 import urllib.request
+from unittest.mock import patch
 from urllib.parse import urlencode, urlsplit
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +20,18 @@ import dev_memory_setup as setup
 
 
 class DashboardTests(MemoryTestCase):
+    def test_vector_panel_is_readonly_and_retry_uses_selected_scope(self):
+        self._seed()
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        app = dashboard.Dashboard(self.global_root)
+        with patch('dev_memory_vectors.schedule', side_effect=AssertionError('GET must not index')):
+            page = app.index({'scope': key})
+        self.assertIn('向量索引', page)
+        with patch('dev_memory_vectors.schedule', return_value={'status':'running'}) as schedule:
+            target = app.action({'action':'vectors_sync', 'scope':key})
+        self.assertEqual(target, '/?scope=' + key)
+        schedule.assert_called_once_with('project', project_root=self.project_a, global_root=self.global_root)
+
     def _seed(self) -> tuple[str, str]:
         project_id = self.add_project_rule(turn="dashboard-project", title="<script>alert(1)</script>")
         global_record = self.record(scope="global", kind="preference", title="Reuse implementations",
@@ -35,7 +48,7 @@ class DashboardTests(MemoryTestCase):
         dashboard.register_project(self.project_a, self.global_root)
         second = dashboard.register_project(self.project_b, self.global_root)
         self.assertEqual(len(dashboard.projects(self.global_root)), 2)
-        catalog_text = dashboard._catalog_path(self.global_root).read_text()
+        catalog_text = dashboard._catalog_path(self.global_root).read_text(encoding="utf-8")
         self.assertNotIn("退款", catalog_text)
         app = dashboard.Dashboard(self.global_root)
         listing = app.index({"scope": first["namespace_id"], "status": "all"})
@@ -168,6 +181,38 @@ class DashboardTests(MemoryTestCase):
         app.action({"action": "backup", "scope": key})
         self.assertTrue(list((self.project_a / ".dev-memory" / "backups").glob("*.sqlite3")))
         self.assertFalse(list((self.global_root / "global" / "backups").glob("*.sqlite3")))
+
+    def test_browser_launcher_cannot_block_or_abort_server(self) -> None:
+        self._seed()
+        scripts = str(Path(dashboard.__file__).parent)
+        for launch in ("import time; time.sleep(60)",
+                       "raise dashboard.webbrowser.Error('no browser')",
+                       "raise OSError('no desktop')", "return False"):
+            with self.subTest(launch=launch):
+                code = ("import sys\nfrom pathlib import Path\n"
+                        f"sys.path.insert(0, {scripts!r})\n"
+                        "import dev_memory_dashboard as dashboard\n"
+                        f"def launch(url):\n    {launch}\n"
+                        "dashboard.webbrowser.open = launch\n"
+                        f"dashboard.serve(Path({str(self.global_root)!r}))\n")
+                process = subprocess.Popen([sys.executable, "-u", "-c", code],
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                lines: queue.Queue[str] = queue.Queue()
+                reader = threading.Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True)
+                reader.start()
+                try:
+                    url = lines.get(timeout=15).strip()
+                    self.assertTrue(url.startswith("http://127.0.0.1:"), url)
+                    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                        urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+                    with opener.open(url, timeout=5) as response:
+                        self.assertIn("记忆总览", response.read().decode())
+                finally:
+                    process.kill()
+                    _, errors = process.communicate(timeout=5)
+                    reader.join(timeout=5)
+                self.assertIn("Ctrl+C", errors)
+                self.assertNotIn("Traceback", errors)
 
     def test_live_loopback_page_rejects_foreign_host_and_missing_csrf(self) -> None:
         self._seed()

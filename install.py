@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,7 @@ def argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--upgrade", action="store_true", help="Force rebuilding a managed installation; normal runs reuse/update automatically")
     parser.add_argument("--with-codex-hooks", action="store_true", help="Explicitly configure optional Codex hooks")
     parser.add_argument("--json", action="store_true", help="Structured result for automation")
+    parser.add_argument('--without-vectors', action='store_true', help='Keep basic offline memory without preparing vector dependencies or model')
     return parser
 
 
@@ -181,6 +183,23 @@ def main(argv: list[str] | None = None) -> int:
         if result["hooks"]["status"] == "failed":
             result.update(status="failed", error="hook_configuration_failed",
                           message="Skill 文件已安装且基础检查通过，但可选 hooks 配置失败；请检查 hooks 结果。")
+        if result.get('status') == 'installed':
+            if args.without_vectors or os.environ.get('DEV_MEMORY_VECTOR_SETUP') == '0':
+                result['vectors'] = {'status': 'not_requested'}
+            else:
+                # Optional capability failures must not discard a successful base installation.
+                from dev_memory_vector_setup import setup as prepare_vectors
+                result['vectors'] = prepare_vectors(global_root)
+                if result['vectors'].get('status') == 'ready':
+                    import dev_memory_vectors as vectors
+                    result['vector_indexing'] = []
+                    for kind in (['global', 'project'] if refresh_project else ['global']):
+                        try:
+                            indexed = vectors.schedule(kind, project_root=project if kind == 'project' else None,
+                                                       global_root=global_root)
+                        except (store.MemoryError, OSError, sqlite3.Error):
+                            indexed = {'status': 'unavailable', 'reason': 'store_not_available'}
+                        result['vector_indexing'].append({'scope': kind, **indexed})
     except store.MemoryError as exc:
         result.update(status="failed", error=exc.code, message=exc.message)
     except subprocess.TimeoutExpired:
@@ -229,6 +248,12 @@ def report(result: dict, args: argparse.Namespace, agent: str) -> None:
         print("更新成功；轻量运行检查通过。" if args.operation == "update" else "安装成功；轻量运行检查通过。")
         print("程序目录：" + result["path"])
         print("程序处理：" + str(result.get("program_action", "installed")))
+        vector_result = result.get('vectors', {})
+        if vector_result:
+            print('向量能力：' + str(vector_result.get('status', 'unavailable'))
+                  + (' (' + str(vector_result['reason']) + ')' if vector_result.get('reason') else ''))
+            if vector_result.get('status') not in {'ready', 'not_requested'}:
+                print('原文与关键词记忆仍可用；向量能力未就绪，可稍后运行 vectors setup 重试。')
         cleanup = result.get("old_program_cleanup", "")
         if isinstance(cleanup, str) and cleanup.startswith("pending:"):
             print("旧程序目录清理待完成：" + cleanup.split(":", 1)[1] + "；请在文件不再占用后清理该目录。")
@@ -400,7 +425,9 @@ def online_main(argv: list[str] | None = None) -> int:
                 command.append("--upgrade")
             if args.with_codex_hooks:
                 command.append("--with-codex-hooks")
-            child = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=60)
+            if args.without_vectors:
+                command.append('--without-vectors')
+            child = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=240)
             result = json.loads(child.stdout)
             if not isinstance(result, dict):
                 raise ValueError("安装程序返回了无效回执。")

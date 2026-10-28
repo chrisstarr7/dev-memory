@@ -26,7 +26,7 @@ class NpxTests(unittest.TestCase):
         self.base = Path(scratch.name).resolve()
         self.home = self.base/'home'; self.home.mkdir()
         self.project = self.base/'project'; self.project.mkdir()
-        self.env = {**os.environ, 'HOME':str(self.home), 'USERPROFILE':str(self.home),
+        self.env = {**os.environ, 'DEV_MEMORY_VECTOR_SETUP':'0', 'HOME':str(self.home), 'USERPROFILE':str(self.home),
                     'CODEX_HOME':str(self.home/'.codex'), 'DEV_MEMORY_HOME':str(self.home/'.dev-memory'),
                     'DSH_HOME':str(self.home/'.dsh'), 'PYTHONDONTWRITEBYTECODE':'1'}
 

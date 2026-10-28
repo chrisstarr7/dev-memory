@@ -26,6 +26,9 @@ import dev_memory_store as store
 
 class InstallerTests(unittest.TestCase):
     def setUp(self) -> None:
+        offline = patch.dict(os.environ, {'DEV_MEMORY_VECTOR_SETUP': '0'})
+        offline.start()
+        self.addCleanup(offline.stop)
         scratch = tempfile.TemporaryDirectory(prefix='dev-memory installer 中文 ')
         self.addCleanup(scratch.cleanup)
         self.home = Path(scratch.name).resolve()

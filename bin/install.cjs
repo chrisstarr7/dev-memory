@@ -28,7 +28,7 @@ if (!args.some(arg => arg === '--project' || arg.startsWith('--project='))) {
 }
 const [command, ...prefix] = python;
 const result = spawnSync(command, [...prefix, '-B', path.join(__dirname, '..', 'install.py'), ...args], {
-  cwd: project, stdio: 'inherit', timeout: 60000,
+  cwd: project, stdio: 'inherit', timeout: 240000,
 });
 if (result.error) {
   fail('installation_process_failed', result.error.code === 'ETIMEDOUT'

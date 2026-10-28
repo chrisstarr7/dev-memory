@@ -33,7 +33,7 @@ npx -y --prefer-online chrisstarr7/dev-memory codex
 | OpenCode | `opencode` | `AGENTS.md` |
 | DeepSeek Harness | `deepseek` | `AGENTS.md` |
 
-安装需要 Node.js 22+（含 npm/npx）、Git 和 Python 3.10+（含 sqlite3）。记忆运行时只依赖 Python 标准库。参数应对应实际运行 AI 的宿主：通过 OpenCode 使用 DeepSeek 模型时，选择 `opencode`。
+安装需要 Node.js 22+（含 npm/npx）、Git 和 Python 3.10+（含 sqlite3）。基础记忆运行时只依赖 Python 标准库；安装还会尝试在独立环境准备本地向量依赖与模型，失败时保留基础功能并报告向量降级。只需离线基础安装时添加 `--without-vectors`。参数应对应实际运行 AI 的宿主：通过 OpenCode 使用 DeepSeek 模型时，选择 `opencode`。
 
 Codex 安装会同时启用用户级全局习惯和当前项目记忆。在未初始化的其他项目中，用户级引导只召回全局习惯。需要项目记忆时，在该项目再次运行安装命令。其他宿主目前仅使用项目引导。安装或升级后，在项目中开启新的 AI 会话；之后正常提出需求即可，不必每轮调用 Skill 或说“记住”。新建记忆库从空库开始，已有记录会保留。
 
@@ -113,19 +113,63 @@ flowchart TD
 
 旧数据库可能仍有任务/检查点记录。当前版本不再创建、召回、整理或导出它们，但保留旧记录供显式审查和删除：先用 `list --scope project --status all` 查看，再走 `forget preview` / `forget apply` 流程。`reports/` 中的历史文件可能描述旧版行为。
 
+## 本地语义召回
+
+升级沿用已有 `memory.sqlite3`，保留原文、证据、修订历史、召回统计和控制开关。每个作用域的原文与 sqlite-vec 向量索引放在**同一个数据库**；全局和项目仍各用自己的库，不跨项目集中保存数据。模型文件与独立 Python 环境共享在 `<全局根目录>/vector-runtime/`，不修改项目的 Python 环境。
+
+安装／更新会尝试一次性准备依赖和模型；失败会明确显示向量降级，原文存储和关键词检索继续可用。仅需离线基础安装时添加 `--without-vectors`。普通开发期间不下载模型或依赖。AI 仍负责记忆资格、作用域和证据判断；向量模型只补充语义候选，不会把未生效候选晋升为规则。
+
+```mermaid
+flowchart TD
+    Save[AI 提交符合规则的记忆] --> Raw[提交中文原文和向量待处理状态]
+    Raw --> Worker[本地后台限时计算向量]
+    Worker --> Check[复核记录版本和控制开关]
+    Check --> Ready[提交当前版本向量]
+    Worker -->|不可用或超时| Pending[保留原文与待补齐状态]
+    Query[AI 提交任务词] --> Lex[关键词召回]
+    Query --> Semantic[限时本地语义召回]
+    Lex --> Merge[合并候选并核对权威原文]
+    Semantic --> Merge
+    Merge --> AI[按现有预算返回中文原文]
+    Dashboard[本地看板] --> View[读取同库中的原文和向量状态]
+```
+
+后台每批向量计算预算 10 秒；最终回复前最多额外等待 3 秒，且不超过该批剩余预算。AI 必须检查原文保存回执，并在结束前完成有界收尾。到期后原文仍已保存，向量明确显示待补齐。整次组合召回的查询向量预算为 5 秒，超时回退关键词。上述数字是执行上限，不是实测耗时或提速承诺。原文先落库可防止宿主中断时整条记忆丢失。
+
+诊断和补齐使用已安装的 Python CLI；替换下面的解释器和 Skill 路径：
+
+```text
+<Python解释器> <Skill目录>/scripts/dev_memory.py vectors setup
+<Python解释器> <Skill目录>/scripts/dev_memory.py vectors status --scope both --project-root .
+<Python解释器> <Skill目录>/scripts/dev_memory.py vectors sync --scope both --project-root .
+<Python解释器> <Skill目录>/scripts/dev_memory.py vectors finish --scope both --project-root . --wait-seconds 3
+```
+
+自定义全局根目录时，将 `--global-root <路径>` 放在 `vectors` **之前**。`sync` 只调度有限批次，不代表历史记录已全部完成向量化。看板显示当前版本向量已就绪、待补齐或运行时不可用；普通浏览不启动推理。详细平台要求和恢复方式见[向量运行说明](../../skills/dev-memory/references/vectors.md)。
+
 ## 召回统计
 
 记忆正文实际返回给 AI 时，会在对应存储中递增该记忆的 UTC 月度计数。候选索引、缓存结果、只读调用和暂停捕获的存储不计数。这表示内容已返回，不证明 AI 实际采用。运行 `<Python解释器> <Skill目录>/scripts/dev_memory.py --global-root <全局记忆目录> recall-stats --scope both --month 2026-10 --project-root .` 查看单月；将 `--month` 替换为 `--from-month 2026-07 --to-month 2026-09` 可汇总季度。统计不保存提示词或对话内容。
 
 ## 本地记忆看板
 
-看板按需在本机运行。macOS 或 Linux 上的 Codex 安装可直接执行：
+已安装旧版的用户先更新：`npx -y --prefer-online chrisstarr7/dev-memory update codex`。看板按需在本机运行。
+
+**Windows PowerShell** 中，Codex 默认安装位置使用：
+
+```powershell
+py -3 "$env:USERPROFILE\.agents\skills\dev-memory\scripts\dev_memory.py" dashboard serve
+```
+
+没有 `py` 时，改用 `python`（需 Python 3.10+），或 `& "C:\实际路径\python.exe"`。不要使用 WindowsApps 中的 `python3` 占位程序，它可能直接退出而没有输出。
+
+**macOS 或 Linux** 使用：
 
 ```sh
 python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py dashboard serve
 ```
 
-其他宿主或安装位置请替换 Skill 路径。命令会打开浏览器；在终端按 `Ctrl+C` 关闭服务。
+其他宿主或安装位置请替换 Skill 路径。终端会打印完整的本机访问链接并尝试打开浏览器；浏览器未自动打开时，复制该链接手动访问。需保持终端运行，按 `Ctrl+C` 关闭服务。添加 `--no-open` 可只启动服务、不自动打开浏览器。链接含临时访问凭据，请勿分享。
 
 | 要做什么 | 如何操作 |
 | --- | --- |

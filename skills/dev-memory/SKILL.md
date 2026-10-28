@@ -3,7 +3,7 @@ name: dev-memory
 description: Local development memory. For development tasks, recall relevant developer habits and authorized project rules; learn durable habits from visible user requirements, corrections and choices, preserving evidence and scope.
 license: MIT
 metadata:
-  version: "0.9.0"
+  version: "0.10.0"
   requires: "Python 3.10+ with sqlite3 and local file/process access; Git optional."
 ---
 
@@ -88,6 +88,8 @@ Do not create an extra global preference by stripping the scope from the same pr
 Do not save task status, to-do lists, ordinary diffs, every inspected symbol, copied documentation, speculative architecture or generic programming advice. Prefer a compact actionable rule or source pointer over duplicating an entire spec. Revise an existing rule on correction, preserving history; do not manufacture supporting evidence from AI restatements. A blocked/skipped write is not a successful save; inspect each store receipt and report relevant unsaved rules before delivery.
 
 ## Write clear atomic records, once
+
+When a save returns `vectors` with background work, continue the task and call one `vectors finish --scope both --project-root PATH --wait-seconds 3` before the final reply (use `--scope global` for global-only work). This is one total wait budget, not per record. Inspect raw-save and vector results separately: a pending or unavailable vector does not undo a committed memory. Do not poll, install models, or run full indexing in ordinary turns. Hybrid retrieval is automatic when ready and falls back to existing keyword recall; privacy, scope, candidate status, budgets, and recall-count rules still apply. Read [vectors.md](references/vectors.md) only for vector setup, diagnosis, lifecycle or model changes.
 
 One record describes one reusable behavior. State the applicable situation in `conditions`, preferred action in `do`, prohibited action in `dont`, and actual exceptions in `exceptions`; leave unknown parts empty. Keep `content` short and actionable. Use one primary topic (`analysis`, `implementation`, `debugging`, `verification`, `delivery`, `communication`, `correction`) and at most two established subtopics. Keep searchable wording in title/body so a wrong tag cannot hide it.
 

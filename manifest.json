@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "10f575e14815058ff89d4281c4d1e2e822399fe9976375c13c918ab685d9e533"
+      "sha256": "03246c88cd31808a02f54330389f59fb8763ae349aa3ec1c220812e16ff7af8b"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -37,12 +37,16 @@
       "sha256": "112f34c00d0fb1207224696fa69031ec89568e7b712759b9fefb0343fbaf712e"
     },
     {
+      "path": "skills/dev-memory/references/vectors.md",
+      "sha256": "fbd67fd6c5d7ad0e97c9c24dc35fe7feed18d7aa2b0c5ca6db201e0cf38358e3"
+    },
+    {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "f2d329153eafd896bafc32c5b24b324818c454288274845da41d5cc8a8ba00d5"
+      "sha256": "4cc582b4fe311205a16f7a978d41e475abf13565ad246e1febf5eb8acd6dd97f"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "54b2f0f2173f72f2f63295bed78666734192a159494f1024243bbfe79f41f9dc"
+      "sha256": "1a96b8477aafb6b33cea71342a89636767f351de11b661faef391a88e64d8eaf"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -50,7 +54,15 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_dashboard.py",
-      "sha256": "94992880484e0a457a47a5f304a9602d4bb93682616a1d17182157eddf0334da"
+      "sha256": "cd34a614266caa0b318b78577c312048ae6a40594f604ad6ee8000683b3d9594"
+    },
+    {
+      "path": "skills/dev-memory/scripts/dev_memory_vectors.py",
+      "sha256": "691f08eaad6583ebf37ada490c974d97d58a82cfc71c6144fd2a226c9b0117aa"
+    },
+    {
+      "path": "skills/dev-memory/scripts/dev_memory_vector_setup.py",
+      "sha256": "6cd2ea5c29b553246f787367852f538db202480d1144060c9fff06db536631ff"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -62,7 +74,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "2d3278c0d29b5654a9f1df2b15e5d3ff70db747122a56c6c5cdef0289ee755e8"
+      "sha256": "c1b7248f90c6097612f97c676eb6edf4364751174cee26a55dff08779cbedf84"
     },
     {
       "path": "LICENSE",
@@ -74,15 +86,15 @@
     },
     {
       "path": "install.py",
-      "sha256": "47363cc6dd1aa1ace39d0080a6b6178563e3585a331e56660661ba00b536a569"
+      "sha256": "53edb13f7327175cee22732b34767e776016efabbb17aa2a9f16bf242b7d2cd6"
     },
     {
       "path": "package.json",
-      "sha256": "db43ccda60062a8a7cd9e5e0da28deae3a599483fbf43d19d46b6d9a7c7b1c77"
+      "sha256": "695328788c5d489263c9c03c97a460963c62b59ac77eff6e9f18a1b2b2101086"
     },
     {
       "path": "bin/install.cjs",
-      "sha256": "33e8a99e6f1f7778782a986455b790e7de9876714096e8e78d119e087aaa8530"
+      "sha256": "b7f01eefd984e3076cd3dd8396f50ce6e8062482e891a9543be866e4b287032d"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -102,11 +114,11 @@
     },
     {
       "path": "docs/architecture.md",
-      "sha256": "608464c849e04959403bd96c8ffd16835df568f07fac8d0e5d63ef024d7cf93d"
+      "sha256": "32496e69dde589c0fbc654b054fe81d71dd86e5bbd3247f27c2646eceb44f768"
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "f5ebab7927557ce96943aa016d2fa6cee7ff9ad687fee7d62775eeeaf2a81bac"
+      "sha256": "e4fd412ba65ab8b3dfbdd3a7a6036f54d0a17fa626890542bfeb32c88306e8bc"
     },
     {
       "path": "docs/readme/README.ja.md",
@@ -198,7 +210,7 @@
     },
     {
       "path": "tests/test_dashboard.py",
-      "sha256": "e0a2e1d1584a44438760262d1778166aa18cb34f29be2e929b4836fb80b1258a"
+      "sha256": "e7e96c072f8462228481b073f8003c9ff953ce899f4c21d8063774d2fcdc8b2a"
     },
     {
       "path": "tests/test_maintenance.py",
@@ -214,7 +226,7 @@
     },
     {
       "path": "tests/test_installer.py",
-      "sha256": "94a70a3751352ec6c9536ceed5666f0df642220ee352362df291eb31831e3e04"
+      "sha256": "842d655c5427a686a6f33ba52d1d278a5fd5cd35f94279e64bdf5c8d9a9a33c4"
     },
     {
       "path": "tests/test_setup.py",
@@ -222,11 +234,11 @@
     },
     {
       "path": "tests/test_online_installer.py",
-      "sha256": "9c76934db09335e42e5f2712e36e50af496414c8ea9d435c21651dcd57dbce3f"
+      "sha256": "aa51dcae339ab6394a54010838e832098c9c013442be2534f08b39de59d42796"
     },
     {
       "path": "tests/test_npx_installer.py",
-      "sha256": "e6407b05d192850328dde72283cb8f025abc97f42c28fec3eff3d140baf9f9e3"
+      "sha256": "03c411e328df2270492657aa5d1f144a2091f48622bfd22c133f4e0f9a0e9f1d"
     },
     {
       "path": "tests/install_smoke.py",
@@ -286,7 +298,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "5a2dbd9ac24111160ee6ed84877c1eb975988ffe2d6d88c0df071d6e33ccc3e0"
+      "sha256": "186fc0d9bc73db4532ad38b810195167eb94fc1a4f54e3452f93a704b7878061"
     },
     {
       "path": "reports/online-installation.json",
@@ -322,11 +334,11 @@
     },
     {
       "path": ".github/workflows/check.yml",
-      "sha256": "6644a56845ea3d87e467836c2fb5b4ae6eb749df22c3875755dc7ea3662128ef"
+      "sha256": "ae355c9297059e29db500967ea0eba4b2ac2b4e513a2cfa0719d6cde42c0cb85"
     },
     {
       "path": "plugin.json",
-      "sha256": "0346bdba861d2e78bdc3b9f8a3fe05128cf641cce701b071c625f1bd5d172d13"
+      "sha256": "5cda7f031599cbc479f07862b8627bc44f0acba5a7d92260d438d2da7c171874"
     },
     {
       "path": "evals/check_deepseek.py",
@@ -347,7 +359,25 @@
     {
       "path": "reports/memory-cycle-review.md",
       "sha256": "c82f2f356780d6bb8ae68dbf6fc0d3a051cd01f1bb688f3999d0f72765923798"
+    },
+    {
+      "path": "tests/test_vectors.py",
+      "sha256": "0e7fe6ca78bc883502e0ce466193be8564d04ca191595b51c0eb91972d82efcd"
+    },
+    {
+      "path": "tests/test_vector_setup.py",
+      "sha256": "281dde6ecaac598067a66babd0f1479ad64767a90fd1569b560dee7893d17f78"
+    },
+    {
+      "path": "tests/test_vector_integration.py",
+      "sha256": "1aed154740ebf087b816664c3619be7b25f7fdc4237df7335bbaa517f0f9f35c"
+    },
+    {
+      "path": ".github/workflows/vectors.yml",
+      "sha256": "9f2fc272233c7dbc2bc3da062b46d3a8869f146eca3499740656e7d313c4ba2b"
     }
   ],
-  "version": "0.9.0"
+  "version": "0.10.0",
+  "package": "dev-memory",
+  "license_status": "MIT"
 }

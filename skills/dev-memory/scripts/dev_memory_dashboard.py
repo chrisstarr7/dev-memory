@@ -6,6 +6,8 @@ import json
 import re
 import secrets
 import sqlite3
+import sys
+import threading
 import uuid
 import webbrowser
 from datetime import datetime, timezone
@@ -239,6 +241,21 @@ class Dashboard:
             state = self._status(key)
             if state.get("status") == "available" and state.get("recall_enabled"):
                 label, counts = self._stats(key, month)
+                import dev_memory_vectors as vectors
+                scope_kind, scope_root = self._target(key)
+                vector_state = vectors.status(scope_kind, project_root=scope_root, global_root=self.global_root)
+                vector_labels = {'ready': '已就绪', 'pending': '待补齐', 'running': '处理中',
+                                 'unavailable': '暂不可用', 'disabled': '已禁用'}
+                body += (f'<section class=panel><h2>向量索引</h2><p>{_h(vector_labels.get(vector_state["status"], vector_state["status"]))}'
+                         f'；已就绪 {_h(vector_state.get("ready", 0))} 条；待补齐 {_h(vector_state.get("pending", 0))} 条。'
+                         '原文仍保存在当前 SQLite 库中；浏览看板不会启动索引。</p>')
+                if vector_state.get('reason'):
+                    body += f'<p class=muted>原因：{_h(vector_state["reason"])}</p>'
+                if state.get('capture_enabled') and vectors.enabled(self.global_root):
+                    body += (f'<form method=post action=/action>{self._form_token()}'
+                             f'<input type=hidden name=scope value="{_h(key)}"><input type=hidden name=action value=vectors_sync>'
+                             '<button>补齐一批向量</button></form>')
+                body += '</section>'
                 body += (f'<section class=panel><h2>{_h(self._scope_name(key))}</h2><p>捕获：'
                          f'{"开启" if state.get("capture_enabled") else "暂停"}；召回：开启；{_h(month)}：{_h(label)}</p>'
                          f'<form method=post action=/preview>{self._form_token()}<input type=hidden name=scope value="{_h(key)}">'
@@ -278,7 +295,10 @@ class Dashboard:
         if data.get("status") == "disabled":
             return self._shell("已禁用", '<section class=panel>该范围的记忆读取已禁用。</section>')
         record = data["record"]
+        import dev_memory_vectors as vectors
+        vector_state = vectors.status(kind, project_root=root, global_root=self.global_root, memory_id=memory_id)
         body = f'<section class=panel><p><a href="/?scope={_h(key)}">← {_h(self._scope_name(key))}</a></p>'
+        body += f'<p class=muted>向量：{_h(vector_state.get("record", {}).get("state", vector_state["status"]))}</p>'
         body += (f'<p><span class=pill>{_h(STATUS_LABELS.get(record["status"], record["status"]))}</span>　'
                  f'{_h(KIND_LABELS.get(record["kind"], record["kind"]))} / {_h(CLAIM_LABELS.get(record["claim_type"], record["claim_type"]))}'
                  f'　{_h(STRENGTH_LABELS.get(record["strength"], record["strength"]))}　修订 {_h(record["revision"])}</p>')
@@ -435,6 +455,10 @@ class Dashboard:
         if action == "backup":
             store.backup_store(kind, project_root=root, global_root=self.global_root)
             return "/projects?notice=backup_created"
+        if action == 'vectors_sync':
+            import dev_memory_vectors as vectors
+            vectors.schedule(kind, project_root=root, global_root=self.global_root)
+            return '/?scope=' + key
         memory_id = form.get("id", "")
         if action == "forget":
             if form.get("confirm") != "yes":
@@ -589,8 +613,20 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
     server.daemon_threads = True
     url = f"http://127.0.0.1:{server.server_port}/?{urlencode({'access': access})}"
     print(url, flush=True)
+    print("Dashboard is running. Keep this terminal open; press Ctrl+C to stop. "
+          "If no browser opens, copy the URL above into your browser.", file=sys.stderr, flush=True)
     if open_browser:
-        webbrowser.open(url)
+        def launch_browser() -> None:
+            # Desktop browser launchers can block or fail without affecting the local server.
+            try:
+                opened = webbrowser.open(url)
+            except (webbrowser.Error, OSError):
+                opened = False
+            if not opened:
+                print("Could not open the browser automatically. Open the URL above manually.",
+                      file=sys.stderr, flush=True)
+
+        threading.Thread(target=launch_browser, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

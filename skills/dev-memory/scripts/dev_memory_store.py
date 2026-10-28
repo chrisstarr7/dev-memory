@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import time
 import uuid
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -1557,6 +1558,8 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         draining = _refresh_maintenance_cycle(conn)
         if content_changed:
             conn.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='data_revision'")
+            import dev_memory_vectors as vectors
+            vectors.on_change(conn, changed_ids)
         # Keep usage identity/revision, not another copy of project prose in receipts.
         receipt_results = [{k:v for k,v in result.items() if k not in {'reason','action_ref'}}
                            if result.get('usage') == 'ai_reported_not_behavior_verified' else result for result in results]
@@ -1581,6 +1584,10 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         output = {"scope": target_scope, "status": status, "operations": results, "data_revision": committed_revision, "maintenance": maintenance}
         if changed_ids:
             output["view_status"] = "stale_until_export"
+            try:
+                output['vectors'] = vectors.schedule(kind, project_root=root, global_root=global_root)
+            except (MemoryError, OSError, sqlite3.Error, ValueError):
+                output['vectors'] = {'status': 'deferred', 'reason': 'index_unavailable', 'raw_saved': True}
         return output
     except MemoryError as exc:
         if conn is not None:
@@ -1760,7 +1767,8 @@ def _verification_status(record: dict[str, Any], root: Path | None, current_head
 
 def _recall_store(kind: str, root: Path | None, global_root: Path | None, query: str, *,
                   session_id: str | None, module: str | None, max_candidates: int, max_details: int,
-                  max_chars: int, force: bool, readonly: bool, intent: str | None = None) -> dict[str, Any]:
+                  max_chars: int, force: bool, readonly: bool, intent: str | None = None,
+                  vector_query_cache: dict | None = None) -> dict[str, Any]:
     try:
         base, db_path, config = _config_for(kind, root, global_root)
     except MemoryError as exc:
@@ -1792,6 +1800,13 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         "query_terms": sorted(_token_terms(query[:10000]))[:128],
         "limits": [max_candidates, max_details, max_chars],
     }
+    import dev_memory_vectors as vectors
+    # Model identity and index generation must invalidate the existing per-session cache.
+    runtime = vectors._settings(global_root)
+    cache_value['vector_model'] = runtime['model_fingerprint'] if runtime else None
+    with closing(_connect(db_path, readonly=True)) as vector_conn:
+        cache_value['vectors'] = vectors.generation(vector_conn)
+    cache_value['query_text'] = re.sub(r'\s+', ' ', query[:10000]).strip()
     current_head = None
     current_signature = None
     workspace_checked = bool(root and session_id and not readonly)
@@ -1852,6 +1867,21 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             scores = {row["id"]: row["score"] for row in found}
             lexical_matches = {row['id'] for row in found if row['lexical_match']}
         selected_ids = set(scores)
+        conn.set_progress_handler(None, 0)
+        vector_result = vectors.search(query, kind, project_root=root, global_root=global_root,
+                                       query_cache=vector_query_cache, timeout=5)
+        deadline = time.monotonic() + 0.5
+        conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+        # Fuse ranks rather than adding incomparable lexical scores and cosine distances.
+        vector_matches = vector_result.get('records', [])
+        vector_distances = {item['id']: item['distance'] for item in vector_matches}
+        if vector_matches:
+            lexical_order = sorted(scores, key=lambda mid: (-int(mid in lexical_matches), -scores[mid], mid))
+            scores = {mid: 1 / (60 + rank) for rank, mid in enumerate(lexical_order, 1)}
+            for rank, item in enumerate(vector_matches[:max_candidates], 1):
+                memory_id = item['id']
+                scores[memory_id] = scores.get(memory_id, 0) + 1 / (60 + rank)
+            selected_ids.update(scores)
         if kind == "global":
             selected_ids.update(row[0] for row in conn.execute(
                 "SELECT id FROM memories WHERE scope='global' AND kind IN ('preference','convention') AND claim_type!='hypothesis' AND status='active' ORDER BY CASE strength WHEN 'hard' THEN 0 ELSE 1 END,updated_at DESC LIMIT ?",
@@ -1889,6 +1919,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                     continue  # Legacy derived claims must pass the same source checks as new summaries.
             if record:
                 record["_score"] = scores.get(memory_id, 0)
+                record['_vector_distance'] = vector_distances.get(memory_id, float('inf'))
                 record['_lexical'] = memory_id in lexical_matches
                 records.append(record)
         conn.close()
@@ -1900,9 +1931,10 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             record['verification_status'] = _verification_status(record, root, current_head, current_signature)
         records.sort(key=lambda record: (record["updated_at"], record["id"]), reverse=True)
         records.sort(key=lambda record: (
-            0 if record['_lexical'] else 1,
+            0 if vector_matches or record['_lexical'] else 1,
             0 if record['_score'] > 0 else 1,
             -record["_score"],
+            record['_vector_distance'],
             0 if record["strength"] == "hard" else 1,
         ))
         overflow_ids = [r["id"] for r in records[max_candidates:]]
@@ -1945,6 +1977,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             "context_incomplete": bool(remaining), "remaining_ids": remaining,
             "unloaded_candidates": unloaded,
             "candidate_limit_reached": candidate_limit_reached or bool(overflow_ids),
+            "vectors": {key: value for key, value in vector_result.items() if key != 'records'},
             "namespace_id": config["namespace_id"], "data_revision": current_revision,
         }
         if recall_tracking is not None:
@@ -1964,11 +1997,12 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
            force: bool = False, readonly: bool = False, intent: str | None = None) -> dict[str, Any]:
     if intent is not None and (not isinstance(intent, str) or intent not in INTENTS):
         raise MemoryError('validation_error', 'Unknown task intent.')
+    vector_query_cache: dict = {}
     if project_root is None:
         limits = (max_candidates, max_details, max_chars)
         stores = [_recall_store("global", None, global_root, query, session_id=session_id,
                                 module=None, max_candidates=limits[0], max_details=limits[1], max_chars=limits[2],
-                                force=force, readonly=readonly, intent=intent)]
+                                force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache)]
     else:
         half_candidates = max(1, max_candidates // 2)
         # Reserve both scopes; a provably inactive global side lends its unused budget.
@@ -1978,7 +2012,7 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
         global_result = _recall_store(
             "global", None, global_root, query, session_id=session_id, module=None,
             max_candidates=half_candidates, max_details=global_details, max_chars=global_budget,
-            force=force, readonly=readonly, intent=intent,
+            force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache,
         )
         if global_result.get('no_eligible_rules') is True or global_result['status'] == 'disabled':
             global_details, global_budget = 0, 0
@@ -1988,6 +2022,7 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
             "project", project_root, global_root, query, session_id=session_id, module=module,
             max_candidates=max_candidates - half_candidates, max_details=remaining_details,
             max_chars=remaining_chars, force=force, readonly=readonly, intent=intent,
+            vector_query_cache=vector_query_cache,
         )
         stores = [global_result, project_result]
     return {
@@ -2428,7 +2463,10 @@ def forget_preview(kind: str, memory_id: str, *, project_root: Path | None = Non
         "note": "Host transcripts, user-managed copies, Git history, and system snapshots are outside this tool.",
     }
 
-def _delete_ids(conn: sqlite3.Connection, ids: Iterable[str]) -> None:
+def _delete_ids(conn: sqlite3.Connection, ids: Iterable[str], *, global_root: Path | None = None) -> None:
+    import dev_memory_vectors as vectors
+    ids = list(ids)
+    vectors.remove(conn, ids, global_root=global_root)
     for memory_id in ids:
         row = conn.execute("SELECT revision FROM memories WHERE id=?", (memory_id,)).fetchone()
         if not row:
@@ -2450,7 +2488,7 @@ def forget_apply(kind: str, memory_id: str, confirmation_token: str, *, project_
             conn.rollback()
             raise MemoryError("revision_conflict", "Deletion preview is stale; preview again.")
         ids = [item[0] for item in targets]
-        _delete_ids(conn, ids)
+        _delete_ids(conn, ids, global_root=global_root)
         conn.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='data_revision'")
         conn.commit()
     finally:
@@ -2470,7 +2508,7 @@ def forget_apply(kind: str, memory_id: str, confirmation_token: str, *, project_
                 if metadata.get("namespace_id") != config["namespace_id"] or metadata.get("storage_kind") != kind:
                     backup_errors.append(backup.name)
                     continue
-                _delete_ids(bconn, ids)
+                _delete_ids(bconn, ids, global_root=global_root)
                 bconn.commit()
             except sqlite3.Error:
                 backup_errors.append(backup.name)
@@ -2511,6 +2549,8 @@ def restore_store(kind: str, backup_path: Path, *, project_root: Path | None = N
         private_receipts = conn.execute("SELECT idempotency_key,session_id,turn_id,status,checked_at,result_json,payload_hash FROM receipts WHERE status='skipped_private'").fetchall()
         previous_revision = data_revision(db_path)
         conn.execute("BEGIN IMMEDIATE")
+        import dev_memory_vectors as vectors
+        vectors.reset(conn, global_root=global_root)
         for table in ("maintenance_pending", "merged_aliases", "session_context", "receipts", "revisions", "evidence", "search_terms", "derived_edges", "recall_counts", "memories", "meta", "forgotten"):
             conn.execute(f"DELETE FROM main.{table}")
         for table in ("meta", "memories", "evidence", "revisions", "search_terms", "derived_edges", "recall_counts", "receipts", "session_context", "forgotten", "merged_aliases", "maintenance_pending"):
@@ -2528,7 +2568,7 @@ def restore_store(kind: str, backup_path: Path, *, project_root: Path | None = N
             conn.execute("UPDATE memories SET semantic_hash=? WHERE id=?", (_semantic_hash(record), memory_id))
         conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('semantic_hash_format','4')")
         for memory_id, revision, forgotten_at in forgotten:
-            _delete_ids(conn, [memory_id])
+            _delete_ids(conn, [memory_id], global_root=global_root)
             conn.execute("INSERT OR REPLACE INTO forgotten(memory_id,revision,forgotten_at) VALUES(?,?,?)",
                          (memory_id, revision, forgotten_at))
         _ensure_maintenance(conn)
