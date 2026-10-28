@@ -218,17 +218,8 @@ class Dashboard:
         keys = ["global", *(row["namespace_id"] for row in project_rows)]
         if key not in keys and key != "all":
             raise store.MemoryError("project_not_registered", "Unknown dashboard scope.")
-        cards = []
-        for item in keys:
-            state = self._status(item)
-            counts = state.get("record_counts", {})
-            badge = (f'有效 {counts.get("active", 0)} · 候选 {counts.get("candidate", 0)} · 冲突 {counts.get("conflicted", 0)}'
-                     if state.get("status") == "available" else f'不可用：{state.get("reason", state.get("status"))}')
-            cards.append(f'<div class=scope-row><a href="/?scope={_h(item)}">{_h(self._scope_name(item))}</a><span class=muted>{_h(badge)}</span></div>')
-        body = '<section class=panel><h2>记忆范围</h2>' + "".join(cards) + '<p class=muted>只列出已登记项目；各项目仍保存在自己的库中。</p></section>'
-        body += (f'<section class=panel><h2>查找记录</h2><form class=filters method=get><select name=scope>'
-                 + ''.join(f'<option value="{_h(item)}" {"selected" if key == item else ""}>{_h(self._scope_name(item))}</option>' for item in keys)
-                 + f'<option value=all {"selected" if key == "all" else ""}>全部范围</option></select>'
+        body = '<section class=panel><h2>\u8bb0\u5fc6\u5e93\u5207\u6362</h2><p class=muted>\u5168\u5c40\u89c4\u5219\u548c\u5404\u9879\u76ee\u8bb0\u5fc6\u5206\u5f00\u5b58\u50a8\u548c\u7ba1\u7406\uff0c\u5728\u5de6\u4fa7\u5206\u7ec4\u9009\u62e9\u8981\u67e5\u770b\u7684\u8bb0\u5fc6\u5e93\u3002</p></section>'
+        body += (f'<section class=panel><h2>查找当前记忆库</h2><form class=filters method=get><input type=hidden name=scope value="{_h(key)}">'
                  + f'<input name=q placeholder="标题或正文" value="{_h(query)}">'
                  + '<select name=status>' + ''.join(f'<option value={_h(item)} {"selected" if item == status_filter else ""}>{_h(STATUS_LABELS[item])}</option>'
                       for item in ("active", "candidate", "conflicted", "stale", "archived", "superseded", "all"))
