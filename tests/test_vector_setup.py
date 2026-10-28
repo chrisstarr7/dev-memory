@@ -151,6 +151,7 @@ class VectorSetupTests(unittest.TestCase):
              patch.object(setup, "_run", side_effect=run) as calls:
             self.assertEqual(self.compatible_python(root, time.monotonic()+10), str(python))
         self.assertEqual(calls.call_args_list[1].args[0][-1], "cpython-3.12-macos-aarch64-none")
+        self.assertEqual(Path(calls.call_args_list[1].args[0][0]).parent, root / 'bootstrap' / 'bin')
 
     def test_macos_without_host_sqlite_extensions_uses_managed_probe(self):
         probe = self.fake_probe()

@@ -157,7 +157,7 @@ def _compatible_python(root: Path, deadline: float) -> str:
         return None
     if python := existing():
         return str(python)
-    uv = bootstrap / "uv" / ("uv.exe" if os.name == "nt" else "uv")
+    uv = bootstrap / "bin" / ("uv.exe" if os.name == "nt" else "uv")
     if uv.is_symlink():
         raise ValueError("unsafe_runtime_path")
     if not uv.is_file():

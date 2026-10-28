@@ -62,7 +62,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_vector_setup.py",
-      "sha256": "496b16c9ab119cb340f38afcda8ee35eb152bc07ddc1e6161ebc54cfa9b4b56f"
+      "sha256": "90c415c84fd121f5ce7192fc1ec4a3a4fe1559f7dbd411453fd72b07f12a071c"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -366,7 +366,7 @@
     },
     {
       "path": "tests/test_vector_setup.py",
-      "sha256": "8e136125105656685e3a0f02fde73ff0c94d20eb9f36558d9a68331326d1f644"
+      "sha256": "2675893d2ea80ff29cd3c45f8bc2208d206da78a927fcbd6194ebea81e93ec33"
     },
     {
       "path": "tests/test_vector_integration.py",
