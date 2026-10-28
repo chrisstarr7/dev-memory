@@ -136,6 +136,8 @@ flowchart TD
 
 A background vector batch has a 10-second execution budget; final delivery waits at most 3 additional seconds within the remaining batch budget. The assistant checks raw-save receipts and finishes pending vector work before its final response. An unfinished vector is reported as pending, not as a failed original save. Query vector work has a 5-second budget for the combined recall; timeout falls back to keywords. These are limits, not measured latency promises. Original text is saved before model work so an interrupted host does not lose the record.
 
+When the requested work and its checks are complete, the assistant first posts a short progress notice that the deliverable is ready and memory finalization is being checked. It then completes the bounded finish step before its final response. On timeout, it reports that original text is saved and vectors remain pending. A recall miss does not automatically create a memory.
+
 For diagnostics or recovery, use the installed Python CLI (replace the two placeholders):
 
 ```text

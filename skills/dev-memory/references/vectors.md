@@ -49,7 +49,7 @@ Replace the interpreter and Skill paths for another host. `status` inspects stat
 2. The raw transaction saves the record and invalidates any old vector. The original-save receipt is authoritative even if inference fails.
 3. A local process calculates vectors outside a write transaction. One batch has a 10-second execution budget, including model loading.
 4. Before vector commit, recheck record identity/revision, model fingerprint, eligibility and capture controls. A changed or deleted record rejects a late result.
-5. Before final delivery, the assistant performs one finish check. Additional waiting is at most 3 seconds within the remaining batch budget, not 3 seconds per record. Report pending vectors accurately.
+5. Once the requested work and its authorized checks are complete, send one visible progress message before the finish check, for example: “修复和本轮检查已完成，可以先查看或自行提交代码；我正在确认记忆向量化结果。” Use the actual task and known indexing state, not an assumption that a previously running job is still running. Then perform one finish check before the final reply. Additional waiting is at most 3 seconds within the remaining batch budget, not 3 seconds per record. Report pending vectors accurately; on timeout say the original was saved and vectors await completion. This notice does not authorize an automatic commit.
 6. Recall generates a query vector within a 5-second combined-call budget, fuses candidates with keyword results and rechecks authoritative records. Timeout/unavailability returns lexical results with a degradation reason. The existing context limits and global/project isolation still apply.
 7. Only full details actually delivered increment ordinary recall counts. Candidate indexes, cached results and read-only previews do not. Vector and keyword duplicates count once.
 
@@ -72,6 +72,8 @@ Time budgets are execution limits, not measured latency or accuracy guarantees. 
 | Restore | Invalidate restored/stale derived indexes and rebuild from restored authoritative records. Preserve deletion suppression and controls. |
 
 An interrupted host may not execute its final hook. Raw-first persistence and durable pending state allow later recovery without a permanently running service. The embedding model does not decide promotion, semantic merging, scope or permission to save.
+
+A query with no matches is not a reason to save the current task. Capture still requires supported durable information, correct scope and permitted controls. The visible progress message keeps the user informed while finalization runs; it does not weaken the capture or completion gates.
 
 ## Verification boundary
 

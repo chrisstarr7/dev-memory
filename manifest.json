@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "03246c88cd31808a02f54330389f59fb8763ae349aa3ec1c220812e16ff7af8b"
+      "sha256": "61543763cf22ecd056c7aa0ba1453a5b1845e4e3c4875917e389cb6c5d9af9bc"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -38,7 +38,7 @@
     },
     {
       "path": "skills/dev-memory/references/vectors.md",
-      "sha256": "ef2ba33106ea984869fda5b136be24c238efbe66843d6a2c5593870a54f43989"
+      "sha256": "d6f70660f9853fc809a2fc5dc760ba1949ed8aafad21028d95f334d682b39a64"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
@@ -74,7 +74,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "c1b7248f90c6097612f97c676eb6edf4364751174cee26a55dff08779cbedf84"
+      "sha256": "cdd9c4c2332b2a539bfefede0c1988bab4e93b17f4d840cb74616af39af0ff67"
     },
     {
       "path": "LICENSE",
@@ -118,7 +118,7 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "e4fd412ba65ab8b3dfbdd3a7a6036f54d0a17fa626890542bfeb32c88306e8bc"
+      "sha256": "b9eb1621005b8e6992609c6c183ec49a5fc4a65f530303cfaef6c0b9cf16aaa6"
     },
     {
       "path": "docs/readme/README.ja.md",
