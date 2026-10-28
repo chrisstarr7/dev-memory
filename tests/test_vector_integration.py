@@ -54,6 +54,11 @@ class RealVectorIntegration(MemoryTestCase):
         if not hasattr(sqlite3.Connection, 'enable_load_extension'):
             config = setup.read_config(runtime_root)
             self.assertNotEqual(Path(config['python']).resolve(), Path(sys.executable).resolve())
+            cli = Path(vectors.__file__).with_name('dev_memory.py')
+            redirected = subprocess.run([sys.executable, str(cli), '--global-root', str(runtime_root), 'runtime-check'],
+                                        capture_output=True, text=True, encoding='utf-8', timeout=15)
+            self.assertEqual(redirected.returncode, 0, redirected.stderr)
+            self.assertTrue(json.loads(redirected.stdout)['python'].startswith('3.12'), redirected.stdout)
             child = subprocess.run([config['python'], '-m', 'unittest', 'discover', '-s', 'tests',
                                     '-p', 'test_vector_integration.py', '-v'],
                                    env={**os.environ,'DEV_MEMORY_VECTOR_ROOT':str(runtime_root)},

@@ -370,7 +370,7 @@
     },
     {
       "path": "tests/test_vector_integration.py",
-      "sha256": "ec64c9b0a80e728f5a7c00a2fac9371cc4b8a20d351d44372acc70361ff8b5e7"
+      "sha256": "c5980abbd57c7c88f4b42d118063b4c1eece36bf20953035fb7456e252f24537"
     },
     {
       "path": ".github/workflows/vectors.yml",
