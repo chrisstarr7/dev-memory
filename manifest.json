@@ -38,11 +38,11 @@
     },
     {
       "path": "skills/dev-memory/references/vectors.md",
-      "sha256": "fbd67fd6c5d7ad0e97c9c24dc35fe7feed18d7aa2b0c5ca6db201e0cf38358e3"
+      "sha256": "ef2ba33106ea984869fda5b136be24c238efbe66843d6a2c5593870a54f43989"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "4cc582b4fe311205a16f7a978d41e475abf13565ad246e1febf5eb8acd6dd97f"
+      "sha256": "75f17e870aac741fdaa3e6605b4d6d52ff312e779eff7923f14846886c002f6c"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
@@ -62,7 +62,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_vector_setup.py",
-      "sha256": "6cd2ea5c29b553246f787367852f538db202480d1144060c9fff06db536631ff"
+      "sha256": "496b16c9ab119cb340f38afcda8ee35eb152bc07ddc1e6161ebc54cfa9b4b56f"
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
@@ -210,7 +210,7 @@
     },
     {
       "path": "tests/test_dashboard.py",
-      "sha256": "e7e96c072f8462228481b073f8003c9ff953ce899f4c21d8063774d2fcdc8b2a"
+      "sha256": "28b084dfa5a8f3fc0fcbf5957d2381a013e37d339b1463c18e6722b60379e5b1"
     },
     {
       "path": "tests/test_maintenance.py",
@@ -366,15 +366,15 @@
     },
     {
       "path": "tests/test_vector_setup.py",
-      "sha256": "281dde6ecaac598067a66babd0f1479ad64767a90fd1569b560dee7893d17f78"
+      "sha256": "8e136125105656685e3a0f02fde73ff0c94d20eb9f36558d9a68331326d1f644"
     },
     {
       "path": "tests/test_vector_integration.py",
-      "sha256": "1aed154740ebf087b816664c3619be7b25f7fdc4237df7335bbaa517f0f9f35c"
+      "sha256": "ec64c9b0a80e728f5a7c00a2fac9371cc4b8a20d351d44372acc70361ff8b5e7"
     },
     {
       "path": ".github/workflows/vectors.yml",
-      "sha256": "9f2fc272233c7dbc2bc3da062b46d3a8869f146eca3499740656e7d313c4ba2b"
+      "sha256": "81fd23349808712cf6a5bb7299e559fdfcbedaf0c8f0c6e479c3d6ab1327b4bd"
     }
   ],
   "version": "0.10.0",

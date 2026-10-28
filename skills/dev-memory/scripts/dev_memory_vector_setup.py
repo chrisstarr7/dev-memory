@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import closing
 import json
 import os
 import platform
@@ -128,15 +129,19 @@ def _mac_intel() -> bool:
     return platform.system() == "Darwin" and platform.machine().lower() in {"x86_64", "amd64"}
 
 
+def _mac() -> bool:
+    return platform.system() == "Darwin"
+
+
 def _packages() -> tuple[str, ...]:
     # FastEmbed requires ORT >=1.24.2 on CPython 3.14, which has no Intel macOS wheel.
-    ort = "1.23.2" if _mac_intel() or sys.version_info < (3, 14) else "1.31.1"
+    ort = "1.23.2" if _mac() or sys.version_info < (3, 14) else "1.31.1"
     return (*PACKAGES, "onnxruntime==" + ort)
 
 
 def _compatible_python(root: Path, deadline: float) -> str:
-    """Intel Mac 使用独立 Python 3.12，避免 Python 3.14 缺少 ONNX 二进制包。"""
-    if not _mac_intel():
+    """Mac 使用支持 SQLite 扩展的独立 Python 3.12，保留宿主环境。"""
+    if not _mac():
         return sys.executable
     if tuple(int(part) for part in platform.mac_ver()[0].split(".")[:1] if part) < (13,):
         raise RuntimeError("macos_13_required")
@@ -144,8 +149,9 @@ def _compatible_python(root: Path, deadline: float) -> str:
     bootstrap = root / "bootstrap"
     if directory.is_symlink() or bootstrap.is_symlink():
         raise ValueError("unsafe_runtime_path")
+    architecture = "x86_64" if _mac_intel() else "aarch64"
     def existing() -> Path | None:
-        for path in sorted(directory.glob("cpython-3.12.*-macos-x86_64-*/bin/python3.12"), reverse=True):
+        for path in sorted(directory.glob(f"cpython-3.12.*-macos-{architecture}-*/bin/python3.12"), reverse=True):
             if path.is_file() and path.resolve().is_relative_to(root):
                 return path
         return None
@@ -158,7 +164,7 @@ def _compatible_python(root: Path, deadline: float) -> str:
         _run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:",
               "--target", str(bootstrap), UV_PACKAGE], deadline)
     _run([str(uv), "python", "install", "--install-dir", str(directory),
-          "cpython-3.12-macos-x86_64-none"], deadline)
+          f"cpython-3.12-macos-{architecture}-none"], deadline)
     python = existing()
     if python is None:
         raise RuntimeError("managed_python_unavailable")
@@ -174,16 +180,17 @@ def _setup(global_root: Path, *, timeout_seconds: float = 180) -> dict:
         config = read_config(global_root)
         if config.get("enabled") is False:
             return {"status": "disabled", "reason": "explicitly_disabled"}
-        with sqlite3.connect(":memory:") as conn:
-            if not hasattr(conn, "enable_load_extension"):
-                return {"status": "degraded", "reason": "sqlite_extensions_unsupported",
-                        "message": "Use a Python build with SQLite extension support (for example Homebrew Python on macOS)."}
-            conn.enable_load_extension(True)
-            conn.enable_load_extension(False)
+        if not _mac():
+            with closing(sqlite3.connect(":memory:")) as conn:
+                if not hasattr(conn, "enable_load_extension"):
+                    return {"status": "degraded", "reason": "sqlite_extensions_unsupported",
+                            "message": "Use a Python build with SQLite extension support."}
+                conn.enable_load_extension(True)
+                conn.enable_load_extension(False)
         if root.exists() and any(path.is_symlink() for path in (root / "venv", root / "models")):
             raise ValueError("unsafe_runtime_path")
         packages = _packages()
-        venv = root / ("venv-py312" if _mac_intel() else "venv")
+        venv = root / ("venv-py312" if _mac() else "venv")
         if venv.is_symlink():
             raise ValueError("unsafe_runtime_path")
         python = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")

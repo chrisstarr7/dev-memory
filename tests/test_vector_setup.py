@@ -21,6 +21,10 @@ class VectorSetupTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix="vector setup 中文 ")
         self.addCleanup(self.tmp.cleanup)
         self.base = Path(self.tmp.name).resolve()
+        self.compatible_python = setup._compatible_python
+        runtime = patch.object(setup, "_compatible_python", return_value=sys.executable)
+        runtime.start()
+        self.addCleanup(runtime.stop)
 
     def fake_probe(self):
         root = self.base / "vector-runtime"
@@ -104,10 +108,10 @@ class VectorSetupTests(unittest.TestCase):
         python = root / "python/cpython-3.12.13-macos-x86_64-none/bin/python3.12"
         python.parent.mkdir(parents=True)
         python.write_bytes(b"managed-python")
-        with patch.object(setup, "_mac_intel", return_value=True), \
+        with patch.object(setup, "_mac", return_value=True), patch.object(setup, "_mac_intel", return_value=True), \
              patch.object(setup.platform, "mac_ver", return_value=("13.0", (), "")), \
              patch.object(setup, "_run", side_effect=AssertionError("must reuse")):
-            self.assertEqual(setup._compatible_python(root, time.monotonic()+10), str(python))
+            self.assertEqual(self.compatible_python(root, time.monotonic()+10), str(python))
 
     def test_macos_intel_bootstraps_compatible_python_in_runtime(self):
         root = self.base / "vector-runtime"
@@ -118,27 +122,51 @@ class VectorSetupTests(unittest.TestCase):
                 python.parent.mkdir(parents=True)
                 python.write_bytes(b"managed-python")
             return {}
-        with patch.object(setup, "_mac_intel", return_value=True), \
+        with patch.object(setup, "_mac", return_value=True), patch.object(setup, "_mac_intel", return_value=True), \
              patch.object(setup.platform, "mac_ver", return_value=("13.0", (), "")), \
              patch.object(setup, "_run", side_effect=run) as calls:
-            self.assertEqual(setup._compatible_python(root, time.monotonic()+10), str(python))
+            self.assertEqual(self.compatible_python(root, time.monotonic()+10), str(python))
         self.assertIn(setup.UV_PACKAGE, calls.call_args_list[0].args[0])
         self.assertEqual(calls.call_args_list[1].args[0][-1], "cpython-3.12-macos-x86_64-none")
         self.assertIn(str(root / "python"), calls.call_args_list[1].args[0])
 
     def test_macos_intel_rejects_unsupported_os_before_download(self):
-        with patch.object(setup, "_mac_intel", return_value=True), \
+        with patch.object(setup, "_mac", return_value=True), patch.object(setup, "_mac_intel", return_value=True), \
              patch.object(setup.platform, "mac_ver", return_value=("12.7", (), "")), \
              patch.object(setup, "_run", side_effect=AssertionError("must not download")):
             with self.assertRaisesRegex(RuntimeError, "macos_13_required"):
-                setup._compatible_python(self.base, time.monotonic()+10)
+                self.compatible_python(self.base, time.monotonic()+10)
+
+    def test_macos_arm_bootstraps_native_managed_python(self):
+        root = self.base / "vector-runtime"
+        root.mkdir()
+        python = root / "python/cpython-3.12.13-macos-aarch64-none/bin/python3.12"
+        def run(command, deadline):
+            if "--install-dir" in command:
+                python.parent.mkdir(parents=True)
+                python.write_bytes(b"managed-python")
+            return {}
+        with patch.object(setup, "_mac", return_value=True), patch.object(setup, "_mac_intel", return_value=False), \
+             patch.object(setup.platform, "mac_ver", return_value=("14.0", (), "")), \
+             patch.object(setup, "_run", side_effect=run) as calls:
+            self.assertEqual(self.compatible_python(root, time.monotonic()+10), str(python))
+        self.assertEqual(calls.call_args_list[1].args[0][-1], "cpython-3.12-macos-aarch64-none")
+
+    def test_macos_without_host_sqlite_extensions_uses_managed_probe(self):
+        probe = self.fake_probe()
+        with patch.object(setup, "_mac", return_value=True), \
+             patch.object(setup.sqlite3, "connect", side_effect=AssertionError("host SQLite must not block setup")), \
+             patch.object(setup, "_run", side_effect=[{}, {}, probe]):
+            result = setup.setup(self.base)
+        self.assertEqual(result["status"], "ready")
+        self.assertIn("venv-py312", setup.read_config(self.base)["python"])
 
     def test_effective_onnxruntime_pin_matches_interpreter_constraints(self):
-        with patch.object(setup, "_mac_intel", return_value=True), patch.object(setup.sys, "version_info", (3, 14)):
+        with patch.object(setup, "_mac", return_value=True), patch.object(setup.sys, "version_info", (3, 14)):
             self.assertIn("onnxruntime==1.23.2", setup._packages())
-        with patch.object(setup, "_mac_intel", return_value=False), patch.object(setup.sys, "version_info", (3, 14)):
+        with patch.object(setup, "_mac", return_value=False), patch.object(setup.sys, "version_info", (3, 14)):
             self.assertIn("onnxruntime==1.31.1", setup._packages())
-        with patch.object(setup, "_mac_intel", return_value=False), patch.object(setup.sys, "version_info", (3, 10)):
+        with patch.object(setup, "_mac", return_value=False), patch.object(setup.sys, "version_info", (3, 10)):
             self.assertIn("onnxruntime==1.23.2", setup._packages())
 
 

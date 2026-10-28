@@ -9,7 +9,7 @@ Install/update attempts vector setup automatically. Use `--without-vectors` for 
 The shared runtime is `<global-root>/vector-runtime/`:
 
 - `venv/`: isolated Python environment, with `fastembed==0.9.1` and `sqlite-vec==0.1.9`. ONNX Runtime is pinned for the effective Python version.
-- On Intel macOS, `python/` and `venv-py312/` hold an isolated Python 3.12 runtime prepared with pinned `uv==0.13.6`; this avoids missing Intel wheels for newer host Python versions. It does not replace the user's Python. Intel ONNX Runtime is pinned to 1.23.2 and requires macOS 13 or newer.
+- On macOS, `bootstrap/`, `python/` and `venv-py312/` hold pinned `uv==0.13.6` and an isolated native Python 3.12 runtime. This avoids both missing Intel wheels and host Python builds that omit SQLite extensions. It does not replace the user's Python. macOS ONNX Runtime is pinned to 1.23.2 and requires macOS 13 or newer.
 - `models/`: local model assets shared by projects, not project memory data.
 - `config.json`: runtime paths, model identity and artifact fingerprints; `enabled:false` is preserved by updates.
 
@@ -17,7 +17,7 @@ The initial CPU model is `sentence-transformers/paraphrase-multilingual-MiniLM-L
 
 Setup is allowed network access to install dependencies and download the fixed model. Subsequent inference uses local assets. Model loading and indexing may consume CPU and memory while the assistant works; asynchronous execution is not zero cost.
 
-Windows x64 and macOS Apple Silicon/Intel are separate compatibility targets. Python, native packages and SQLite extension architecture must match. On macOS, a Python build without `enable_load_extension` cannot run sqlite-vec: select a compatible Python rather than claiming that a lexical fallback proves vector support. See [sqlite-vec's Python guidance](https://alexgarcia.xyz/sqlite-vec/python.html). Platform support is established by successful real model/extension checks on that platform, not by installation alone.
+Windows x64 and macOS Apple Silicon/Intel are separate compatibility targets. Python, native packages and SQLite extension architecture must match. When host Python lacks `enable_load_extension`, the CLI automatically uses its validated managed runtime after setup, including for transactional cleanup. See [sqlite-vec's Python guidance](https://alexgarcia.xyz/sqlite-vec/python.html). Platform support is established by successful real model/extension checks on that platform, not by installation alone.
 
 ## Commands
 

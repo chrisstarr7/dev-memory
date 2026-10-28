@@ -30,7 +30,7 @@ class DashboardTests(MemoryTestCase):
         with patch('dev_memory_vectors.schedule', return_value={'status':'running'}) as schedule:
             target = app.action({'action':'vectors_sync', 'scope':key})
         self.assertEqual(target, '/?scope=' + key)
-        schedule.assert_called_once_with('project', project_root=self.project_a, global_root=self.global_root)
+        schedule.assert_called_once_with('project', project_root=self.project_a.resolve(), global_root=self.global_root)
 
     def _seed(self) -> tuple[str, str]:
         project_id = self.add_project_rule(turn="dashboard-project", title="<script>alert(1)</script>")

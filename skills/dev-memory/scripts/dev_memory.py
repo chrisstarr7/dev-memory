@@ -653,6 +653,16 @@ def main(argv: list[str] | None = None) -> int:
     try:
         command = args.command
         global_root = args.global_root
+        # Some macOS Python builds omit SQLite extension loading; use the prepared runtime.
+        if (not hasattr(sqlite3.Connection, 'enable_load_extension')
+                and not os.environ.get('DEV_MEMORY_VECTOR_REEXEC')
+                and not (command == 'vectors' and args.action == 'setup')):
+            import dev_memory_vectors as vectors
+            runtime = vectors._settings(global_root, cleanup=True)
+            if runtime and Path(runtime['python']).resolve() != Path(sys.executable).resolve():
+                return subprocess.call([runtime['python'], '-B', str(Path(__file__).resolve()),
+                                        *(argv if argv is not None else sys.argv[1:])],
+                                       env={**os.environ, 'DEV_MEMORY_VECTOR_REEXEC':'1'})
         if command == 'runtime-check':
             _json_out(runtime_check())
         elif command == "doctor":

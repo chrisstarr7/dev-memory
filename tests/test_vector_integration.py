@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 import time
 import unittest
@@ -48,6 +51,15 @@ class RealVectorIntegration(MemoryTestCase):
         runtime_root = Path(os.environ.get('DEV_MEMORY_VECTOR_ROOT', str(self.global_root)))
         prepared = setup.setup(runtime_root, timeout_seconds=600)
         self.assertEqual(prepared['status'], 'ready', prepared)
+        if not hasattr(sqlite3.Connection, 'enable_load_extension'):
+            config = setup.read_config(runtime_root)
+            self.assertNotEqual(Path(config['python']).resolve(), Path(sys.executable).resolve())
+            child = subprocess.run([config['python'], '-m', 'unittest', 'discover', '-s', 'tests',
+                                    '-p', 'test_vector_integration.py', '-v'],
+                                   env={**os.environ,'DEV_MEMORY_VECTOR_ROOT':str(runtime_root)},
+                                   capture_output=True, text=True, encoding='utf-8', timeout=180)
+            self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+            return
         # A supplied runtime may be shared locally; all writes below target a synthetic project.
         self.global_root = runtime_root
         with patch.object(vectors, 'schedule', return_value={'status': 'deferred'}):
