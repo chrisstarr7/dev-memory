@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
+import struct
 import subprocess
 import sys
 import threading
@@ -183,6 +184,55 @@ def status(kind, *, project_root=None, global_root=None, memory_id=None):
             conn.close()
     except (store.MemoryError, sqlite3.Error, OSError, ValueError):
         return {'status': 'unavailable', 'reason': 'store_unavailable'}
+
+
+def inspect_record(kind, memory_id, *, project_root=None, global_root=None):
+    """Read stored vector values and provenance without inference, indexing or recall writes."""
+    import dev_memory_store as store
+    conn = None
+    result = {}
+    try:
+        database, _, allowed = _target(kind, project_root, global_root)
+        if not allowed:
+            return {'status': 'disabled'}
+        conn = store._connect(database, readonly=True)
+        source = conn.execute('SELECT revision,status,claim_type FROM memories WHERE id=? AND scope=?',
+                              (memory_id, kind)).fetchone()
+        if not source:
+            return {'status': 'not_found'}
+        result = {'status': 'ok', 'current_revision': source[0], 'state': 'pending',
+                  'embedding': None, 'dimensions': 0, 'is_current': False}
+        if not _exists(conn, 'vector_state'):
+            return result
+        row = conn.execute('SELECT state,revision,model_key,updated_at,error FROM vector_state WHERE memory_id=?',
+                           (memory_id,)).fetchone()
+        if not row:
+            return result
+        settings = _settings(global_root, cleanup=True)
+        current = bool(settings and row[0] == 'ready' and row[1] == source[0]
+                       and row[2] == _model_key(settings) and source[1] in ('active', 'conflicted')
+                       and source[2] != 'hypothesis')
+        result.update(state=row[0], indexed_revision=row[1], model_key=row[2], updated_at=row[3],
+                      error=row[4], is_current=current,
+                      model_name=settings['model_name'] if settings and row[2] == _model_key(settings) else None)
+        if not _exists(conn, 'memory_vectors'):
+            return result
+        _load(conn, settings)
+        stored = conn.execute('SELECT embedding FROM memory_vectors WHERE memory_id=?', (memory_id,)).fetchone()
+        if stored:
+            data = stored[0]
+            if not isinstance(data, bytes) or len(data) != DIMENSIONS * 4:
+                raise ValueError('invalid_vector_data')
+            values = list(struct.unpack(f'<{DIMENSIONS}f', data))
+            if not all(math.isfinite(value) for value in values):
+                raise ValueError('invalid_vector_data')
+            result.update(embedding=values, dimensions=len(values))
+        return result
+    except (store.MemoryError, sqlite3.Error, OSError, ValueError, AttributeError):
+        return {**result, 'status': 'unavailable', 'reason': 'vector_data_unavailable', 'is_current': False}
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 def _flags():

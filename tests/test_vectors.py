@@ -17,6 +17,43 @@ import dev_memory_vectors as vectors
 
 
 class VectorTests(MemoryTestCase):
+    def test_inspect_returns_complete_vector_without_recall_or_model_work(self):
+        mid = self.add_project_rule()
+        config = self.runtime()
+        self.seed_vector(mid, config)
+        with self.connection() as conn:
+            before = vectors.generation(conn)
+        with patch.object(vectors, '_encode', side_effect=AssertionError('inspection cannot infer')), \
+             patch.object(vectors, 'schedule', side_effect=AssertionError('inspection cannot index')), \
+             patch.object(store, '_record_recall_counts', side_effect=AssertionError('inspection cannot count')):
+            result = vectors.inspect_record('project', mid, project_root=self.project_a, global_root=self.global_root)
+        self.assertEqual(result['status'], 'ok', result)
+        self.assertEqual(result['embedding'], [1.] + [0.] * 383)
+        self.assertEqual(result['dimensions'], 384)
+        self.assertEqual(result['indexed_revision'], 1)
+        self.assertTrue(result['is_current'])
+        with self.connection() as conn:
+            self.assertEqual(vectors.generation(conn), before)
+
+    def test_inspect_marks_stale_vectors_and_respects_scope_and_disabled_store(self):
+        mid = self.add_project_rule()
+        config = self.runtime()
+        self.seed_vector(mid, config)
+        with self.connection() as conn:
+            conn.execute('UPDATE memories SET revision=revision+1 WHERE id=?', (mid,))
+        result = vectors.inspect_record('project', mid, project_root=self.project_a, global_root=self.global_root)
+        self.assertFalse(result['is_current'])
+        self.assertEqual(result['current_revision'], 2)
+        self.assertEqual(result['indexed_revision'], 1)
+        self.assertEqual(len(result['embedding']), 384)
+        foreign = vectors.inspect_record('project', mid, project_root=self.project_b, global_root=self.global_root)
+        self.assertEqual(foreign['status'], 'not_found')
+        base, _, cfg = store._config_for('project', self.project_a, self.global_root)
+        cfg['recall_enabled'] = False
+        store.write_json_atomic(base / 'config.json', cfg)
+        disabled = vectors.inspect_record('project', mid, project_root=self.project_a, global_root=self.global_root)
+        self.assertEqual(disabled, {'status':'disabled'})
+
     def test_corrupt_optional_config_cannot_break_raw_capture(self):
         runtime = self.global_root / 'vector-runtime'
         runtime.mkdir()

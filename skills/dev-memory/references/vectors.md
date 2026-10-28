@@ -75,6 +75,8 @@ An interrupted host may not execute its final hook. Raw-first persistence and du
 
 A query with no matches is not a reason to save the current task. Capture still requires supported durable information, correct scope and permitted controls. The visible progress message keeps the user informed while finalization runs; it does not weaken the capture or completion gates.
 
+The dashboard's record detail contains an expandable **查看实际存储的向量数据** section. It reads the actual float32 vector from `memory_vectors` and displays all 384 components, stored model fingerprint, indexed/current revisions and update time. Existing stale vectors remain inspectable with an explicit warning; inspection never makes them eligible for recall. Missing runtime/extension data is reported without hiding original text. Disabled/excluded stores expose neither text nor vector data. This read-only view does not load the embedding model, enqueue indexing or increment recall counters.
+
 ## Verification boundary
 
 `vectors.yml` defines real integration checks on Windows, macOS ARM and macOS Intel with Python 3.10/3.14. The integration test must fail when setup degrades; a keyword fallback is not evidence that vectors worked. It verifies actual local embedding and sqlite-vec retrieval after setup, with ordinary runtime offline. Unit tests separately cover timeout, revision races, controls and lifecycle behavior. A configured matrix is not a passing CI result; report the result for the exact tested commit.

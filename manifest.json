@@ -38,7 +38,7 @@
     },
     {
       "path": "skills/dev-memory/references/vectors.md",
-      "sha256": "d6f70660f9853fc809a2fc5dc760ba1949ed8aafad21028d95f334d682b39a64"
+      "sha256": "cd7ff3b7891be9b6ab9108ef8bc2bb60047b6a6aff6f79f205cc4af7d4e173a6"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
@@ -54,11 +54,11 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_dashboard.py",
-      "sha256": "cd34a614266caa0b318b78577c312048ae6a40594f604ad6ee8000683b3d9594"
+      "sha256": "2b8222d0644e9da4338c80ee5a5c3f9a1911c10daec1924c4bfe231a23604858"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_vectors.py",
-      "sha256": "691f08eaad6583ebf37ada490c974d97d58a82cfc71c6144fd2a226c9b0117aa"
+      "sha256": "49a37d3ed7fff3a78c0e090a69192f7ccf2a13eb1662aeea4c8c25d5a2643424"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_vector_setup.py",
@@ -74,7 +74,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "cdd9c4c2332b2a539bfefede0c1988bab4e93b17f4d840cb74616af39af0ff67"
+      "sha256": "f1f32bd3599ae938972d7f2a9e74c759beb61f56bc70342e7c98ea7d9cc78ca7"
     },
     {
       "path": "LICENSE",
@@ -118,7 +118,7 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "b9eb1621005b8e6992609c6c183ec49a5fc4a65f530303cfaef6c0b9cf16aaa6"
+      "sha256": "1d4de06727e56931735cd6233c636a882dac41bcc493a83d451c677809296a01"
     },
     {
       "path": "docs/readme/README.ja.md",
@@ -210,7 +210,7 @@
     },
     {
       "path": "tests/test_dashboard.py",
-      "sha256": "28b084dfa5a8f3fc0fcbf5957d2381a013e37d339b1463c18e6722b60379e5b1"
+      "sha256": "fe6565ac574a580ce6a93ea53ed096109632027ce688d9626c26b649a25fbaa1"
     },
     {
       "path": "tests/test_maintenance.py",
@@ -362,7 +362,7 @@
     },
     {
       "path": "tests/test_vectors.py",
-      "sha256": "0e7fe6ca78bc883502e0ce466193be8564d04ca191595b51c0eb91972d82efcd"
+      "sha256": "b0490d7ce15e1bb483bd8a545b23fc351e8ed2607a731d831802b36fe3bc1dad"
     },
     {
       "path": "tests/test_vector_setup.py",

@@ -20,6 +20,21 @@ import dev_memory_setup as setup
 
 
 class DashboardTests(MemoryTestCase):
+    def test_detail_shows_full_vector_and_escapes_stored_metadata(self):
+        mid, _ = self._seed()
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        app = dashboard.Dashboard(self.global_root)
+        with patch('dev_memory_vectors.inspect_record', return_value={
+            'status':'ok', 'dimensions':384, 'embedding':[.25]*384,
+            'is_current':True, 'indexed_revision':1, 'model_key':'<script>bad</script>',
+            'model_name':'本地模型', 'updated_at':1}):
+            page = app.detail(key, mid)
+        self.assertIn('查看实际存储的向量数据', page)
+        self.assertIn('维度：384', page)
+        self.assertEqual(page.count('0.25'), 384)
+        self.assertIn('&lt;script&gt;bad&lt;/script&gt;', page)
+        self.assertNotIn('<script>bad</script>', page)
+
     def test_vector_panel_is_readonly_and_retry_uses_selected_scope(self):
         self._seed()
         key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']

@@ -248,7 +248,7 @@ class Dashboard:
                                  'unavailable': '暂不可用', 'disabled': '已禁用'}
                 body += (f'<section class=panel><h2>向量索引</h2><p>{_h(vector_labels.get(vector_state["status"], vector_state["status"]))}'
                          f'；已就绪 {_h(vector_state.get("ready", 0))} 条；待补齐 {_h(vector_state.get("pending", 0))} 条。'
-                         '原文仍保存在当前 SQLite 库中；浏览看板不会启动索引。</p>')
+                         '点击记忆标题可查看中文原文、索引版本和完整向量数值；浏览不会启动索引。</p>')
                 if vector_state.get('reason'):
                     body += f'<p class=muted>原因：{_h(vector_state["reason"])}</p>'
                 if state.get('capture_enabled') and vectors.enabled(self.global_root):
@@ -299,6 +299,29 @@ class Dashboard:
         vector_state = vectors.status(kind, project_root=root, global_root=self.global_root, memory_id=memory_id)
         body = f'<section class=panel><p><a href="/?scope={_h(key)}">← {_h(self._scope_name(key))}</a></p>'
         body += f'<p class=muted>向量：{_h(vector_state.get("record", {}).get("state", vector_state["status"]))}</p>'
+        stored_vector = vectors.inspect_record(kind, memory_id, project_root=root, global_root=self.global_root)
+        body += '<details><summary>查看实际存储的向量数据</summary>'
+        body += (f'<p>当前原文版本：{_h(record["revision"])}；索引原文版本：{_h(stored_vector.get("indexed_revision", "尚未建立"))}；'
+                 f'维度：{_h(stored_vector.get("dimensions", 0))}；'
+                 f'索引与当前生效规则一致：{"是" if stored_vector.get("is_current") else "否"}。</p>')
+        if stored_vector.get('model_key'):
+            body += f'<p>模型：{_h(stored_vector.get("model_name") or "历史模型，以存储指纹为准")}</p>'
+            body += f'<p class=record>存储模型指纹：{_h(stored_vector["model_key"])}</p>'
+        if stored_vector.get('updated_at'):
+            try:
+                updated = datetime.fromtimestamp(stored_vector['updated_at'], timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M:%S')
+            except (ValueError, OverflowError, OSError, TypeError):
+                updated = '未知'
+            body += f'<p>索引更新时间（本机）：{_h(updated)}</p>'
+        if stored_vector.get('embedding') is not None:
+            if not stored_vector.get('is_current'):
+                body += '<p class=warn>下面是旧版本或非生效记录的存储向量，不代表当前可召回内容。</p>'
+            body += f'<pre class=record style="max-height:24rem;overflow:auto">{_h(json.dumps(stored_vector["embedding"]))}</pre>'
+        else:
+            body += '<p>当前没有可读取的向量数值；中文原文仍可查看。</p>'
+        if stored_vector.get('error') or stored_vector.get('reason'):
+            body += f'<p class=muted>原因：{_h(stored_vector.get("error") or stored_vector.get("reason"))}</p>'
+        body += '</details>'
         body += (f'<p><span class=pill>{_h(STATUS_LABELS.get(record["status"], record["status"]))}</span>　'
                  f'{_h(KIND_LABELS.get(record["kind"], record["kind"]))} / {_h(CLAIM_LABELS.get(record["claim_type"], record["claim_type"]))}'
                  f'　{_h(STRENGTH_LABELS.get(record["strength"], record["strength"]))}　修订 {_h(record["revision"])}</p>')

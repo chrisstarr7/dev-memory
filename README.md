@@ -176,6 +176,7 @@ Use the installed Skill path for another host or location. The terminal prints a
 | Task | How |
 | --- | --- |
 | View memory | Select **Global** or a registered project; open a record to see its full text, evidence, and revisions. |
+| View vector data | Open a memory and expand **查看实际存储的向量数据** to inspect all 384 stored values, model fingerprint, source revision and update time. Stale vectors are labeled; viewing does not run inference or increment recall counts. |
 | Find records | Filter by status or search titles and bodies. A project list has pages; cross-project search shows at most 50 matches. |
 | Preview recall | Enter task terms on a store page. The preview is read-only and does not increment recall counts. |
 | Add an existing project | Use **Project management → Add**, or run `dashboard add --project-root /absolute/project/path` with the same CLI. New project setups register automatically. |
