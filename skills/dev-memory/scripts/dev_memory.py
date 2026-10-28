@@ -386,7 +386,7 @@ def _install_path(target: Path | None, agent: str = "codex") -> Path:
         raise store.MemoryError("path_escape", "Install target cannot be the home or filesystem root.")
     return path
 
-def _check_managed_install(path: Path) -> None:
+def _check_managed_install(path: Path, *, allow_unknown_files: bool = False) -> list[str]:
     marker = path / MARKER
     if marker.is_symlink() or not marker.is_file() or marker.read_text(encoding="utf-8").strip() != "dev-memory-managed-install-v1":
         raise store.MemoryError("unmanaged_install", "Target is not a dev-memory-managed installation.")
@@ -395,13 +395,17 @@ def _check_managed_install(path: Path) -> None:
     allowed.update({"README.md", "LICENSE.pending", "build_release.py", "templates/config.example.json",
                     "tests/test_dev_memory.py", "evals/scenarios.json", "evals/bench_compare.py", "evals/check_automatic.py", "reports/verification.md"})
     allowed_dirs = {parent.as_posix() for name in allowed for parent in Path(name).parents if str(parent) != "."}
+    unknown: list[str] = []
     for entry in path.rglob("*"):
         rel = entry.relative_to(path).as_posix()
         if entry.is_symlink() or not entry.resolve().is_relative_to(path.resolve()):
             raise store.MemoryError("path_escape", "Managed installation contains a link or escaped path; inspect it before removal.")
         bytecode = "__pycache__" in entry.parts and (entry.is_dir() or entry.suffix == ".pyc")
         if not bytecode and rel not in (allowed_dirs if entry.is_dir() else allowed):
-            raise store.MemoryError("unmanaged_files", "Installation contains extra files; move or review them before upgrade/removal.")
+            unknown.append(rel)
+    if unknown and not allow_unknown_files:
+        raise store.MemoryError("unmanaged_files", "Installation contains extra files; move or review them before upgrade/removal.")
+    return unknown
 
 @contextmanager
 def _installation_lock(path: Path):
@@ -438,10 +442,14 @@ def _install_locked(install_path: Path, with_hooks: bool, upgrade: bool) -> dict
     version = _release_version(PACKAGE_ROOT)
     action = "installed"
     if install_path.exists():
-        _check_managed_install(install_path)
+        # Check ownership and path safety first, but compare versions before
+        # rejecting files introduced by a newer managed release.
+        unknown = _check_managed_install(install_path, allow_unknown_files=True)
         installed_version = _release_version(install_path)
         if version and installed_version and installed_version > version:
-            raise store.MemoryError("source_older", "Installer source is older than the installed Skill; fetch the current source instead of downgrading.")
+            raise store.MemoryError("source_older", "Installer source is older than the installed Skill; use the same or a newer source to avoid downgrading.")
+        if unknown:
+            raise store.MemoryError("unmanaged_files", "Installation contains extra files; move or review them before upgrade/removal.")
         same = all((install_path / name).is_file() and (PACKAGE_ROOT / name).is_file()
                    and (install_path / name).read_bytes() == (PACKAGE_ROOT / name).read_bytes()
                    for name in SKILL_FILES)

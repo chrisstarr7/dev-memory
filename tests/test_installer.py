@@ -264,6 +264,19 @@ $rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.
             self.assertEqual(exc.exception.code, 'source_older')
             self.assertEqual(skill.read_bytes(), before)
 
+    def test_older_installer_reports_version_mismatch_before_new_release_files(self):
+        target = self.home / 'managed'
+        dev_memory.install(target, False, False)
+        skill = target / 'SKILL.md'
+        current = dev_memory._release_version(target)
+        skill.write_text(skill.read_text(encoding='utf-8').replace('"' + '.'.join(map(str, current)) + '"', '"999.0.0"'), encoding='utf-8')
+        newer_release_file = target / 'scripts/future-release-feature.py'
+        newer_release_file.write_text('preserve managed newer release', encoding='utf-8')
+        with self.assertRaises(store.MemoryError) as exc:
+            dev_memory.install(target, False, True)
+        self.assertEqual(exc.exception.code, 'source_older')
+        self.assertEqual(newer_release_file.read_text(encoding='utf-8'), 'preserve managed newer release')
+
     def test_failed_replacement_rolls_back_original_program_and_releases_lock(self):
         target = self.home / 'managed'
         dev_memory.install(target, False, False)
