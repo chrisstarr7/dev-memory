@@ -17,6 +17,13 @@ import codex_hook
 
 
 class EfficiencyTests(MemoryTestCase):
+    def test_daily_store_import_does_not_load_dashboard(self):
+        script = (f"import sys;sys.path.insert(0,{str(SCRIPTS)!r});"
+                  "import dev_memory_store;"
+                  "assert 'dev_memory_dashboard' not in sys.modules")
+        result = subprocess.run([sys.executable, "-B", "-c", script], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_runtime_check_never_probes_hosts_or_private_stores(self):
         output = io.StringIO()
         with patch.object(store, 'locate_project_root', side_effect=AssertionError('No project discovery')), \

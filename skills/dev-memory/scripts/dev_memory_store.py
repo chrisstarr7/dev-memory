@@ -1439,7 +1439,8 @@ def _turn_ingestion(top: dict[str, Any]) -> str:
     basis = json.dumps([top.get("session_id"), top.get("turn_id"), top.get("idempotency_key") if not top.get("turn_id") else None])
     return hashlib.sha256(basis.encode()).hexdigest()
 
-def _apply_store(kind: str, root: Path | None, global_root: Path | None, operations: list[dict[str, Any]], top: dict[str, Any]) -> dict[str, Any]:
+def _apply_store(kind: str, root: Path | None, global_root: Path | None, operations: list[dict[str, Any]], top: dict[str, Any],
+                 *, schedule_vectors: bool = True) -> dict[str, Any]:
     target_scope = kind
     try:
         base, db_path, config = _config_for(kind, root, global_root)
@@ -1584,10 +1585,11 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         output = {"scope": target_scope, "status": status, "operations": results, "data_revision": committed_revision, "maintenance": maintenance}
         if changed_ids:
             output["view_status"] = "stale_until_export"
-            try:
-                output['vectors'] = vectors.schedule(kind, project_root=root, global_root=global_root)
-            except (MemoryError, OSError, sqlite3.Error, ValueError):
-                output['vectors'] = {'status': 'deferred', 'reason': 'index_unavailable', 'raw_saved': True}
+            if schedule_vectors:
+                try:
+                    output['vectors'] = vectors.schedule(kind, project_root=root, global_root=global_root)
+                except (MemoryError, OSError, sqlite3.Error, ValueError):
+                    output['vectors'] = {'status': 'deferred', 'reason': 'index_unavailable', 'raw_saved': True}
         return output
     except MemoryError as exc:
         if conn is not None:
@@ -1607,7 +1609,8 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
             pass
         return {"scope": target_scope, "status": "failed", "error": "storage_unavailable", "message": "Storage write failed."}
 
-def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
+def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, global_root: Path | None = None,
+                  schedule_vectors: bool = True) -> dict[str, Any]:
     if isinstance(payload, dict) and payload.get('maintenance', 'defer') not in ('defer', 'prepare'):
         raise MemoryError('validation_error', 'maintenance must be defer or prepare.')
     if not isinstance(payload, dict) or payload.get("schema_version") != SCHEMA_VERSION:
@@ -1647,7 +1650,7 @@ def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, 
     for kind, group in groups.items():
         if group:
             root = project_root if kind == "project" else None
-            results.append(_apply_store(kind, root, global_root, group, payload))
+            results.append(_apply_store(kind, root, global_root, group, payload, schedule_vectors=schedule_vectors))
     statuses = [item["status"] for item in results]
     successes = {"saved", "checked_noop", "duplicate_evidence"}
     skipped = {"skipped_private", "skipped_developer_first"}
@@ -2080,7 +2083,7 @@ def show_current(kind: str, memory_ids: list[str], *, project_root: Path | None 
     return result
 
 def recall_stats(kind: str, start_month: str, end_month: str | None = None, *, project_root: Path | None = None,
-                 global_root: Path | None = None) -> dict[str, Any]:
+                 global_root: Path | None = None, memory_ids: list[str] | None = None) -> dict[str, Any]:
     end_month = end_month or start_month
     month_pattern = r"\d{4}-(0[1-9]|1[0-2])"
     if (not re.fullmatch(month_pattern, start_month) or not re.fullmatch(month_pattern, end_month)
@@ -2101,16 +2104,20 @@ def recall_stats(kind: str, start_month: str, end_month: str | None = None, *, p
         if not exists:
             return {'scope': kind, 'from_month': start_month, 'to_month': end_month,
                     'timezone': 'UTC', 'total_recalls': 0, 'memories': []}
+        restriction = '' if memory_ids is None else ' AND c.memory_id IN (' + ','.join('?' for _ in memory_ids) + ')'
         rows = conn.execute(
             """SELECT c.memory_id,m.title,m.status,SUM(c.recall_count)
             FROM recall_counts c JOIN memories m ON m.id=c.memory_id
-            WHERE c.month BETWEEN ? AND ? GROUP BY c.memory_id,m.title,m.status
+            WHERE c.month BETWEEN ? AND ?""" + restriction + """ GROUP BY c.memory_id,m.title,m.status
             ORDER BY SUM(c.recall_count) DESC,m.title,m.id""",
-            (start_month, end_month),
+            (start_month, end_month, *(memory_ids or [])),
         ).fetchall()
         memories = [{'id': row[0], 'title': row[1], 'status': row[2], 'recall_count': row[3]} for row in rows]
+        total = (conn.execute('SELECT COALESCE(SUM(recall_count),0) FROM recall_counts WHERE month BETWEEN ? AND ?',
+                              (start_month, end_month)).fetchone()[0] if memory_ids is not None
+                 else sum(row['recall_count'] for row in memories))
         return {'scope': kind, 'from_month': start_month, 'to_month': end_month, 'timezone': 'UTC',
-                'total_recalls': sum(row['recall_count'] for row in memories), 'memories': memories}
+                'total_recalls': total, 'memories': memories}
     finally:
         conn.close()
 
@@ -2602,18 +2609,19 @@ def set_capture(kind: str, enabled: bool, *, project_root: Path | None = None, g
     write_json_atomic(path, config)
     return {"status": "updated", "scope": kind, "capture_enabled": bool(enabled)}
 
-def get_store_status(kind: str, *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
+def get_store_status(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
+                     check_integrity: bool = True) -> dict[str, Any]:
     try:
         base, db, config = _config_for(kind, project_root, global_root)
         conn = _connect(db, readonly=True)
-        integrity = conn.execute("PRAGMA quick_check").fetchone()[0]
+        integrity = conn.execute("PRAGMA quick_check").fetchone()[0] if check_integrity else 'not_checked'
         counts = dict(conn.execute("SELECT status,COUNT(*) FROM memories WHERE scope=? GROUP BY status", (kind,)))
         revisions = {row[0]: row[1] for row in conn.execute("SELECT key,value FROM meta WHERE key IN ('data_revision','view_revision')")}
         conn.close()
         current_revision = int(revisions.get("data_revision", 0))
         view_revision = int(revisions["view_revision"]) if "view_revision" in revisions else None
         return {
-            "scope": kind, "status": "available" if integrity == "ok" else "corrupt",
+            "scope": kind, "status": "available" if integrity in {"ok", "not_checked"} else "corrupt",
             "database_exists": True, "readable": True, "writable": os.access(base, os.W_OK),
             "capture_mode": config.get("capture_mode", "full-project") if kind == "project" else "global",
             "capture_enabled": config.get("capture_enabled", True) and config.get("excluded") is not True,

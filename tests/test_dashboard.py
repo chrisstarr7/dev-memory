@@ -28,7 +28,7 @@ class DashboardTests(MemoryTestCase):
             'status':'ok', 'dimensions':384, 'embedding':[.25]*384,
             'is_current':True, 'indexed_revision':1, 'model_key':'<script>bad</script>',
             'model_name':'本地模型', 'updated_at':1}):
-            page = app.detail(key, mid)
+            page = app.detail(key, mid, include_vector=True)
         self.assertIn('查看实际存储的向量数据', page)
         self.assertIn('维度：384', page)
         self.assertEqual(page.count('0.25'), 384)
@@ -39,15 +39,44 @@ class DashboardTests(MemoryTestCase):
         self._seed()
         key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
         app = dashboard.Dashboard(self.global_root)
-        with patch('dev_memory_vectors.schedule', side_effect=AssertionError('GET must not index')):
+        with patch('dev_memory_vectors.schedule', side_effect=AssertionError('GET must not index')), \
+             patch('dev_memory_vectors._load', side_effect=AssertionError('listing must not load sqlite-vec')), \
+             patch('dev_memory_vectors._encode', side_effect=AssertionError('listing must not embed')), \
+             patch('dev_memory_vectors.inspect_record', side_effect=AssertionError('listing must not load full vectors')):
             page = app.index({'scope': key})
         self.assertIn('向量索引', page)
-        self.assertIn('记忆记录与向量明细', page)
-        self.assertIn('实际存储的完整向量', page)
+        self.assertIn('记忆列表', page)
+        self.assertIn('来源记忆', page)
         with patch('dev_memory_vectors.schedule', return_value={'status':'running'}) as schedule:
             target = app.action({'action':'vectors_sync', 'scope':key})
         self.assertEqual(target, '/?scope=' + key)
         schedule.assert_called_once_with('project', project_root=self.project_a.resolve(), global_root=self.global_root)
+
+    def test_compact_dashboard_scope_links_memory_and_vector_tables(self):
+        project_id, _ = self._seed()
+        row = dashboard.register_project(self.project_a, self.global_root)
+        app = dashboard.Dashboard(self.global_root)
+        page = app.index({"scope": row["namespace_id"], "q": "退款", "status": "active"})
+        self.assertIn('name="scope"', page)
+        self.assertIn(str(self.project_a.resolve()), page)
+        self.assertIn('class="filters"', page)
+        self.assertIn('class="stats"', page)
+        self.assertIn('/record?', page)
+        self.assertIn('value="backup"', page)
+        self.assertIn('<dialog id="edit-', page)
+        self.assertIn('name="revision"', page)
+        self.assertIn(project_id, page)
+        self.assertNotIn('Reuse implementations', page)
+        self.assertNotIn('<nav>', page)
+
+    def test_record_detail_does_not_read_full_vector_without_explicit_request(self):
+        mid, _ = self._seed()
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        app = dashboard.Dashboard(self.global_root)
+        with patch('dev_memory_vectors.inspect_record', side_effect=AssertionError('full vector requires explicit request')):
+            page = app.detail(key, mid)
+        self.assertIn('完整向量只在你主动选择查看时读取', page)
+        self.assertIn('vector=1', page)
 
     def _seed(self) -> tuple[str, str]:
         project_id = self.add_project_rule(turn="dashboard-project", title="<script>alert(1)</script>")
@@ -58,6 +87,85 @@ class DashboardTests(MemoryTestCase):
             {"op": "ADD", "scope": "global", "record": global_record}])
         global_id = result["stores"][0]["operations"][0]["id"]
         return project_id, global_id
+
+    def test_index_reuses_status_and_limits_statistics_to_page(self):
+        self._seed()
+        app = dashboard.Dashboard(self.global_root)
+        with patch.object(store, 'get_store_status', wraps=store.get_store_status) as status, \
+             patch.object(store, 'recall_stats', wraps=store.recall_stats) as stats:
+            app.index({})
+        self.assertEqual(status.call_count, 1)
+        self.assertFalse(status.call_args.kwargs['check_integrity'])
+        self.assertLessEqual(len(stats.call_args.kwargs['memory_ids']), dashboard.PAGE_SIZE)
+
+    def test_filtered_statistics_keep_total_without_loading_other_records(self):
+        first, _ = self._seed()
+        second = self.add_project_rule(turn='second-rule', title='Other rule')
+        _, db, _ = store._config_for('project', self.project_a, self.global_root)
+        store._record_recall_counts(db, [first, second])
+        month = datetime.now(timezone.utc).strftime('%Y-%m')
+        stats = store.recall_stats('project', month, project_root=self.project_a,
+                                   memory_ids=[first])
+        self.assertEqual(stats['total_recalls'], 2)
+        self.assertEqual([row['id'] for row in stats['memories']], [first])
+        empty = store.recall_stats('project', month, project_root=self.project_a, memory_ids=[])
+        self.assertEqual(empty['memories'], [])
+        self.assertEqual(empty['total_recalls'], 2)
+
+    def test_stored_vector_distinguishes_eligibility_and_source_version(self):
+        import dev_memory_vectors as vectors
+        mid, _ = self._seed()
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        _, db, _ = store._config_for('project', self.project_a, self.global_root)
+        conn = store._connect(db)
+        with conn:
+            vectors._schema(conn)
+            conn.execute("INSERT INTO vector_state VALUES(?,?,?,'ready',1,'')", (mid, 0, 'old-model'))
+        app = dashboard.Dashboard(self.global_root)
+        page = app.index({'scope': key})
+        self.assertIn('v0 / 当前 v1', page)
+        self.assertIn('vector=1', page)
+        with conn:
+            conn.execute("UPDATE memories SET status='archived' WHERE id=?", (mid,))
+        conn.close()
+        rows, _, _ = app._list(key, '', 'all', 1)
+        meta = app._vector_metadata(key, rows)[mid]
+        self.assertFalse(meta['current'])
+        self.assertEqual(meta['state'], 'not_eligible')
+
+    def test_compact_edit_preserves_fields_and_invalidates_old_vector(self):
+        import dev_memory_vectors as vectors
+        mid, _ = self._seed()
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        current = store.show_record('project', mid, project_root=self.project_a)['record']
+        _, db, _ = store._config_for('project', self.project_a, self.global_root)
+        conn = store._connect(db)
+        with conn:
+            vectors._schema(conn)
+            conn.execute("INSERT INTO vector_state VALUES(?,?,?,'ready',1,'')", (mid, 1, 'old-model'))
+        conn.close()
+        app = dashboard.Dashboard(self.global_root)
+        with patch.object(vectors, 'schedule') as schedule:
+            app.action({'action': 'revise', 'scope': key, 'id': mid, 'revision': '1',
+                        'title': '中文标题', 'content': '仅已签收订单可退款', 'reason': '用户确认修订'})
+        schedule.assert_not_called()
+        updated = store.show_record('project', mid, project_root=self.project_a)['record']
+        self.assertEqual(updated['title'], '中文标题')
+        for field in ('conditions', 'exceptions', 'do', 'dont'):
+            self.assertEqual(updated[field], current[field])
+        rows, _, _ = app._list(key, '', 'all', 1)
+        self.assertFalse(app._vector_metadata(key, rows)[mid]['current'])
+
+    def test_paused_scope_hides_edit_and_unknown_scope_never_falls_back_to_global(self):
+        self._seed()
+        base, _, config = store._config_for('global', None, self.global_root)
+        config['capture_enabled'] = False
+        store.write_json_atomic(base / 'config.json', config)
+        app = dashboard.Dashboard(self.global_root)
+        self.assertNotIn('<dialog id="edit-', app.index({}))
+        with self.assertRaises(store.MemoryError) as missing:
+            app.index({'scope': 'unregistered'})
+        self.assertEqual(missing.exception.code, 'project_not_registered')
 
     def test_catalog_is_metadata_only_and_project_reads_keep_scope(self) -> None:
         project_id, global_id = self._seed()
@@ -121,9 +229,9 @@ class DashboardTests(MemoryTestCase):
         conn.commit(); conn.close()
         key = dashboard.register_project(self.project_a, self.global_root)["namespace_id"]
         app = dashboard.Dashboard(self.global_root)
-        rows, more, total = app._list(key, "", "all", 5)
+        rows, more, total = app._list(key, "", "all", 35)
         self.assertEqual(total, 206)
-        self.assertEqual(len(rows), 6)
+        self.assertEqual(len(rows), 2)
         self.assertFalse(more)
 
     def test_management_checks_revision_and_forget_preview(self) -> None:
@@ -276,7 +384,12 @@ class DashboardTests(MemoryTestCase):
             with opener.open(url, timeout=5) as response:
                 body = response.read().decode()
                 self.assertEqual(response.headers["Cache-Control"], "no-store")
+                self.assertEqual(response.headers['Referrer-Policy'], 'same-origin')
                 self.assertIn("记忆总览", body)
+                csp = response.headers["Content-Security-Policy"]
+                nonce = re.search(r"script-src 'nonce-([^']+)'", csp)
+                self.assertIsNotNone(nonce)
+                self.assertIn(f'<script nonce="{nonce.group(1)}">', body)
             csrf = re.search(r'name=csrf value="([^"]+)"', body)
             self.assertIsNotNone(csrf)
             clean_url = urlsplit(url)._replace(query="").geturl()
