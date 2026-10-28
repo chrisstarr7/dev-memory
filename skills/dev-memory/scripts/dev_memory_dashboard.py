@@ -21,6 +21,7 @@ import dev_memory_store as store
 
 STATUS_LABELS = {"active": "生效", "candidate": "候选（未生效）", "conflicted": "冲突待核对",
                  "stale": "待复核", "archived": "已归档", "superseded": "已替代", "all": "全部状态"}
+PAGE_SIZE = 6
 KIND_LABELS = {"preference": "开发偏好", "convention": "开发规范", "project_fact": "项目事实",
                "business_rule": "业务规则", "decision": "决策", "lesson": "经验教训",
                "procedure": "操作流程", "summary": "摘要"}
@@ -90,6 +91,7 @@ class Dashboard:
     def __init__(self, global_root: Path | None = None):
         self.global_root = global_root
         self.csrf = secrets.token_urlsafe(32)
+        self.script_nonce = secrets.token_urlsafe(18)
 
     def _registered_projects(self) -> tuple[list[dict[str, str]], Exception | None]:
         try:
@@ -112,7 +114,7 @@ class Dashboard:
     def _status(self, key: str) -> dict:
         try:
             kind, root = self._target(key)
-            return store.get_store_status(kind, project_root=root, global_root=self.global_root)
+            return store.get_store_status(kind, project_root=root, global_root=self.global_root, check_integrity=False)
         except (store.MemoryError, OSError, sqlite3.Error) as exc:
             return {"status": "unavailable", "reason": getattr(exc, "code", "storage_unavailable")}
 
@@ -126,24 +128,18 @@ class Dashboard:
         return "未知项目"
 
     def _shell(self, title: str, body: str) -> str:
-        nav = ['<strong class=nav-heading>\u5168\u5c40\u8bb0\u5fc6</strong><a href="/?scope=global">\u8bb0\u5fc6\u5e93\u603b\u89c8</a>']
-        rows, catalog_error = self._registered_projects()
-        nav.append('<strong class=nav-heading>\u9879\u76ee\u8bb0\u5fc6</strong>')
-        for row in rows:
-            key = row["namespace_id"]
-            nav.append(f'<a href="/?scope={_h(key)}" title="{_h(row["path"])}">{_h(Path(row["path"]).name)}</a>')
+        _, catalog_error = self._registered_projects()
         if catalog_error:
             body = ('<section class=panel><h2>项目列表暂不可用</h2>'
                     '<p>仍可查看全局记忆。请检查本机看板目录的读取权限，修复后重启看板。</p></section>' + body)
         return ("<!doctype html><html lang=zh-CN><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
                 f"<title>{_h(title)} · Dev Memory</title><style>"
-                "body{font:15px/1.6 system-ui,-apple-system,sans-serif;color:#20242c;background:#f5f7fa;margin:0}"
-                "header{background:#14223b;color:#fff;padding:18px 24px}header a{color:#fff}"
-                "main{max-width:1440px;margin:28px auto;padding:0 24px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px}"
-                "nav,.panel{background:white;border:1px solid #dce1e8;border-radius:12px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px #14223b08}"
-                "nav{align-self:start;position:sticky;top:18px}nav a{display:block;padding:8px 0;overflow-wrap:anywhere}.nav-heading{display:block;margin-top:12px;color:#56657a}"
+                "*{box-sizing:border-box}body{font:14px/1.5 'Microsoft YaHei','PingFang SC',system-ui,sans-serif;color:#16233f;background:#f5f7fb;margin:0;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}"
+                "header{height:60px;background:#fff;color:#253650;padding:0 max(calc((100vw - 1548px)/2),24px);border-bottom:1px solid #e8edf5;display:flex;align-items:center;justify-content:space-between}header b{color:#2563eb}.brand{display:flex;align-items:center;gap:8px;font-size:16px}.brand-mark{display:inline-grid;place-items:center;width:34px;height:34px;margin-right:4px;border-radius:10px;background:linear-gradient(135deg,#1558e8,#5787f4);color:white;box-shadow:0 6px 13px #336be934}.top-status{font-size:12px;color:#64718a}.top-status span{background:#eff8f3;color:#12845a;padding:6px 11px;border-radius:99px;border:1px solid #d8eee4;font-weight:650;margin-left:12px}"
+                "main{max-width:1548px;margin:26px auto 35px;padding:0 24px;display:block}.pagehead{display:flex;align-items:center;justify-content:space-between;margin:0 2px 17px}.pagehead p{margin:0;color:#718097;font-size:13px}"
+                ".panel{background:white;border:1px solid #e5eaf3;border-radius:14px;padding:19px 22px 17px;margin-bottom:17px;box-shadow:0 4px 19px #233c6708}"
                 "a{color:#2355a5;text-decoration:none}a:hover{text-decoration:underline}"
-                "h1{font-size:1.55rem;margin:0 0 14px}h2{font-size:1.15rem;margin:0 0 10px}h3{margin-bottom:6px}"
+                "h1{font-size:26px;letter-spacing:-.5px;margin:0 0 3px}h2{font-size:17px;letter-spacing:-.3px;margin:0 0 1px}h3{margin-bottom:6px}"
                 ".muted{color:#5c6878}.warn{color:#a14c00}.bad{color:#a52222}.pill{background:#eaf0fb;padding:2px 8px;border-radius:12px}"
                 ".scope-row{display:flex;justify-content:space-between;gap:16px;border-top:1px solid #e9edf2;padding:10px 0}"
                 "table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;border-bottom:1px solid #e6e9ee;padding:8px}"
@@ -152,17 +148,22 @@ class Dashboard:
                 "form.filters input[name=q]{flex:1;min-width:220px}"
                 "textarea{width:100%;min-height:90px}button{background:#2456a6;color:white;border:0;border-radius:7px;cursor:pointer}"
                 "button.danger{background:#ad2d2d}form.inline{display:inline}.record{white-space:pre-wrap;overflow-wrap:anywhere}"
-                "details{margin:8px 0}code{overflow-wrap:anywhere}table{display:block;overflow-x:auto}"
-                "@media(max-width:750px){main{display:block;padding:0 14px;margin:16px auto}nav{position:static}.scope-row{display:block}.panel{padding:16px}form.filters{align-items:stretch}form.filters>*{width:100%}}"
-                "</style><header><strong>Dev Memory</strong>　<span>本机记忆看板</span></header><main><nav><strong>记忆范围</strong>"
-                + "".join(nav) + '<hr><a href="/?scope=all">跨范围搜索</a><a href="/projects">项目管理</a></nav>'
-                f'<div><h1>{_h(title)}</h1>{body}</div></main></html>')
+                ".link-button{background:transparent;color:#2563eb;padding:0;height:auto;border:0}details{margin:8px 0}code{overflow-wrap:anywhere}table{display:table}dialog{width:min(680px,calc(100% - 28px));max-height:85vh;border:1px solid #dce1e8;border-radius:12px;padding:22px;box-shadow:0 20px 60px #14223b33}dialog::backdrop{background:#14223b66}dialog label{display:block;margin:8px 0;color:#56657a}dialog textarea{min-height:70px}"
+                ".panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:13px}.panel-title{display:flex;align-items:center;gap:11px}.panel-title p{margin:0;color:#8a95a8;font-size:12px}.sectionicon{height:36px;width:36px;display:grid;place-items:center;border-radius:10px;background:#eff5ff;color:#2465ea;font-size:17px;font-weight:800}.sectionicon.v{color:#6b4ed5;background:#f3efff}.panel-meta{color:#687891;background:#f6f8fc;padding:6px 9px;border-radius:6px;font-size:12px}"
+                ".stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:12px 0 13px}.stats>div{min-height:68px;border:1px solid #e8edf5;border-radius:10px;background:linear-gradient(180deg,#fff,#fafcff);padding:10px 15px;display:flex;align-items:center;justify-content:space-between}.stats small{display:block;color:#74829a;font-size:12px;font-weight:600}.stats b{font-size:24px;letter-spacing:-.7px}.glyph{width:34px;height:34px;display:grid;place-items:center;background:#ebf3ff;border-radius:10px;color:#2570f6;font-size:17px;font-weight:750}.stats>div:nth-child(2) .glyph{color:#0fa477;background:#e5f8f1}.stats>div:nth-child(3) .glyph{color:#dd8b1a;background:#fff4e2}.stats>div:nth-child(4) .glyph{color:#704ed1;background:#f2ecff}"
+                ".track{height:8px;background:#eaf0fa;border-radius:99px;overflow:hidden;margin:8px 0}.track span{display:block;height:100%;background:linear-gradient(90deg,#2f7bf3,#66a4fa)}"
+                ".filters{display:flex;align-items:end;gap:10px;padding:11px 12px;background:#f8faff;border:1px solid #e8edf6;border-radius:10px;margin:12px 0}.filters label{display:flex;flex-direction:column;gap:5px;min-width:150px;color:#718097;font-size:12px}.filters label:first-child{width:22%}.filters .query{flex:1;min-width:0}.filters input,.filters select{width:100%}input,select{height:35px;border:1px solid #dbe3ef;border-radius:7px;padding:0 11px;background:#fff;color:#384762;font-size:12px}"
+                ".tabletop,.tablefoot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;color:#738097}.tablewrap{border:1px solid #e8edf5;border-radius:9px;overflow:auto}table{width:100%;min-width:850px;border-collapse:collapse;table-layout:fixed}th{background:#f8fafd;color:#697991;font-size:12px;text-align:left;height:36px}td{font-size:12px;padding:9px 10px;border-bottom:1px solid #eef2f6;height:39px}.memory-table td,.vector-detail td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subject{font-weight:650;color:#223b68}.button{display:inline-block;padding:8px 12px;border:1px solid #dbe4ef;border-radius:7px;background:white}.tablefoot{font-size:12px}.vector-layout{display:grid;grid-template-columns:minmax(280px, .85fr) minmax(0,2.15fr);gap:16px}.vector-progress,.vector-detail{border:1px solid #e8edf5;border-radius:10px;padding:15px}.vector-progress h3,.vector-detail h3{font-size:14px;margin:0 0 10px}.progress-number{font-size:28px;font-weight:800;color:#2563eb}.progress-meta{display:flex;justify-content:space-between;gap:10px;color:#8090a8;font-size:12px;margin:8px 0}.vscope{display:inline-block;margin-right:10px;padding:7px 11px;border:1px solid #dce8fb;border-radius:99px;background:#f5f9ff;color:#6480a9;font-size:12px}.panel-head>div:last-child{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}.inline .primary,.filters button{height:35px;padding:0 15px}dialog label{font-size:13px}dialog input,dialog textarea{width:100%;padding:9px;border:1px solid #dbe3ef;border-radius:7px}dialog input{height:36px}dialog button{height:36px;padding:0 14px;margin-top:8px}"
+                "@media(max-width:750px){main{display:block;padding:0 14px;margin:16px auto}.panel{padding:16px}.filters{display:grid}.filters label,.filters label:first-child,.filters .query{width:100%}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.panel-head{align-items:flex-start;flex-direction:column}.vector-layout{grid-template-columns:1fr}.top-status{display:none}.tabletop{align-items:flex-start;flex-wrap:wrap}}"
+                "</style><header><div class=brand><span class=brand-mark>M</span><strong><b>Dev</b> Memory</strong><span class=muted>本地记忆看板</span></div><div class=top-status>● 仅本机访问 · 按需启动 <span>127.0.0.1</span></div></header><main>"
+                f'<div class=pagehead><div><h1>{_h(title)}</h1><p>同一页面管理全局与项目记忆，手动编辑后按需同步本地向量索引。</p></div><span class=panel-meta>仅本机数据</span></div>{body}</main><script nonce="{_h(self.script_nonce)}">document.addEventListener("click",e=>{{const b=e.target.closest("[data-dialog]");if(b)document.getElementById(b.dataset.dialog).showModal();const c=e.target.closest("[data-close]");if(c)c.closest("dialog").close()}})</script></html>')
 
     def _form_token(self) -> str:
         return f'<input type=hidden name=csrf value="{_h(self.csrf)}">'
 
-    def _stats(self, key: str, month: str) -> tuple[str, dict]:
-        status = self._status(key)
+    def _stats(self, key: str, month: str, *, state: dict | None = None,
+               memory_ids: list[str] | None = None) -> tuple[str, dict]:
+        status = state if state is not None else self._status(key)
         if status.get("status") != "available" or not status.get("recall_enabled"):
             return "不可读取", {}
         kind, root = self._target(key)
@@ -174,13 +175,14 @@ class Dashboard:
             conn.close()
         if not exists:
             return "尚无可用统计；历史未知", {}
-        result = store.recall_stats(kind, month, project_root=root, global_root=self.global_root)
-        return f'{result["total_recalls"]} 次详情返回（不代表 AI 采用）', {
+        result = store.recall_stats(kind, month, project_root=root, global_root=self.global_root, memory_ids=memory_ids)
+        return str(result["total_recalls"]), {
             item["id"]: item["recall_count"] for item in result["memories"]}
 
-    def _list(self, key: str, query: str, status_filter: str, page: int) -> tuple[list[dict], bool, int]:
+    def _list(self, key: str, query: str, status_filter: str, page: int, *,
+              state: dict | None = None) -> tuple[list[dict], bool, int]:
         kind, root = self._target(key)
-        state = self._status(key)
+        state = state if state is not None else self._status(key)
         if state.get("status") != "available" or not state.get("recall_enabled"):
             return [], False, 0
         _, db, _ = store._config_for(kind, root, self.global_root)
@@ -197,10 +199,42 @@ class Dashboard:
         try:
             predicate = " AND ".join(where)
             count = conn.execute(f"SELECT COUNT(*) FROM memories WHERE {predicate}", params).fetchone()[0]
-            rows = conn.execute(f"SELECT id,title,kind,claim_type,status,strength,updated_at,revision "
-                                f"FROM memories WHERE {predicate} ORDER BY updated_at DESC,id DESC LIMIT 50 OFFSET ?",
-                                (*params, (page - 1) * 50)).fetchall()
-            return [dict(row) for row in rows], count > page * 50, count
+            rows = conn.execute(f"SELECT id,title,content,kind,claim_type,status,strength,updated_at,revision "
+                                f"FROM memories WHERE {predicate} ORDER BY updated_at DESC,id DESC LIMIT ? OFFSET ?",
+                                (*params, PAGE_SIZE, (page - 1) * PAGE_SIZE)).fetchall()
+            return [dict(row) for row in rows], count > page * PAGE_SIZE, count
+        finally:
+            conn.close()
+
+    def _vector_metadata(self, key: str, rows: list[dict]) -> dict[str, dict]:
+        if not rows:
+            return {}
+        kind, root = self._target(key)
+        _, db, _ = store._config_for(kind, root, self.global_root)
+        conn = store._connect(db, readonly=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            exists = conn.execute("SELECT 1 FROM sqlite_master WHERE name='vector_state'").fetchone()
+            if not exists:
+                return {}
+            ids = [row['id'] for row in rows]
+            placeholders = ','.join('?' for _ in ids)
+            states = {row['memory_id']: dict(row) for row in conn.execute(
+                f"SELECT v.memory_id,v.revision AS indexed_revision,v.state,v.updated_at,v.error,v.model_key,m.revision,m.title,m.status,m.claim_type "
+                f"FROM vector_state v JOIN memories m ON m.id=v.memory_id WHERE m.scope=? AND v.memory_id IN ({placeholders})",
+                [kind, *ids])}
+            import dev_memory_vectors as vectors
+            settings = vectors._settings(self.global_root)
+            expected = vectors._model_key(settings) if settings else None
+            for item in states.values():
+                eligible = item['status'] in {'active', 'conflicted'} and item['claim_type'] != 'hypothesis'
+                item['current'] = bool(eligible and expected and item['state'] == 'ready' and
+                                       item['indexed_revision'] == item['revision'] and item['model_key'] == expected)
+                if item['state'] == 'ready' and not item['current']:
+                    item['state'] = 'pending'
+                if not eligible:
+                    item['state'] = 'not_eligible'
+            return states
         finally:
             conn.close()
 
@@ -210,107 +244,115 @@ class Dashboard:
         status_filter = params.get("status", "all")
         if status_filter != "all" and status_filter not in store.STATUSES:
             status_filter = "all"
-        page = max(1, int(params.get("page", "1")) if params.get("page", "1").isdigit() else 1)
+        page_text = params.get("page", "1")
+        page = int(page_text) if re.fullmatch(r'[1-9][0-9]{0,8}', page_text) else 1
         month = params.get("month", datetime.now(timezone.utc).strftime("%Y-%m"))
         if not re.fullmatch(r"[1-9]\d{3}-(0[1-9]|1[0-2])", month):
             month = datetime.now(timezone.utc).strftime("%Y-%m")
-        project_rows, _ = self._registered_projects()
-        keys = ["global", *(row["namespace_id"] for row in project_rows)]
-        if key not in keys and key != "all":
-            raise store.MemoryError("project_not_registered", "Unknown dashboard scope.")
-        body = '<section class=panel><h2>\u8bb0\u5fc6\u5e93\u5207\u6362</h2><p class=muted>\u5168\u5c40\u89c4\u5219\u548c\u5404\u9879\u76ee\u8bb0\u5fc6\u5206\u5f00\u5b58\u50a8\u548c\u7ba1\u7406\uff0c\u5728\u5de6\u4fa7\u5206\u7ec4\u9009\u62e9\u8981\u67e5\u770b\u7684\u8bb0\u5fc6\u5e93\u3002</p></section>'
-        body += (f'<section class=panel><h2>查找当前记忆库</h2><form class=filters method=get><input type=hidden name=scope value="{_h(key)}">'
-                 + f'<input name=q placeholder="标题或正文" value="{_h(query)}">'
-                 + '<select name=status>' + ''.join(f'<option value={_h(item)} {"selected" if item == status_filter else ""}>{_h(STATUS_LABELS[item])}</option>'
-                      for item in ("active", "candidate", "conflicted", "stale", "archived", "superseded", "all"))
-                 + f'</select><input type=month name=month value="{_h(month)}"><button>查看</button></form></section>')
-        rows: list[tuple[str, dict]] = []
-        has_more = False
-        total = 0
-        if key == "all":
-            if query:
-                for item in keys:
-                    subset, more, count = self._list(item, query, status_filter, 1)
-                    rows.extend((item, row) for row in subset)
-                    has_more |= more
-                    total += count
-                rows.sort(key=lambda pair: (pair[1]["updated_at"], pair[1]["id"]), reverse=True)
-                has_more |= len(rows) > 50
-                rows = rows[:50]
-            else:
-                body += '<section class=panel>输入关键词后可跨所有已登记范围搜索；逐个范围可完整翻页。</section>'
-        else:
-            subset, has_more, total = self._list(key, query, status_filter, page)
-            rows = [(key, row) for row in subset]
-            state = self._status(key)
-            if state.get("status") == "available" and state.get("recall_enabled"):
-                label, counts = self._stats(key, month)
-                import dev_memory_vectors as vectors
-                scope_kind, scope_root = self._target(key)
-                vector_state = vectors.status(scope_kind, project_root=scope_root, global_root=self.global_root)
-                vector_labels = {'ready': '已就绪', 'pending': '待补齐', 'running': '处理中',
-                                 'unavailable': '暂不可用', 'disabled': '已禁用'}
-                body += (f'<section class=panel><h2>向量索引</h2><p>{_h(vector_labels.get(vector_state["status"], vector_state["status"]))}'
-                         f'；已就绪 {_h(vector_state.get("ready", 0))} 条；待补齐 {_h(vector_state.get("pending", 0))} 条。'
-                         '选择下方记忆标题可查看中文原文、索引版本和实际存储的完整向量；浏览不会启动索引。</p>')
-                if vector_state.get('reason'):
-                    body += f'<p class=muted>原因：{_h(vector_state["reason"])}</p>'
-                if state.get('capture_enabled') and vectors.enabled(self.global_root):
-                    body += (f'<form method=post action=/action>{self._form_token()}'
-                             f'<input type=hidden name=scope value="{_h(key)}"><input type=hidden name=action value=vectors_sync>'
-                             '<button>补齐一批向量</button></form>')
-                body += '</section>'
-                body += (f'<section class=panel><h2>{_h(self._scope_name(key))}</h2><p>捕获：'
-                         f'{"开启" if state.get("capture_enabled") else "暂停"}；召回：开启；{_h(month)}：{_h(label)}</p>'
-                         f'<form method=post action=/preview>{self._form_token()}<input type=hidden name=scope value="{_h(key)}">'
-                         '<input name=q placeholder="输入任务词，预览当前召回" required><select name=intent>'
-                         '<option value="">无意图</option>' + ''.join(f'<option>{_h(i)}</option>' for i in store.INTENTS)
-                         + '</select><button>只读召回预览</button></form></section>')
-            else:
-                counts = {}
-                body += f'<section class=panel>该范围当前不可读取：{_h(state.get("reason", "召回已禁用"))}。</section>'
-        if rows and key != "all":
+        projects, catalog_error = self._registered_projects()
+        choices = [("global", "全局记忆（默认）", "")]
+        choices.extend((item["namespace_id"], Path(item["path"]).name, item["path"]) for item in projects)
+        if key not in {item[0] for item in choices}:
+            raise store.MemoryError('project_not_registered', 'The selected memory scope is not registered.')
+        state = self._status(key)
+        rows, has_more, total = self._list(key, query, status_filter, page, state=state)
+        counts = {"all": 0, "active": 0, "candidate": 0}
+        recall_label = "不可读取"
+        recall_counts = {}
+        vector_state = {"status": "unavailable", "ready": 0, "pending": 0}
+        vector_reason = ""
+        vector_meta = {}
+        if state.get("status") == "available" and state.get("recall_enabled"):
+            kind, root = self._target(key)
+            counts.update(state.get('record_counts', {}))
+            counts['all'] = sum(state.get('record_counts', {}).values())
+            recall_label, recall_counts = self._stats(key, month, state=state, memory_ids=[row['id'] for row in rows])
             import dev_memory_vectors as vectors
-            body += '<section class=panel><h2>\u5b9e\u9645\u5411\u91cf\u6570\u636e</h2><p class=muted>\u4ee5\u4e0b\u4e3a\u5f53\u524d\u8bb0\u5fc6\u5e93\u5df2\u5199\u5165 SQLite \u5411\u91cf\u8868\u7684\u5b9e\u9645\u6570\u503c\u6458\u8981\uff1b\u70b9\u51fb\u6807\u9898\u67e5\u770b\u5b8c\u6574\u5411\u91cf\u3002</p>'
-            found_vector = False
-            for scope_key, row in rows:
-                vector_kind, vector_root = self._target(scope_key)
-                vector = vectors.inspect_record(vector_kind, row["id"], project_root=vector_root,
-                                                global_root=self.global_root)
-                values = vector.get("embedding")
-                if values:
-                    found_vector = True
-                    link = '/record?' + urlencode({"scope": scope_key, "id": row["id"]})
-                    preview = ', '.join(f'{value:.5f}' for value in values[:12])
-                    body += f'<div class=scope-row><a href="{_h(link)}">{_h(row["title"])}</a><span><b>{_h(vector.get("dimensions"))}D</b> <code>{_h(preview)}…</code></span></div>'
-            if not found_vector:
-                body += '<p class=muted>\u5f53\u524d\u7b5b\u9009\u7ed3\u679c\u4e2d\u6ca1\u6709\u5df2\u5199\u5165\u7684\u5411\u91cf\u6570\u636e\u3002</p>'
-            body += '</section>'
-        if rows:
-            body += '<section class=panel id=memory-records><h2>记忆记录与向量明细</h2><p class=muted>点击标题查看该条记录的原文、向量状态、模型和实际向量数值。</p><table><tr><th>范围 / 标题</th><th>状态</th><th>类型</th><th>更新时间</th><th>月度返回</th></tr>'
-            for scope_key, row in rows:
-                link = '/record?' + urlencode({"scope": scope_key, "id": row["id"]})
-                amount = str(counts.get(row["id"], 0)) if key != "all" else "—"
-                body += (f'<tr><td><a href="{_h(link)}">{_h(row["title"])}</a></td>'
-                         f'<td>{_h(STATUS_LABELS.get(row["status"], row["status"]))}</td>'
-                         f'<td>{_h(KIND_LABELS.get(row["kind"], row["kind"]))} / {_h(CLAIM_LABELS.get(row["claim_type"], row["claim_type"]))}</td>'
-                         f'<td>{_h(_local_time(row["updated_at"]))}</td><td>{_h(amount)}</td></tr>')
-            body += '</table>'
-            if key != "all":
-                body += f'<p class=muted>共 {_h(total)} 条；第 {_h(page)} 页。'
-                if page > 1:
-                    body += f' <a href="{_h("/?" + urlencode({"scope":key,"q":query,"status":status_filter,"month":month,"page":page-1}))}">上一页</a>'
-                if has_more:
-                    body += f' <a href="{_h("/?" + urlencode({"scope":key,"q":query,"status":status_filter,"month":month,"page":page+1}))}">下一页</a>'
-                body += '</p>'
-            elif has_more:
-                body += '<p class=warn>跨范围搜索仅显示前 50 条；请缩小关键词或进入单个项目完整翻页。</p>'
-            body += '</section>'
-        elif key != "all" or query:
-            body += '<section class=panel>没有符合条件的可读取记录。</section>'
+            vector_state = vectors.status(kind, project_root=root, global_root=self.global_root)
+            vector_reason = vector_state.get("reason", "")
+            vector_meta = self._vector_metadata(key, rows)
+        labels = {"ready": "已完成", "pending": "待补齐", "running": "运行中", "failed": "失败", "unavailable": "不可用", "disabled": "已禁用"}
+        scope_options = "".join(
+            f'<option value="{_h(sid)}" {"selected" if sid == key else ""}>{_h(name + (" · " + path if path else ""))}</option>'
+            for sid, name, path in choices)
+        body = f'''<section class="panel"><div class="panel-head"><div class="panel-title"><span class="sectionicon">M</span><div><h2>记忆数据</h2><p>默认查看全局记忆；切换项目后，下方记忆和向量数据同步切换。</p></div></div><span class="panel-meta">SQLite · 本地</span></div>
+        <div class="stats"><div><div><small>记忆总数</small><b>{counts['all']}</b></div><span class="glyph">☷</span></div><div><div><small>生效记忆</small><b>{counts['active']}</b></div><span class="glyph">✓</span></div><div><div><small>候选记忆</small><b>{counts['candidate']}</b></div><span class="glyph">↻</span></div><div><div><small>{_h(month)} 详情返回</small><b>{_h(recall_label)}</b></div><span class="glyph">△</span></div></div>
+        <form class="filters" method="get"><label>记忆范围<select name="scope">{scope_options}</select></label><label class="query">关键词搜索<input name="q" value="{_h(query)}" placeholder="搜索标题或正文"></label><label>状态<select name="status">'''
+        body += ''.join(f'<option value="{_h(value)}" {"selected" if value == status_filter else ""}>{_h(STATUS_LABELS[value])}</option>'
+                        for value in ("all", "active", "candidate", "conflicted", "stale", "archived", "superseded"))
+        body += f'''</select></label><input type="hidden" name="month" value="{_h(month)}"><button class="primary">查询</button><a class="button" href="/?scope={_h(key)}">重置</a></form>'''
+        if params.get("notice") == "backup_created":
+            body += '<p class="pill">当前记忆库备份已创建。</p>'
+        if catalog_error:
+            body += '<p class="warn">项目列表暂不可用；仍可查看全局记忆，请检查项目目录权限。</p>'
+        body += f'<div class="tabletop"><b>记忆列表</b><span>共 {total} 条 · 当前显示 {len(rows)} 条</span><form method="post" action="/action">{self._form_token()}<input type="hidden" name="action" value="backup"><input type="hidden" name="scope" value="{_h(key)}"><button class="outline">备份当前库</button></form></div>'
+        body += '<div class="tablewrap"><table class="memory-table"><colgroup><col style="width:20%"><col style="width:10%"><col style="width:10%"><col style="width:32%"><col style="width:13%"><col style="width:8%"><col style="width:7%"></colgroup><thead><tr><th>记忆标题</th><th>类型</th><th>状态</th><th>内容摘要</th><th>更新时间</th><th>本月返回</th><th>操作</th></tr></thead><tbody>'
+        dialogs = []
+        for row in rows:
+            link = '/record?' + urlencode({"scope": key, "id": row["id"]})
+            summary = re.sub(r"\s+", " ", row.get("content", ""))[:110]
+            editable = (state.get('capture_enabled') and state.get('writable') and row["status"] == "active"
+                        and row["claim_type"] in {"desired", "preference"} and row["kind"] != "summary")
+            actions = f'<button type="button" class="link-button" data-dialog="edit-{_h(row["id"])}">编辑</button> ' if editable else ""
+            actions += f'<a href="{_h(link)}">查看</a>'
+            if editable:
+                dialogs.append(f'<dialog id="edit-{_h(row["id"])}"><h2>编辑记忆</h2><form method="post" action="/action">{self._form_token()}<input type="hidden" name="action" value="revise"><input type="hidden" name="scope" value="{_h(key)}"><input type="hidden" name="id" value="{_h(row["id"])}"><input type="hidden" name="revision" value="{_h(row["revision"])}"><label>标题<input name="title" value="{_h(row["title"])}" required></label><label>正文<textarea name="content" required>{_h(row["content"])}</textarea></label><label>修订依据<input name="reason" required maxlength="500"></label><button class="primary">保存修改</button><button type="button" class="outline" data-close>取消</button></form></dialog>')
+            body += (f'<tr><td class="subject"><a href="{_h(link)}">{_h(row["title"])}</a></td>'
+                     f'<td>{_h(KIND_LABELS.get(row["kind"], row["kind"]))}</td>'
+                     f'<td>{_h(STATUS_LABELS.get(row["status"], row["status"]))}</td><td title="{_h(summary)}">{_h(summary)}</td>'
+                     f'<td>{_h(_local_time(row["updated_at"]))}</td><td>{_h(recall_counts.get(row["id"], 0))}</td><td>{actions}</td></tr>')
+        if not rows:
+            body += '<tr><td colspan="7">没有符合条件的记忆。</td></tr>'
+        body += '</tbody></table></div><div class="tablefoot">'
+        body += ''.join(dialogs)
+        body += f'<span>当前库：{_h(self._scope_name(key))}</span><span>'
+        if page > 1:
+            body += f'<a href="/?{urlencode({"scope":key,"q":query,"status":status_filter,"month":month,"page":page-1})}">上一页</a>　'
+        body += f'第 {page} 页'
+        if has_more:
+            body += f'　<a href="/?{urlencode({"scope":key,"q":query,"status":status_filter,"month":month,"page":page+1})}">下一页</a>'
+        body += '</span></div></section>'
+        ready = vector_state.get("ready", 0)
+        pending = vector_state.get("pending", 0)
+        eligible = ready + pending
+        progress = round(ready * 100 / eligible) if eligible else 0
+        vector_status = labels.get(vector_state.get("status"), vector_state.get("status", "未知"))
+        can_sync = state.get("capture_enabled") and state.get('writable') and vector_state.get("status") == "pending"
+        body += f'''<section class="panel"><div class="panel-head"><div class="panel-title"><span class="sectionicon v">V</span><div><h2>向量索引</h2><p>与上方记忆范围、关键词和状态筛选联动；只读取当前库，不会自动启动模型。</p></div></div><div><span class="vscope">当前范围：{_h(self._scope_name(key))}</span>'''
+        if can_sync:
+            body += f'<form method="post" action="/action" class="inline">{self._form_token()}<input type="hidden" name="action" value="vectors_sync"><input type="hidden" name="scope" value="{_h(key)}"><button class="primary">同步当前范围</button></form>'
+        body += '</div></div>'
+        dimensions = vector_state.get("dimensions", 384)
+        body += f'<div class="stats"><div><div><small>可索引记忆</small><b>{eligible}</b></div><span class="glyph">⌁</span></div><div><div><small>已就绪</small><b>{ready}</b></div><span class="glyph">✓</span></div><div><div><small>待同步</small><b>{pending}</b></div><span class="glyph">↻</span></div><div><div><small>向量维度</small><b>{dimensions}</b></div><span class="glyph">∴</span></div></div>'
+        body += f'<p class="muted">同步状态：{_h(vector_status)}；统计覆盖当前记忆库，明细跟随上方筛选与分页。</p>'
+        body += f'<div class="vector-layout"><div class="vector-progress"><h3>索引进度 <span class="muted" style="float:right">SQLite / sqlite-vec</span></h3><div class="progress-number">{progress}%</div><div class="progress-meta"><span>同步进度</span><span>已同步 {ready} / {eligible} 条可索引记忆</span></div><div class="track" aria-label="向量同步完成 {progress}%"><span style="width:{progress}%"></span></div><hr><div class="progress-meta"><span>本地索引</span><b>SQLite + sqlite-vec</b></div><div class="progress-meta"><span>Embedding</span><b>{_h(vector_state.get("model") or "未配置")} · {dimensions} 维</b></div><p class="muted">候选和失效记忆不参与普通向量召回。</p>'
+        if vector_state.get("status") == "running":
+            body += '任务运行中；刷新页面查看状态。'
+        elif vector_state.get("status") == "pending" and pending > 0:
+            body += f'剩余 {pending} 条，可再次点击“同步当前范围”继续。'
+        elif vector_state.get("status") == "failed":
+            body += f'<p class="warn">同步失败；{vector_state.get("retry_after_seconds", 0)} 秒后可重试。</p>'
+        elif vector_state.get("status") == "unavailable":
+            body += '<p class="muted">向量模型不可用；SQLite 中的原始记忆不受影响。</p>'
+        if vector_reason:
+            body += f'<p class="muted">原因：{_h(vector_reason)}</p>'
+        body += '</div><div class="vector-detail"><h3>向量明细 <span class="muted" style="float:right">按当前记忆列表筛选</span></h3><div class="tablewrap"><table><thead><tr><th>来源记忆</th><th>原文版本</th><th>索引状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody>'
+        for row in rows:
+            meta = vector_meta.get(row["id"], {})
+            indexable = row['status'] in {'active', 'conflicted'} and row['claim_type'] != 'hypothesis'
+            state_label = ("不参与索引" if not indexable else "已就绪" if meta.get("current")
+                           else labels.get(meta.get("state"), "待生成" if not meta else "待补齐"))
+            updated = datetime.fromtimestamp(meta["updated_at"], timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M") if meta.get("updated_at") else "—"
+            vector_link = '/record?' + urlencode({"scope": key, "id": row["id"], "vector": "1"}) + '#vector'
+            vector_action = f'<a href="{_h(vector_link)}">查看向量</a>' if meta.get("model_key") else ("待生成" if indexable else "—")
+            version = f'v{meta["indexed_revision"]} / 当前 v{row["revision"]}' if meta else f'当前 v{row["revision"]}'
+            body += f'<tr><td>{_h(row["title"])}</td><td>{_h(version)}</td><td>{_h(state_label)}</td><td>{_h(updated)}</td><td>{vector_action}</td></tr>'
+        if not rows:
+            body += '<tr><td colspan="5">当前查询没有对应记忆。</td></tr>'
+        body += '</tbody></table></div></div></div><p class="pill">切换上方范围，下方状态与列表联动；编辑保存后旧索引失效，再按需同步新版本。</p></section>'
         return self._shell("记忆总览", body)
 
-    def detail(self, key: str, memory_id: str) -> str:
+    def detail(self, key: str, memory_id: str, *, include_vector: bool = False) -> str:
         kind, root = self._target(key)
         data = store.show_record(kind, memory_id, project_root=root, global_root=self.global_root)
         if data.get("status") == "disabled":
@@ -320,29 +362,33 @@ class Dashboard:
         vector_state = vectors.status(kind, project_root=root, global_root=self.global_root, memory_id=memory_id)
         body = f'<section class=panel><p><a href="/?scope={_h(key)}">← {_h(self._scope_name(key))}</a></p>'
         body += f'<p class=muted>向量：{_h(vector_state.get("record", {}).get("state", vector_state["status"]))}</p>'
-        stored_vector = vectors.inspect_record(kind, memory_id, project_root=root, global_root=self.global_root)
-        body += '<details><summary>查看实际存储的向量数据</summary>'
-        body += (f'<p>当前原文版本：{_h(record["revision"])}；索引原文版本：{_h(stored_vector.get("indexed_revision", "尚未建立"))}；'
-                 f'维度：{_h(stored_vector.get("dimensions", 0))}；'
-                 f'索引与当前生效规则一致：{"是" if stored_vector.get("is_current") else "否"}。</p>')
-        if stored_vector.get('model_key'):
-            body += f'<p>模型：{_h(stored_vector.get("model_name") or "历史模型，以存储指纹为准")}</p>'
-            body += f'<p class=record>存储模型指纹：{_h(stored_vector["model_key"])}</p>'
-        if stored_vector.get('updated_at'):
-            try:
-                updated = datetime.fromtimestamp(stored_vector['updated_at'], timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M:%S')
-            except (ValueError, OverflowError, OSError, TypeError):
-                updated = '未知'
-            body += f'<p>索引更新时间（本机）：{_h(updated)}</p>'
-        if stored_vector.get('embedding') is not None:
-            if not stored_vector.get('is_current'):
-                body += '<p class=warn>下面是旧版本或非生效记录的存储向量，不代表当前可召回内容。</p>'
-            body += f'<pre class=record style="max-height:24rem;overflow:auto">{_h(json.dumps(stored_vector["embedding"]))}</pre>'
+        stored_vector = (vectors.inspect_record(kind, memory_id, project_root=root, global_root=self.global_root)
+                         if include_vector else {})
+        body += '<details id=vector open><summary>查看实际存储的向量数据</summary>' if include_vector else '<details id=vector><summary>查看实际存储的向量数据</summary><p>完整向量只在你主动选择查看时读取。</p><a href="' + _h('/record?' + urlencode({"scope": key, "id": memory_id, "vector": "1"}) + '#vector') + '">加载实际向量</a>'
+        if not include_vector:
+            body += '</details>'
         else:
-            body += '<p>当前没有可读取的向量数值；中文原文仍可查看。</p>'
-        if stored_vector.get('error') or stored_vector.get('reason'):
-            body += f'<p class=muted>原因：{_h(stored_vector.get("error") or stored_vector.get("reason"))}</p>'
-        body += '</details>'
+            body += (f'<p>当前原文版本：{_h(record["revision"])}；索引原文版本：{_h(stored_vector.get("indexed_revision", "尚未建立"))}；'
+                     f'维度：{_h(stored_vector.get("dimensions", 0))}；'
+                     f'索引与当前生效规则一致：{"是" if stored_vector.get("is_current") else "否"}。</p>')
+            if stored_vector.get('model_key'):
+                body += f'<p>模型：{_h(stored_vector.get("model_name") or "历史模型，以存储指纹为准")}</p>'
+                body += f'<p class=record>存储模型指纹：{_h(stored_vector["model_key"])}</p>'
+            if stored_vector.get('updated_at'):
+                try:
+                    updated = datetime.fromtimestamp(stored_vector['updated_at'], timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M:%S')
+                except (ValueError, OverflowError, OSError, TypeError):
+                    updated = '未知'
+                body += f'<p>索引更新时间（本机）：{_h(updated)}</p>'
+            if stored_vector.get('embedding') is not None:
+                if not stored_vector.get('is_current'):
+                    body += '<p class=warn>下面是旧版本或非生效记录的存储向量，不代表当前可召回内容。</p>'
+                body += f'<pre class=record style="max-height:24rem;overflow:auto">{_h(json.dumps(stored_vector["embedding"]))}</pre>'
+            else:
+                body += '<p>当前没有可读取的向量数值；中文原文仍可查看。</p>'
+            if stored_vector.get('error') or stored_vector.get('reason'):
+                body += f'<p class=muted>原因：{_h(stored_vector.get("error") or stored_vector.get("reason"))}</p>'
+            body += '</details>'
         body += (f'<p><span class=pill>{_h(STATUS_LABELS.get(record["status"], record["status"]))}</span>　'
                  f'{_h(KIND_LABELS.get(record["kind"], record["kind"]))} / {_h(CLAIM_LABELS.get(record["claim_type"], record["claim_type"]))}'
                  f'　{_h(STRENGTH_LABELS.get(record["strength"], record["strength"]))}　修订 {_h(record["revision"])}</p>')
@@ -364,7 +410,7 @@ class Dashboard:
             body += f'<h3>修订 {_h(rev["revision"])} · {_h(rev["changed_at"])}</h3><pre class=record>{_h(rev["snapshot"])}</pre>'
         body += '</details></section>'
         if record["status"] in {"active", "candidate", "conflicted", "stale"}:
-            body += f'<section class=panel><h2>管理这条记忆</h2><p class=muted>操作使用当前修订号；归档保留审计历史，遗忘将删除受影响记录。</p>'
+            body += f'<section class=panel id=edit><h2>管理这条记忆</h2><p class=muted>操作使用当前修订号；归档保留审计历史，遗忘将删除受影响记录。</p>'
             if (record["status"] == "active" and record["claim_type"] in {"desired", "preference"}
                     and record["kind"] != "summary"):
                 body += (f'<details><summary>修订内容</summary><form method=post action=/action>{self._form_token()}'
@@ -498,7 +544,7 @@ class Dashboard:
             return "/projects"
         if action == "backup":
             store.backup_store(kind, project_root=root, global_root=self.global_root)
-            return "/projects?notice=backup_created"
+            return "/?" + urlencode({"scope": key, "notice": "backup_created"})
         if action == 'vectors_sync':
             import dev_memory_vectors as vectors
             vectors.schedule(kind, project_root=root, global_root=self.global_root)
@@ -545,7 +591,8 @@ class Dashboard:
                 if not reason or len(reason) > 500:
                     raise store.MemoryError("validation_error", "A short user basis is required.")
                 for field in ("title", "content", "conditions", "exceptions", "do", "dont", "rationale", "verification_steps"):
-                    updated[field] = form.get(field, "")
+                    if field in form:
+                        updated[field] = form[field]
                 updated["source"] = {"type": "user_statement", "excerpt": reason}
             operation = {"op": "REVISE", "scope": kind, "id": memory_id,
                          "expected_revision": expected, "record": updated}
@@ -579,7 +626,7 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
             self.send_header("Cache-Control", "no-store")
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
+            self.send_header("Content-Security-Policy", f"default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{app.script_nonce}'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
             if location:
                 self.send_header("Location", location)
             if set_cookie:
@@ -612,7 +659,8 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
                 if parsed.path == "/":
                     body = app.index(params)
                 elif parsed.path == "/record":
-                    body = app.detail(params.get("scope", ""), params.get("id", ""))
+                    body = app.detail(params.get("scope", ""), params.get("id", ""),
+                                      include_vector=params.get("vector") == "1")
                 elif parsed.path == "/forget":
                     body = app.forget_preview(params.get("scope", ""), params.get("id", ""))
                 elif parsed.path == "/projects":

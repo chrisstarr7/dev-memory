@@ -164,12 +164,14 @@ def status(kind, *, project_root=None, global_root=None, memory_id=None):
                     (_model_key(settings), kind)).fetchone()[0]
             running = _exists(conn, 'vector_job') and conn.execute("SELECT 1 FROM vector_job WHERE state='running' AND deadline>?", (time.time(),)).fetchone() is not None
             result = {'status': 'running' if running else ('pending' if settings and eligible > ready else 'ready') if settings else 'unavailable',
-                    'ready': ready, 'pending': eligible-ready, 'model': settings['model_name'] if settings else None,
+                    'eligible': eligible, 'ready': ready, 'pending': eligible-ready, 'dimensions': DIMENSIONS,
+                    'model': settings['model_name'] if settings else None,
                     'generation': generation(conn)}
             if _exists(conn, 'vector_job'):
                 job = conn.execute('SELECT state,deadline FROM vector_job WHERE id=1').fetchone()
                 if job and job[0] == 'failed' and job[1] > time.time():
-                    result.update(reason='model_unavailable_or_timeout', retry_after_seconds=math.ceil(job[1]-time.time()))
+                    result.update(status='failed', reason='model_unavailable_or_timeout',
+                                  retry_after_seconds=math.ceil(job[1]-time.time()))
             if memory_id and _exists(conn, 'vector_state'):
                 row = conn.execute('''SELECT v.state,v.revision,v.error,v.model_key,m.revision
                     FROM vector_state v JOIN memories m ON m.id=v.memory_id WHERE v.memory_id=?''', (memory_id,)).fetchone()

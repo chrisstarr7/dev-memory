@@ -2080,7 +2080,7 @@ def show_current(kind: str, memory_ids: list[str], *, project_root: Path | None 
     return result
 
 def recall_stats(kind: str, start_month: str, end_month: str | None = None, *, project_root: Path | None = None,
-                 global_root: Path | None = None) -> dict[str, Any]:
+                 global_root: Path | None = None, memory_ids: list[str] | None = None) -> dict[str, Any]:
     end_month = end_month or start_month
     month_pattern = r"\d{4}-(0[1-9]|1[0-2])"
     if (not re.fullmatch(month_pattern, start_month) or not re.fullmatch(month_pattern, end_month)
@@ -2101,16 +2101,20 @@ def recall_stats(kind: str, start_month: str, end_month: str | None = None, *, p
         if not exists:
             return {'scope': kind, 'from_month': start_month, 'to_month': end_month,
                     'timezone': 'UTC', 'total_recalls': 0, 'memories': []}
+        restriction = '' if memory_ids is None else ' AND c.memory_id IN (' + ','.join('?' for _ in memory_ids) + ')'
         rows = conn.execute(
             """SELECT c.memory_id,m.title,m.status,SUM(c.recall_count)
             FROM recall_counts c JOIN memories m ON m.id=c.memory_id
-            WHERE c.month BETWEEN ? AND ? GROUP BY c.memory_id,m.title,m.status
+            WHERE c.month BETWEEN ? AND ?""" + restriction + """ GROUP BY c.memory_id,m.title,m.status
             ORDER BY SUM(c.recall_count) DESC,m.title,m.id""",
-            (start_month, end_month),
+            (start_month, end_month, *(memory_ids or [])),
         ).fetchall()
         memories = [{'id': row[0], 'title': row[1], 'status': row[2], 'recall_count': row[3]} for row in rows]
+        total = (conn.execute('SELECT COALESCE(SUM(recall_count),0) FROM recall_counts WHERE month BETWEEN ? AND ?',
+                              (start_month, end_month)).fetchone()[0] if memory_ids is not None
+                 else sum(row['recall_count'] for row in memories))
         return {'scope': kind, 'from_month': start_month, 'to_month': end_month, 'timezone': 'UTC',
-                'total_recalls': sum(row['recall_count'] for row in memories), 'memories': memories}
+                'total_recalls': total, 'memories': memories}
     finally:
         conn.close()
 
@@ -2602,18 +2606,19 @@ def set_capture(kind: str, enabled: bool, *, project_root: Path | None = None, g
     write_json_atomic(path, config)
     return {"status": "updated", "scope": kind, "capture_enabled": bool(enabled)}
 
-def get_store_status(kind: str, *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
+def get_store_status(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
+                     check_integrity: bool = True) -> dict[str, Any]:
     try:
         base, db, config = _config_for(kind, project_root, global_root)
         conn = _connect(db, readonly=True)
-        integrity = conn.execute("PRAGMA quick_check").fetchone()[0]
+        integrity = conn.execute("PRAGMA quick_check").fetchone()[0] if check_integrity else 'not_checked'
         counts = dict(conn.execute("SELECT status,COUNT(*) FROM memories WHERE scope=? GROUP BY status", (kind,)))
         revisions = {row[0]: row[1] for row in conn.execute("SELECT key,value FROM meta WHERE key IN ('data_revision','view_revision')")}
         conn.close()
         current_revision = int(revisions.get("data_revision", 0))
         view_revision = int(revisions["view_revision"]) if "view_revision" in revisions else None
         return {
-            "scope": kind, "status": "available" if integrity == "ok" else "corrupt",
+            "scope": kind, "status": "available" if integrity in {"ok", "not_checked"} else "corrupt",
             "database_exists": True, "readable": True, "writable": os.access(base, os.W_OK),
             "capture_mode": config.get("capture_mode", "full-project") if kind == "project" else "global",
             "capture_enabled": config.get("capture_enabled", True) and config.get("excluded") is not True,

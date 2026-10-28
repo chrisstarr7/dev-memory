@@ -81,6 +81,19 @@ class VectorTests(MemoryTestCase):
             self.assertLess(time.monotonic()-started, 2)
             self.assertTrue(all(child.poll() is not None for child in children))
 
+    def test_status_exposes_failed_batch_and_remaining_count(self):
+        self.add_project_rule()
+        config = {'model_fingerprint': 'fixture-1', 'model_name': 'fixture'}
+        with self.connection() as conn:
+            vectors._schema(conn)
+            conn.execute("INSERT INTO vector_job VALUES(1,'token',?,'failed')", (time.time()+30,))
+        with patch.object(vectors, '_settings', return_value=config):
+            result = vectors.status('project', project_root=self.project_a, global_root=self.global_root)
+        self.assertEqual(result['status'], 'failed')
+        self.assertEqual(result['eligible'], 1)
+        self.assertEqual(result['pending'], 1)
+        self.assertGreater(result['retry_after_seconds'], 0)
+
     def runtime(self):
         try:
             import sqlite_vec
