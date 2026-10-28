@@ -599,7 +599,7 @@ class Dashboard:
         turn = uuid.uuid4().hex
         payload = {"schema_version": 1, "scope": kind, "session_id": "local-dashboard",
                    "turn_id": turn, "idempotency_key": "dashboard:" + turn, "operations": [operation]}
-        result = store.apply_payload(payload, project_root=root, global_root=self.global_root)
+        result = store.apply_payload(payload, project_root=root, global_root=self.global_root, schedule_vectors=False)
         if result.get("status") not in {"saved", "checked_noop"}:
             first = result.get("stores", [{}])[0]
             raise store.MemoryError(first.get("error", "apply_failed"), "Memory change was not committed.")

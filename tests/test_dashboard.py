@@ -145,8 +145,10 @@ class DashboardTests(MemoryTestCase):
             conn.execute("INSERT INTO vector_state VALUES(?,?,?,'ready',1,'')", (mid, 1, 'old-model'))
         conn.close()
         app = dashboard.Dashboard(self.global_root)
-        app.action({'action': 'revise', 'scope': key, 'id': mid, 'revision': '1',
-                    'title': '中文标题', 'content': '仅已签收订单可退款', 'reason': '用户确认修订'})
+        with patch.object(vectors, 'schedule') as schedule:
+            app.action({'action': 'revise', 'scope': key, 'id': mid, 'revision': '1',
+                        'title': '中文标题', 'content': '仅已签收订单可退款', 'reason': '用户确认修订'})
+        schedule.assert_not_called()
         updated = store.show_record('project', mid, project_root=self.project_a)['record']
         self.assertEqual(updated['title'], '中文标题')
         for field in ('conditions', 'exceptions', 'do', 'dont'):

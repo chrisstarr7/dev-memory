@@ -1439,7 +1439,8 @@ def _turn_ingestion(top: dict[str, Any]) -> str:
     basis = json.dumps([top.get("session_id"), top.get("turn_id"), top.get("idempotency_key") if not top.get("turn_id") else None])
     return hashlib.sha256(basis.encode()).hexdigest()
 
-def _apply_store(kind: str, root: Path | None, global_root: Path | None, operations: list[dict[str, Any]], top: dict[str, Any]) -> dict[str, Any]:
+def _apply_store(kind: str, root: Path | None, global_root: Path | None, operations: list[dict[str, Any]], top: dict[str, Any],
+                 *, schedule_vectors: bool = True) -> dict[str, Any]:
     target_scope = kind
     try:
         base, db_path, config = _config_for(kind, root, global_root)
@@ -1584,10 +1585,11 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         output = {"scope": target_scope, "status": status, "operations": results, "data_revision": committed_revision, "maintenance": maintenance}
         if changed_ids:
             output["view_status"] = "stale_until_export"
-            try:
-                output['vectors'] = vectors.schedule(kind, project_root=root, global_root=global_root)
-            except (MemoryError, OSError, sqlite3.Error, ValueError):
-                output['vectors'] = {'status': 'deferred', 'reason': 'index_unavailable', 'raw_saved': True}
+            if schedule_vectors:
+                try:
+                    output['vectors'] = vectors.schedule(kind, project_root=root, global_root=global_root)
+                except (MemoryError, OSError, sqlite3.Error, ValueError):
+                    output['vectors'] = {'status': 'deferred', 'reason': 'index_unavailable', 'raw_saved': True}
         return output
     except MemoryError as exc:
         if conn is not None:
@@ -1607,7 +1609,8 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
             pass
         return {"scope": target_scope, "status": "failed", "error": "storage_unavailable", "message": "Storage write failed."}
 
-def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, global_root: Path | None = None) -> dict[str, Any]:
+def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, global_root: Path | None = None,
+                  schedule_vectors: bool = True) -> dict[str, Any]:
     if isinstance(payload, dict) and payload.get('maintenance', 'defer') not in ('defer', 'prepare'):
         raise MemoryError('validation_error', 'maintenance must be defer or prepare.')
     if not isinstance(payload, dict) or payload.get("schema_version") != SCHEMA_VERSION:
@@ -1647,7 +1650,7 @@ def apply_payload(payload: dict[str, Any], *, project_root: Path | None = None, 
     for kind, group in groups.items():
         if group:
             root = project_root if kind == "project" else None
-            results.append(_apply_store(kind, root, global_root, group, payload))
+            results.append(_apply_store(kind, root, global_root, group, payload, schedule_vectors=schedule_vectors))
     statuses = [item["status"] for item in results]
     successes = {"saved", "checked_noop", "duplicate_evidence"}
     skipped = {"skipped_private", "skipped_developer_first"}
