@@ -334,7 +334,7 @@
     },
     {
       "path": ".github/workflows/check.yml",
-      "sha256": "ae355c9297059e29db500967ea0eba4b2ac2b4e513a2cfa0719d6cde42c0cb85"
+      "sha256": "479e9ef822ab10dd3cec69446023cb7af84ee98fae5293c4fac6cb7b962f82a8"
     },
     {
       "path": "plugin.json",
@@ -374,7 +374,7 @@
     },
     {
       "path": ".github/workflows/vectors.yml",
-      "sha256": "81fd23349808712cf6a5bb7299e559fdfcbedaf0c8f0c6e479c3d6ab1327b4bd"
+      "sha256": "0bfa948795922a1fd4fd70d357131039507782b5e40b0cc852b30b44e12d1e1e"
     }
   ],
   "version": "0.10.0",

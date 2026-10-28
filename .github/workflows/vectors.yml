@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   vectors:
     name: vectors (${{ matrix.runner.os }}, ${{ matrix.python }})
@@ -25,7 +28,6 @@ jobs:
       PYTHONUTF8: '1'
       DEV_MEMORY_VECTOR_INTEGRATION: '1'
       EXPECTED_ARCH: ${{ matrix.runner.arch }}
-      DEV_MEMORY_VECTOR_ROOT: ${{ runner.temp }}/dev-memory-vector
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,7 +36,11 @@ jobs:
       - name: Verify native Python architecture
         run: python -c "import os, platform; from pathlib import Path; assert platform.machine() == os.environ['EXPECTED_ARCH'], platform.machine(); assert Path('tests/test_vector_integration.py').is_file()"
       - name: Real local model and sqlite-vec integration
+        env:
+          DEV_MEMORY_VECTOR_ROOT: ${{ runner.temp }}/dev-memory-vector
         run: python -m unittest discover -s tests -p test_vector_integration.py -v
       - name: Storage lifecycle and bounded worker checks
+        env:
+          DEV_MEMORY_VECTOR_ROOT: ${{ runner.temp }}/dev-memory-vector
         run: |
           python -c "import json,os,subprocess,sys; from pathlib import Path; c=json.loads((Path(os.environ['DEV_MEMORY_VECTOR_ROOT'])/'vector-runtime/config.json').read_text()); sys.exit(subprocess.call([c['python'],'-m','unittest','discover','-s','tests','-p','test_vectors.py','-v']))"
