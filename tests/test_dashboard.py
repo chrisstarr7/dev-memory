@@ -42,6 +42,8 @@ class DashboardTests(MemoryTestCase):
         with patch('dev_memory_vectors.schedule', side_effect=AssertionError('GET must not index')):
             page = app.index({'scope': key})
         self.assertIn('向量索引', page)
+        self.assertIn('记忆记录与向量明细', page)
+        self.assertIn('实际存储的完整向量', page)
         with patch('dev_memory_vectors.schedule', return_value={'status':'running'}) as schedule:
             target = app.action({'action':'vectors_sync', 'scope':key})
         self.assertEqual(target, '/?scope=' + key)
@@ -294,9 +296,19 @@ class DashboardTests(MemoryTestCase):
             key = dashboard.projects(self.global_root)[0]["namespace_id"]
             preview = urllib.request.Request(clean_url + "preview",
                                              data=urlencode({"csrf": csrf.group(1), "scope": key,
-                                                             "q": "退款 已送达"}).encode())
+                                                             "q": "退款 已送达"}).encode(),
+                                             headers={"Origin": urlsplit(clean_url).scheme + "://" +
+                                                      urlsplit(clean_url).netloc + "/"})
             with opener.open(preview, timeout=5) as response:
                 self.assertIn("只读预览", response.read().decode())
+            bad_origin = urllib.request.Request(clean_url + "preview",
+                                                data=urlencode({"csrf": csrf.group(1), "scope": key,
+                                                                "q": "退款"}).encode(),
+                                                headers={"Origin": "https://example.com"})
+            with self.assertRaises(urllib.error.HTTPError) as origin_rejected:
+                opener.open(bad_origin, timeout=5)
+            self.assertEqual(origin_rejected.exception.code, 403)
+            self.assertIn("来源与本机看板不一致", origin_rejected.exception.read().decode())
             month = datetime.now(timezone.utc).strftime("%Y-%m")
             self.assertEqual(store.recall_stats("project", month, project_root=self.project_a)["total_recalls"], 0)
             backup = urllib.request.Request(clean_url + "action",

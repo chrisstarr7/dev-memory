@@ -138,20 +138,21 @@ class Dashboard:
                 f"<title>{_h(title)} · Dev Memory</title><style>"
                 "body{font:15px/1.6 system-ui,-apple-system,sans-serif;color:#20242c;background:#f5f7fa;margin:0}"
                 "header{background:#14223b;color:#fff;padding:18px 24px}header a{color:#fff}"
-                "main{max-width:1180px;margin:24px auto;padding:0 18px;display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px}"
-                "nav,.panel{background:white;border:1px solid #dce1e8;border-radius:10px;padding:18px;margin-bottom:16px}"
-                "nav{align-self:start;position:sticky;top:18px}nav a{display:block;padding:6px 0;overflow-wrap:anywhere}"
+                "main{max-width:1440px;margin:28px auto;padding:0 24px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px}"
+                "nav,.panel{background:white;border:1px solid #dce1e8;border-radius:12px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px #14223b08}"
+                "nav{align-self:start;position:sticky;top:18px}nav a{display:block;padding:8px 0;overflow-wrap:anywhere}"
                 "a{color:#2355a5;text-decoration:none}a:hover{text-decoration:underline}"
                 "h1{font-size:1.55rem;margin:0 0 14px}h2{font-size:1.15rem;margin:0 0 10px}h3{margin-bottom:6px}"
                 ".muted{color:#5c6878}.warn{color:#a14c00}.bad{color:#a52222}.pill{background:#eaf0fb;padding:2px 8px;border-radius:12px}"
                 ".scope-row{display:flex;justify-content:space-between;gap:16px;border-top:1px solid #e9edf2;padding:10px 0}"
                 "table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;border-bottom:1px solid #e6e9ee;padding:8px}"
-                "input,select,textarea,button{font:inherit;padding:7px;margin:4px 5px 4px 0;max-width:100%;box-sizing:border-box}"
-                "form.filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px}form.filters>*{margin:0}"
-                "form.filters input[name=q]{flex:1;min-width:170px}"
-                "textarea{width:100%;min-height:90px}button{background:#2456a6;color:white;border:0;border-radius:5px;cursor:pointer}"
+                "input,select,textarea,button{font:inherit;padding:9px 11px;margin:4px 5px 4px 0;max-width:100%;box-sizing:border-box;border:1px solid #cbd3df;border-radius:7px}"
+                "form.filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px}form.filters>*{margin:0}"
+                "form.filters input[name=q]{flex:1;min-width:220px}"
+                "textarea{width:100%;min-height:90px}button{background:#2456a6;color:white;border:0;border-radius:7px;cursor:pointer}"
                 "button.danger{background:#ad2d2d}form.inline{display:inline}.record{white-space:pre-wrap;overflow-wrap:anywhere}"
-                "details{margin:8px 0}code{overflow-wrap:anywhere}@media(max-width:750px){main{display:block}nav{position:static}.scope-row{display:block}}"
+                "details{margin:8px 0}code{overflow-wrap:anywhere}table{display:block;overflow-x:auto}"
+                "@media(max-width:750px){main{display:block;padding:0 14px;margin:16px auto}nav{position:static}.scope-row{display:block}.panel{padding:16px}form.filters{align-items:stretch}form.filters>*{width:100%}}"
                 "</style><header><strong>Dev Memory</strong>　<span>本机记忆看板</span></header><main><nav><strong>记忆范围</strong>"
                 + "".join(nav) + '<hr><a href="/?scope=all">跨范围搜索</a><a href="/projects">项目管理</a></nav>'
                 f'<div><h1>{_h(title)}</h1>{body}</div></main></html>')
@@ -259,7 +260,7 @@ class Dashboard:
                                  'unavailable': '暂不可用', 'disabled': '已禁用'}
                 body += (f'<section class=panel><h2>向量索引</h2><p>{_h(vector_labels.get(vector_state["status"], vector_state["status"]))}'
                          f'；已就绪 {_h(vector_state.get("ready", 0))} 条；待补齐 {_h(vector_state.get("pending", 0))} 条。'
-                         '点击记忆标题可查看中文原文、索引版本和完整向量数值；浏览不会启动索引。</p>')
+                         '选择下方记忆标题可查看中文原文、索引版本和实际存储的完整向量；浏览不会启动索引。</p>')
                 if vector_state.get('reason'):
                     body += f'<p class=muted>原因：{_h(vector_state["reason"])}</p>'
                 if state.get('capture_enabled') and vectors.enabled(self.global_root):
@@ -277,7 +278,7 @@ class Dashboard:
                 counts = {}
                 body += f'<section class=panel>该范围当前不可读取：{_h(state.get("reason", "召回已禁用"))}。</section>'
         if rows:
-            body += '<section class=panel><h2>记忆记录</h2><table><tr><th>范围 / 标题</th><th>状态</th><th>类型</th><th>更新时间</th><th>月度返回</th></tr>'
+            body += '<section class=panel id=memory-records><h2>记忆记录与向量明细</h2><p class=muted>点击标题查看该条记录的原文、向量状态、模型和实际向量数值。</p><table><tr><th>范围 / 标题</th><th>状态</th><th>类型</th><th>更新时间</th><th>月度返回</th></tr>'
             for scope_key, row in rows:
                 link = '/record?' + urlencode({"scope": scope_key, "id": row["id"]})
                 amount = str(counts.get(row["id"], 0)) if key != "all" else "—"
@@ -614,9 +615,15 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
                 self._respond(app._shell("无法读取", f'<section class=panel>{_h(exc)}</section>'), 400)
 
         def do_POST(self) -> None:
-            if (not self._host_ok() or not self._authorized() or
-                    self.headers.get("Origin") not in (None, f"http://127.0.0.1:{self.server.server_port}")):
-                self._respond("Forbidden", 403); return
+            if not self._host_ok() or not self._authorized():
+                self._respond("本机看板会话无效，请从看板启动链接重新打开页面。", 403); return
+            origin = self.headers.get("Origin")
+            if origin is not None:
+                parsed_origin = urlsplit(origin)
+                if (parsed_origin.scheme != "http" or parsed_origin.hostname != "127.0.0.1" or
+                        parsed_origin.port != self.server.server_port or parsed_origin.path not in ("", "/") or
+                        parsed_origin.username is not None or parsed_origin.password is not None):
+                    self._respond("请求来源与本机看板不一致，请从看板页面重新操作。", 403); return
             route = urlsplit(self.path).path
             if route not in {"/action", "/preview"}:
                 self._respond("Not found", 404); return
@@ -627,7 +634,7 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
                 raw = self.rfile.read(length).decode("utf-8")
                 form = {key: values[0] for key, values in parse_qs(raw).items()}
                 if not secrets.compare_digest(form.get("csrf", ""), app.csrf):
-                    self._respond("Forbidden", 403); return
+                    self._respond("页面安全令牌已失效，请刷新看板后重试。", 403); return
                 if route == "/preview":
                     self._respond(app.preview(form.get("scope", ""), form.get("q", ""), form.get("intent")))
                     return
