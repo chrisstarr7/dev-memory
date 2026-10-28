@@ -126,8 +126,9 @@ class Dashboard:
         return "未知项目"
 
     def _shell(self, title: str, body: str) -> str:
-        nav = ['<a href="/?scope=global">全局记忆</a>']
+        nav = ['<strong class=nav-heading>\u5168\u5c40\u8bb0\u5fc6</strong><a href="/?scope=global">\u8bb0\u5fc6\u5e93\u603b\u89c8</a>']
         rows, catalog_error = self._registered_projects()
+        nav.append('<strong class=nav-heading>\u9879\u76ee\u8bb0\u5fc6</strong>')
         for row in rows:
             key = row["namespace_id"]
             nav.append(f'<a href="/?scope={_h(key)}" title="{_h(row["path"])}">{_h(Path(row["path"]).name)}</a>')
@@ -140,7 +141,7 @@ class Dashboard:
                 "header{background:#14223b;color:#fff;padding:18px 24px}header a{color:#fff}"
                 "main{max-width:1440px;margin:28px auto;padding:0 24px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px}"
                 "nav,.panel{background:white;border:1px solid #dce1e8;border-radius:12px;padding:22px;margin-bottom:18px;box-shadow:0 2px 8px #14223b08}"
-                "nav{align-self:start;position:sticky;top:18px}nav a{display:block;padding:8px 0;overflow-wrap:anywhere}"
+                "nav{align-self:start;position:sticky;top:18px}nav a{display:block;padding:8px 0;overflow-wrap:anywhere}.nav-heading{display:block;margin-top:12px;color:#56657a}"
                 "a{color:#2355a5;text-decoration:none}a:hover{text-decoration:underline}"
                 "h1{font-size:1.55rem;margin:0 0 14px}h2{font-size:1.15rem;margin:0 0 10px}h3{margin-bottom:6px}"
                 ".muted{color:#5c6878}.warn{color:#a14c00}.bad{color:#a52222}.pill{background:#eaf0fb;padding:2px 8px;border-radius:12px}"
@@ -277,12 +278,29 @@ class Dashboard:
             else:
                 counts = {}
                 body += f'<section class=panel>该范围当前不可读取：{_h(state.get("reason", "召回已禁用"))}。</section>'
+        if rows and key != "all":
+            import dev_memory_vectors as vectors
+            body += '<section class=panel><h2>\u5b9e\u9645\u5411\u91cf\u6570\u636e</h2><p class=muted>\u4ee5\u4e0b\u4e3a\u5f53\u524d\u8bb0\u5fc6\u5e93\u5df2\u5199\u5165 SQLite \u5411\u91cf\u8868\u7684\u5b9e\u9645\u6570\u503c\u6458\u8981\uff1b\u70b9\u51fb\u6807\u9898\u67e5\u770b\u5b8c\u6574\u5411\u91cf\u3002</p>'
+            found_vector = False
+            for scope_key, row in rows:
+                vector_kind, vector_root = self._target(scope_key)
+                vector = vectors.inspect_record(vector_kind, row["id"], project_root=vector_root,
+                                                global_root=self.global_root)
+                values = vector.get("embedding")
+                if values:
+                    found_vector = True
+                    link = '/record?' + urlencode({"scope": scope_key, "id": row["id"]})
+                    preview = ', '.join(f'{value:.5f}' for value in values[:12])
+                    body += f'<div class=scope-row><a href="{_h(link)}">{_h(row["title"])}</a><span><b>{_h(vector.get("dimensions"))}D</b> <code>{_h(preview)}…</code></span></div>'
+            if not found_vector:
+                body += '<p class=muted>\u5f53\u524d\u7b5b\u9009\u7ed3\u679c\u4e2d\u6ca1\u6709\u5df2\u5199\u5165\u7684\u5411\u91cf\u6570\u636e\u3002</p>'
+            body += '</section>'
         if rows:
             body += '<section class=panel id=memory-records><h2>记忆记录与向量明细</h2><p class=muted>点击标题查看该条记录的原文、向量状态、模型和实际向量数值。</p><table><tr><th>范围 / 标题</th><th>状态</th><th>类型</th><th>更新时间</th><th>月度返回</th></tr>'
             for scope_key, row in rows:
                 link = '/record?' + urlencode({"scope": scope_key, "id": row["id"]})
                 amount = str(counts.get(row["id"], 0)) if key != "all" else "—"
-                body += (f'<tr><td><small>{_h(self._scope_name(scope_key))}</small><br><a href="{_h(link)}">{_h(row["title"])}</a></td>'
+                body += (f'<tr><td><a href="{_h(link)}">{_h(row["title"])}</a></td>'
                          f'<td>{_h(STATUS_LABELS.get(row["status"], row["status"]))}</td>'
                          f'<td>{_h(KIND_LABELS.get(row["kind"], row["kind"]))} / {_h(CLAIM_LABELS.get(row["claim_type"], row["claim_type"]))}</td>'
                          f'<td>{_h(_local_time(row["updated_at"]))}</td><td>{_h(amount)}</td></tr>')
