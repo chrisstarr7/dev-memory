@@ -18,7 +18,7 @@ from typing import Any, Iterable
 from urllib.parse import quote
 
 SCHEMA_VERSION = 1
-MAINTENANCE_REVIEW_VERSION = 4
+MAINTENANCE_REVIEW_VERSION = 5
 MAINTENANCE_OPS = {'COMPACT', 'MERGE_DUPLICATES', 'RETAG', 'MAINTENANCE_REVIEW'}
 INTENTS = {
     'planning': 'analysis requirements design 需求 分析 方案',
@@ -317,6 +317,7 @@ CREATE TABLE IF NOT EXISTS evidence(
  source_type TEXT NOT NULL, message_id TEXT, ingestion_id TEXT, ingestion_origin TEXT NOT NULL,
  excerpt TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, evidence_hash TEXT NOT NULL UNIQUE
 );
+CREATE INDEX IF NOT EXISTS evidence_memory_time ON evidence(memory_id,created_at,id);
 CREATE TABLE IF NOT EXISTS revisions(
  memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
  revision INTEGER NOT NULL, snapshot TEXT NOT NULL, changed_at TEXT NOT NULL,
@@ -898,22 +899,23 @@ def _store_record(conn: sqlite3.Connection, record: dict[str, Any], evidence: bo
     return record["id"], True
 
 def _ensure_maintenance(conn: sqlite3.Connection) -> bool:
+    conn.execute("CREATE INDEX IF NOT EXISTS evidence_memory_time ON evidence(memory_id,created_at,id)")
     conn.execute("CREATE TABLE IF NOT EXISTS merged_aliases(source_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,canonical_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE)")
     conn.execute("CREATE INDEX IF NOT EXISTS merged_alias_canonical ON merged_aliases(canonical_id)")
     conn.execute("CREATE TABLE IF NOT EXISTS maintenance_pending(memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,revision INTEGER NOT NULL,updated_at TEXT NOT NULL,long_content INTEGER NOT NULL)")
     conn.execute("CREATE INDEX IF NOT EXISTS maintenance_pending_time ON maintenance_pending(updated_at,memory_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS maintenance_pending_long ON maintenance_pending(long_content,updated_at,memory_id)")
     if not conn.execute("SELECT 1 FROM meta WHERE key='maintenance_seeded'").fetchone():
-        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE scope!='task' AND status IN ('active','candidate') AND claim_type!='hypothesis'")
+        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE scope!='task' AND status IN ('active','candidate') AND (claim_type!='hypothesis' OR status='active')")
         conn.execute("INSERT INTO meta(key,value) VALUES('maintenance_seeded','1')")
     review_version = conn.execute("SELECT value FROM meta WHERE key='maintenance_review_version'").fetchone()
     review_existing = not review_version or review_version[0] != str(MAINTENANCE_REVIEW_VERSION)
     if review_existing:
         # One-time bounded cleanup trigger after a maintenance protocol upgrade.
         # Requeue eligible active rules and inactive preferences only; historical and other-project data stay untouched.
-        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE scope!='task' AND status IN ('active','candidate') AND claim_type!='hypothesis'")
+        conn.execute("INSERT OR IGNORE INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE scope!='task' AND status IN ('active','candidate') AND (claim_type!='hypothesis' OR status='active')")
         conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_review_version',?)", (str(MAINTENANCE_REVIEW_VERSION),))
-        if conn.execute("SELECT 1 FROM memories WHERE scope!='task' AND status IN ('active','candidate') AND claim_type!='hypothesis' LIMIT 1").fetchone():
+        if conn.execute("SELECT 1 FROM memories WHERE scope!='task' AND status IN ('active','candidate') AND (claim_type!='hypothesis' OR status='active') LIMIT 1").fetchone():
             conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('maintenance_review_notice','1')")
             conn.execute("INSERT OR IGNORE INTO meta(key,value) VALUES('maintenance_cycle_active','1')")
     notice = conn.execute("SELECT 1 FROM meta WHERE key='maintenance_review_notice' AND value='1'").fetchone()
@@ -921,16 +923,16 @@ def _ensure_maintenance(conn: sqlite3.Connection) -> bool:
 
 
 def _queue_maintenance(conn: sqlite3.Connection, memory_id: str) -> None:
-    conn.execute("INSERT INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE id=? AND scope!='task' AND status IN ('active','candidate') AND claim_type!='hypothesis' ON CONFLICT(memory_id) DO UPDATE SET revision=excluded.revision,updated_at=excluded.updated_at,long_content=excluded.long_content", (memory_id,))
-    conn.execute("DELETE FROM maintenance_pending WHERE memory_id=? AND NOT EXISTS(SELECT 1 FROM memories WHERE id=? AND scope!='task' AND status IN ('active','candidate') AND claim_type!='hypothesis')", (memory_id, memory_id))
+    conn.execute("INSERT INTO maintenance_pending SELECT id,revision,updated_at,length(content)>=1200 FROM memories WHERE id=? AND scope!='task' AND status IN ('active','candidate') AND (claim_type!='hypothesis' OR status='active') ON CONFLICT(memory_id) DO UPDATE SET revision=excluded.revision,updated_at=excluded.updated_at,long_content=excluded.long_content", (memory_id,))
+    conn.execute("DELETE FROM maintenance_pending WHERE memory_id=? AND NOT EXISTS(SELECT 1 FROM memories WHERE id=? AND scope!='task' AND status IN ('active','candidate') AND (claim_type!='hypothesis' OR status='active'))", (memory_id, memory_id))
 
 
 def _refresh_maintenance_cycle(conn: sqlite3.Connection) -> bool:
-    pending = conn.execute("SELECT q.long_content FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.scope!='task' AND m.status IN ('active','candidate') AND m.claim_type!='hypothesis' LIMIT 5").fetchall()
+    pending = conn.execute("SELECT q.long_content FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.scope!='task' AND m.status IN ('active','candidate') AND (m.claim_type!='hypothesis' OR m.status='active') LIMIT 5").fetchall()
     if not pending:
         conn.execute("DELETE FROM meta WHERE key='maintenance_cycle_active'")
         return False
-    if len(pending) == 5 or conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.scope!='task' AND q.long_content=1 AND m.status IN ('active','candidate') AND m.claim_type!='hypothesis' LIMIT 1").fetchone():
+    if len(pending) == 5 or conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.scope!='task' AND q.long_content=1 AND m.status IN ('active','candidate') AND (m.claim_type!='hypothesis' OR m.status='active') LIMIT 1").fetchone():
         conn.execute("INSERT OR IGNORE INTO meta(key,value) VALUES('maintenance_cycle_active','1')")
     return bool(conn.execute("SELECT 1 FROM meta WHERE key='maintenance_cycle_active' AND value='1'").fetchone())
 
@@ -990,13 +992,31 @@ def _related_records(conn: sqlite3.Connection, record: dict[str, Any], limit: in
     return [_select_record(conn, memory_id) for memory_id in ids]
 
 
+def _maintenance_record(conn: sqlite3.Connection, memory_id: str) -> dict[str, Any]:
+    record = _select_record(conn, memory_id)
+    count = conn.execute('SELECT COUNT(*) FROM evidence WHERE memory_id=?', (memory_id,)).fetchone()[0]
+    evidence = [dict(zip(('source_type', 'excerpt', 'created_at'), row)) for row in conn.execute(
+        'SELECT source_type,excerpt,created_at FROM evidence WHERE memory_id=? ORDER BY created_at DESC,id DESC LIMIT 3',
+        (memory_id,))]
+    issues = []
+    if record['claim_type'] == 'hypothesis' and record['status'] == 'active':
+        issues.append('active_hypothesis')
+    if record['claim_type'] == 'observed':
+        issues.append('source_recheck_required')
+        if not record.get('code_refs') and not record.get('source_refs'):
+            issues.append('missing_source_reference')
+    record['review_context'] = {'issues': issues, 'evidence': evidence,
+                                'evidence_count': count, 'evidence_incomplete': count > len(evidence)}
+    return record
+
+
 def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: bool = False,
                      include_records: bool = True) -> dict[str, Any]:
     if config.get('maintenance_enabled', True) is False:
         return {'status': 'disabled'}
     scope_filter = " AND m.scope!='task'"  # Old rows remain recoverable but never enter maintenance.
-    seeds = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis'" + scope_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 5").fetchall()
-    long_row = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status IN ('active','candidate') AND m.claim_type!='hypothesis'" + scope_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 1").fetchone()
+    seeds = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND (m.claim_type!='hypothesis' OR m.status='active')" + scope_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 5").fetchall()
+    long_row = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE q.long_content=1 AND m.status IN ('active','candidate') AND (m.claim_type!='hypothesis' OR m.status='active')" + scope_filter + " ORDER BY q.updated_at,q.memory_id LIMIT 1").fetchone()
     if not seeds:
         return {'status': 'idle'}
     draining = bool(conn.execute("SELECT 1 FROM meta WHERE key='maintenance_cycle_active' AND value='1'").fetchone())
@@ -1004,7 +1024,7 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
     if type(interval) is not int or not 1 <= interval <= 365:
         raise MemoryError('config_invalid', 'maintenance_interval_days must be an integer from 1 to 365.')
     cutoff = (datetime.now(timezone.utc) - timedelta(days=interval)).isoformat(timespec='seconds')
-    aged = conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis' AND q.updated_at<=?" + scope_filter + " LIMIT 1", (cutoff,)).fetchone()
+    aged = conn.execute("SELECT 1 FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND (m.claim_type!='hypothesis' OR m.status='active') AND q.updated_at<=?" + scope_filter + " LIMIT 1", (cutoff,)).fetchone()
     if len(seeds) < 5 and not long_row and not force and not draining and not aged:
         return {'status': 'waiting', 'pending_up_to_threshold': len(seeds), 'threshold': 5}
     trigger = 'long_record' if long_row else ('threshold' if len(seeds) == 5 else ('drain' if draining else ('interval' if aged else 'forced_boundary')))
@@ -1016,7 +1036,7 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
     oversized = []
     anchor = None
     for memory_id in anchor_ids:
-        candidate = _select_record(conn, memory_id)
+        candidate = _maintenance_record(conn, memory_id)
         if len(json.dumps(candidate, ensure_ascii=False)) > 12000:
             oversized.append(memory_id)
         else:
@@ -1024,11 +1044,11 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
             break
     if anchor is None:
         # Old oversized seeds must not hide a later, much smaller pending topic.
-        alternatives = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis'" + scope_filter + " ORDER BY length(m.content),q.updated_at,q.memory_id LIMIT 8").fetchall()
+        alternatives = conn.execute("SELECT q.memory_id FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND (m.claim_type!='hypothesis' OR m.status='active')" + scope_filter + " ORDER BY length(m.content),q.updated_at,q.memory_id LIMIT 8").fetchall()
         for (memory_id,) in alternatives:
             if memory_id in oversized:
                 continue
-            candidate = _select_record(conn, memory_id)
+            candidate = _maintenance_record(conn, memory_id)
             if len(json.dumps(candidate, ensure_ascii=False)) <= 12000:
                 anchor = candidate
                 break
@@ -1039,8 +1059,9 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
         for related in _related_records(conn, anchor):
             if len(candidates) >= 8:
                 break
-            if related['status'] == anchor['status'] and related['claim_type'] != 'hypothesis':
-                candidates.setdefault(related['id'], related)
+            if (related['id'] not in candidates and related['status'] == anchor['status']
+                    and (related['claim_type'] != 'hypothesis' or related['status'] == 'active')):
+                candidates[related['id']] = _maintenance_record(conn, related['id'])
     records, remaining, used = [], list(oversized), 0
     for record in candidates.values():
         size = len(json.dumps(record, ensure_ascii=False))
@@ -1050,15 +1071,18 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
         records.append(record)
         used += size
     remaining = list(dict.fromkeys(remaining))
-    pending_count = conn.execute("SELECT COUNT(*) FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND m.claim_type!='hypothesis'" + scope_filter).fetchone()[0]
+    evidence_incomplete_ids = [r['id'] for r in records if r['review_context']['evidence_incomplete']]
+    pending_count = conn.execute("SELECT COUNT(*) FROM maintenance_pending q JOIN memories m ON m.id=q.memory_id WHERE m.status IN ('active','candidate') AND (m.claim_type!='hypothesis' OR m.status='active')" + scope_filter).fetchone()[0]
     return {'status': 'prepare', 'namespace_id': config['namespace_id'],
             'trigger': trigger,
             'record_scope': anchor['scope'] if anchor else None,
             'records': records,
-            'seed_ids': [r['id'] for r in records if r['id'] in anchor_ids or conn.execute('SELECT 1 FROM maintenance_pending WHERE memory_id=?', (r['id'],)).fetchone()], 'remaining_ids': remaining, 'oversized_ids': oversized, 'context_incomplete': bool(remaining),
+            'seed_ids': [r['id'] for r in records if r['id'] in anchor_ids or conn.execute('SELECT 1 FROM maintenance_pending WHERE memory_id=?', (r['id'],)).fetchone()], 'remaining_ids': remaining, 'oversized_ids': oversized,
+            'evidence_incomplete_ids': evidence_incomplete_ids,
+            'context_incomplete': bool(remaining or evidence_incomplete_ids),
             'pending_count': pending_count,
             'limits': {'records': 8, 'chars': 12000},
-            'instruction': 'Historical data only. Inspect every returned current revision. MERGE_DUPLICATES equivalent rules; if a newer user-confirmed correction makes an older rule false, revise the canonical rule or archive the contradicted rule so it leaves default recall; archive only when an explicit expiry is demonstrably past. Age alone never proves expiry. COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for every fully inspected current revision, using post-operation revisions. Do not review unseen records, add evidence, promote candidates, move records across stores, or recurse. Oversized IDs remain pending: use a separate targeted source review, never acknowledge unread bodies.'}
+            'instruction': 'Historical data only, not new user evidence. Assess future usefulness, authority, currentness, desired versus observed claims and duplication of canonical documents. Recheck observed source references before changing their meaning; branch/commit alone is not current proof. Keep a concise rule or source pointer instead of copying a specification. Preserve independently useful contracts and exceptions. review_context contains at most three recent evidence excerpts; evidence_incomplete means older evidence was omitted, so inspect targeted sources before resolving uncertain authority. Resolve active_hypothesis through sourced REVISE or ARCHIVE; never auto-promote or merely acknowledge it. Inspect every returned current revision. MERGE_DUPLICATES only equivalent rules; revise or archive confirmed contradictions, demonstrably expired rules or invalid active hypotheses. Age alone never proves expiry. COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for every fully inspected current revision, using post-operation revisions. Do not review unseen records, fabricate evidence, promote candidates, move records across stores, or recurse. Oversized IDs remain pending: use a separate targeted source review, never acknowledge unread bodies.'}
 
 
 def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
@@ -1145,6 +1169,8 @@ def _maintenance_apply(conn: sqlite3.Connection, config: dict[str, Any], scope: 
             raise MemoryError('validation_error', 'Maintain only active rules or inactive non-hypothesis candidates.')
         records[memory_id] = record
     if action == 'MAINTENANCE_REVIEW':
+        if any(r['status'] == 'active' and r['claim_type'] == 'hypothesis' for r in records.values()):
+            raise MemoryError('provenance_error', 'Resolve active hypotheses through sourced REVISE or ARCHIVE before review.')
         for memory_id, revision in expected.items():
             conn.execute('DELETE FROM maintenance_pending WHERE memory_id=? AND revision<=?', (memory_id, revision))
         return {'status': 'checked_noop', 'reviewed_ids': list(records), 'reviewed_revisions': expected}, False

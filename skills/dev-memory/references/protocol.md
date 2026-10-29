@@ -107,6 +107,16 @@ A mixed-scope envelope may carry a project task/branch/commit context. The globa
 
 ## Automatic duplicate prevention and maintenance
 
+Maintenance is a host-assisted review, not an unattended semantic rewrite. Five **distinct pending records** trigger a due notice; five edits of one record do not. The host processes one bounded topic at a safe boundary, preserves unresolved work, and inspects commit receipts before reporting completion. No background service or extra model call is required for ordinary capture.
+
+Queue eligibility is independent of recall counts. An unused new/candidate record can require review; repeatedly returning an unchanged record does not requeue it. A source conflict discovered during use needs targeted verification before adoption, even below the automatic threshold. Recall statistics measure returned content, not correctness or demonstrated use.
+
+Review usefulness and authority before compressing: retain durable contracts and costly-to-rediscover code facts, remove duplicated specification prose in favor of an actionable invariant plus canonical source references, and keep desired rules separate from observed behavior. Recheck observed sources against the current branch. Short acknowledgements without their referenced proposal are insufficient to establish detailed new rules; retain the previously supported core and seek targeted context rather than inventing evidence or blanket-demoting confirmed records. Expiry and supersession require evidence, not age or title similarity.
+
+Legacy active hypotheses are maintenance anomalies even though normal recall excludes them. Resolve them with revision-checked ARCHIVE or source-backed REVISE before acknowledging review. An incomplete evidence/source review must remain pending. Pack limits include any embedded provenance, and truncated provenance must be disclosed; a preparation pack never certifies business correctness.
+
+Prepared records include `review_context`: structural `issues`, at most three recent evidence excerpts, `evidence_count`, and `evidence_incomplete`. Use current source references for targeted follow-up when the excerpts cannot establish authority. This context consumes the same 12000-character budget as the record bodies. A review-version upgrade queues eligible records and legacy active hypotheses once; it does not change their content or promote them.
+
 `match --project-root PATH` reads one proposed record from stdin:
 `{"scope":"project","record":{...valid record...}}`. It reads only the selected store, returns at most eight complete candidates within 12000 characters, and writes no receipt/cache/state. Use remembered context instead when it already contains the applicable rule. `exact_id` is a deterministic content match; other candidates require current-AI semantic review. The fingerprint ignores titles and normalizes body whitespace, preserves case-sensitive business values, and separates conditions, exceptions, negative requirements, claim type, scope, verification and observed code versions. Project-rule task IDs describe provenance and do not create a new business rule per task. No fuzzy threshold silently merges rules.
 
