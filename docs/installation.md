@@ -195,6 +195,8 @@ AI 可从安装副本运行 `doctor --project-root <路径>`，检查 `project_a
 - **网络失败**：先确认能访问 GitHub，再重试同一在线命令；没有“安装成功”和项目初始化回执时，不算完成。下载、校验失败不会安装，安装阶段超时可能留下部分结果，应检查后重试。
 - **HTTPS 证书错误**：保持证书验证，不使用 `-k` 或关闭 SSL 检查。macOS 安装包读取会加载系统 CA；自定义 `SSL_CERT_FILE` / `SSL_CERT_DIR` 会被保留。Windows/Python 首次下载失败时检查系统或管理员的 CA 配置。
 - **Python 准备失败**：按安装器提示区分下载、完整性校验和目录权限问题，修复后重试同一条 npx 命令。无需先卸载系统 Python；安装器不会关闭 TLS 校验或自动修改系统代理。
+- **下载配置**：专用 Python 引导下载不读取用户的默认 curl 配置，代理与证书环境变量仍会传入下载进程，避免默认输出选项或其他配置干扰安装。
+- **提示另一个进程正在准备 Python**：并发安装最多等待 30 秒，普通失败会释放自己的锁。若安装进程被强制终止，先确认 `python-runtime/setup.lock` 中的进程已退出，再清理该锁并重试；不要删除共享解释器或记忆库。
 - **Windows 原生依赖加载失败**：先核对错误说明、解释器与依赖架构。若缺少 VC++ 运行库，按 [ONNX Runtime 系统要求](https://onnxruntime.ai/docs/install/#requirements)执行 `winget install --exact --id "Microsoft.VCRedist.2015+.x64"` 后重试。安装器不自动安装系统运行库，也不要求安装 Visual Studio / C++ 编译工具。仅凭依赖下载失败不能判定缺少运行库。
 - **直接 Python 入口版本不兼容**：基础记忆要求 3.10+。Windows 向量固定依赖支持标准 x64 CPython 3.10–3.14；32 位、原生 ARM64、3.15 和自由线程版本没有完整匹配包。可改用推荐 npx 入口自动准备兼容 Python；Linux 按发行版说明准备 venv、pip 和 SQLite 扩展支持。依赖范围见 [sqlite-vec 文件](https://pypi.org/project/sqlite-vec/0.1.9/#files)、[ORT 1.23.2](https://pypi.org/project/onnxruntime/1.23.2/#files)、[ORT 1.31.1](https://pypi.org/project/onnxruntime/1.31.1/#files)。
 - **找不到 npx**：使用含 npm 的 Node.js 22+，或使用上面的 Python 在线入口。
