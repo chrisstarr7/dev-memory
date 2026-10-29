@@ -21,6 +21,13 @@ const python = path.join(root, 'python', 'cpython-3.12-fixture', 'bin', 'python3
 let found = python;
 const calls = [];
 let downloads=0;
+if (process.env.FIXTURE_LOCK_WRITE_FAIL) {
+  const write=fs.writeFileSync;
+  fs.writeFileSync=(target,...args)=>{
+    if (typeof target==='number') throw Object.assign(new Error('private filesystem details'),{code:'ENOSPC'});
+    return write(target,...args);
+  };
+}
 require('node:child_process').spawnSync = (command, args, options) => {
   calls.push({command,args,env: options.env});
   if (args.includes('--proto')) {
@@ -40,6 +47,11 @@ require('node:child_process').spawnSync = (command, args, options) => {
     fs.writeFileSync(path.join(dest,member),'uv fixture');
   }
   if (args[0]==='python' && args[1]==='install') {
+    if (process.env.FIXTURE_REPLACED_LOCK) {
+      fs.unlinkSync(path.join(root,'setup.lock'));
+      fs.writeFileSync(path.join(root,'setup.lock'),'replacement owner');
+      return {status:1,stdout:'private download URL and secret'};
+    }
     if (process.env.FIXTURE_INSTALL_FAIL) return {status:1,stdout:'private download URL and secret'};
     fs.mkdirSync(path.dirname(python),{recursive:true}); fs.writeFileSync(python,'python fixture');
     if (process.env.FIXTURE_INTERNAL_LINK) {
@@ -193,6 +205,22 @@ class PythonRuntimeTests(unittest.TestCase):
         self.assertFalse((self.base/'python-runtime/runtime.json').exists())
         self.assertFalse((self.base/'python-runtime/setup.lock').exists())
 
+    def test_lock_write_failure_releases_file_for_a_retry(self):
+        result=self.run_fixture(FIXTURE_LOCK_WRITE_FAIL='1')
+        self.assertEqual(result['code'],'python_runtime_failed')
+        self.assertNotIn('private',result['message'])
+        self.assertFalse((self.base/'python-runtime/setup.lock').exists())
+        self.assertFalse((self.base/'python-runtime/runtime.json').exists())
+
+    def test_replaced_lock_is_preserved_without_masking_original_failure(self):
+        result=self.run_fixture(FIXTURE_REPLACED_LOCK='1')
+        self.assertEqual(result['code'],'python_runtime_command_failed')
+        self.assertEqual((self.base/'python-runtime/setup.lock').read_text(),'replacement owner')
+
+    def test_curl_ignores_default_user_configuration(self):
+        result=self.run_fixture()
+        self.assertEqual(result['calls'][0]['args'][0],'--disable')
+
     def test_corrupt_manifest_and_missing_interpreter_are_repairable(self):
         for action in ('corrupt','missing'):
             with self.subTest(action=action):
@@ -224,7 +252,7 @@ class PythonRuntimeTests(unittest.TestCase):
         result=self.run_fixture(HTTPS_PROXY='http://example.invalid:7890')
         curl=result['calls'][0]
         self.assertEqual(curl['env']['HTTPS_PROXY'],'http://example.invalid:7890')
-        self.assertEqual(curl['args'][:4],['--proto','=https','--proto-redir','=https'])
+        self.assertEqual(curl['args'][:5],['--disable','--proto','=https','--proto-redir','=https'])
         self.assertIn('--max-filesize',curl['args'])
         self.assertIn('--max-time',curl['args'])
 

@@ -100,7 +100,7 @@ function download(url, expectedHash, root, deadline) {
   if (timeout <= 0) throw failure('python_runtime_timeout', '专用 Python 准备超时；可重新执行安装命令。');
   const curl = process.platform === 'win32'
     ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'curl.exe') : '/usr/bin/curl';
-  const result = spawnSync(curl, ['--proto', '=https', '--proto-redir', '=https', '--location', '--fail',
+  const result = spawnSync(curl, ['--disable', '--proto', '=https', '--proto-redir', '=https', '--location', '--fail',
     '--silent', '--show-error', '--max-time', String(timeout / 1000), '--max-filesize', String(80 * 1024 * 1024), url],
     { timeout, maxBuffer: 80 * 1024 * 1024, windowsHide: true, cwd: root, env: childEnv(root) });
   if (result.error) {
@@ -148,9 +148,10 @@ async function ensurePython({ allowDownload = true, onProgress = () => {} } = {}
       }
     }
     const token = crypto.randomUUID();
-    fs.writeFileSync(lock, JSON.stringify({ pid: process.pid, token }));
-    let staging, archivePath, uv;
+    let lockIdentity, staging, archivePath, uv;
     try {
+      lockIdentity = fs.fstatSync(lock, { bigint: true });
+      fs.writeFileSync(lock, JSON.stringify({ pid: process.pid, token }));
       const cached = existing(root, deadline);
       if (cached) return cached;
       onProgress('正在准备 dev-memory 专用 Python；不会修改系统 Python 或 PATH。');
@@ -186,8 +187,13 @@ async function ensurePython({ allowDownload = true, onProgress = () => {} } = {}
         if (uv && path.dirname(uv) !== staging) fs.rmdirSync(safePath(path.dirname(uv)));
         if (staging) fs.rmdirSync(safePath(staging));
       } catch { /* Cleanup failure must not invalidate a verified interpreter. */ }
-      fs.closeSync(lock);
-      if (JSON.parse(fs.readFileSync(safePath(lockPath), 'utf8')).token === token) fs.unlinkSync(lockPath);
+      try {
+        const current = fs.lstatSync(safePath(lockPath), { bigint: true });
+        // Windows path stats can omit the device ID; the still-open file ID must match.
+        if (lockIdentity && current.ino === lockIdentity.ino
+            && (current.dev === 0n || current.dev === lockIdentity.dev)) fs.unlinkSync(lockPath);
+      } catch { /* A replaced or inaccessible lock must not mask the installation result. */ }
+      finally { fs.closeSync(lock); }
     }
   } catch (error) {
     if (typeof error.code === 'string' && error.code.startsWith('python_runtime_')) throw error;
