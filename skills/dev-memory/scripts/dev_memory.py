@@ -28,7 +28,7 @@ SKILL_FILES = [
     "references/setup.md", "references/vectors.md",
     "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/dev_memory_setup.py", "scripts/dev_memory_dashboard.py", "scripts/dev_memory_vectors.py", "scripts/dev_memory_vector_setup.py", "scripts/codex_hook.py", "scripts/dev-memory",
 ]
-RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
+RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES), "bin/python-runtime.cjs",
     "README.md", "LICENSE", ".gitignore", "install.py", "package.json", "bin/install.cjs", "CONTRIBUTING.md", "SECURITY.md",
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
     "docs/readme/README.zh-CN.md", "docs/readme/README.ja.md", "docs/readme/README.ko.md",
@@ -41,7 +41,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES),
     "reports/verification.md", "reports/adversarial-review.md", "reports/maintenance-host.json", "reports/maintenance-benchmark.json", "reports/maintenance-installation.json", "reports/lifecycle-review.md", "reports/lifecycle-host.json", "reports/lifecycle-benchmark.json", "build_release.py",
     "reports/online-installation.json", "reports/npx-installation.json", "reports/npx-upgrade.json", "reports/automatic-onboarding.json", "reports/install-smoke.json", "reports/benchmark-2026-10-11.json", "reports/benchmark-0.7.0.md", "reports/project-isolation-demo.json",
     ".github/workflows/check.yml", "plugin.json", "evals/check_deepseek.py", "reports/deepseek.json", "reports/windows-access.json", "reports/multi-project-review.md", "reports/memory-cycle-review.md",
-    "tests/test_vectors.py", "tests/test_vector_setup.py", "tests/test_vector_integration.py", ".github/workflows/vectors.yml",
+    "tests/test_vectors.py", "tests/test_vector_setup.py", "tests/test_vector_integration.py", "tests/test_python_runtime.py", "tests/managed_python_smoke.cjs", ".github/workflows/vectors.yml",
 ]
 AGENT_DIRS = {"codex": ".agents/skills", "claude-code": ".claude/skills", "cursor": ".cursor/skills",
               "gemini-cli": ".gemini/skills", "github-copilot": ".copilot/skills", "opencode": ".config/opencode/skills",
@@ -243,6 +243,15 @@ def _hook_command(target: Path) -> str:
     script = (target / "scripts" / "codex_hook.py").resolve()
     return f"{shlex.quote(sys.executable)} {shlex.quote(str(script))}"
 
+def _owns_hook(handler: Any, script: str) -> bool:
+    command = handler.get("command", "") if isinstance(handler, dict) else ""
+    try:
+        tokens = shlex.split(command)
+        return (handler.get("type") == "command" and len(tokens) == 2 and tokens[1] == script
+                and Path(tokens[0]).name.startswith("python"))
+    except (ValueError, TypeError, AttributeError):
+        return False
+
 def _hook_config(target: Path) -> dict[str, Any]:
     command = _hook_command(target)
     def handler(limit: int | None = None) -> dict[str, Any]:
@@ -276,6 +285,7 @@ def _merge_hook_config(target: Path) -> dict[str, Any]:
     if not isinstance(hooks, dict):
         raise store.MemoryError("config_invalid", "Codex hooks must be an object.")
     command = _hook_command(target)
+    script = str((target / "scripts" / "codex_hook.py").resolve())
     # Remove only our obsolete receipt gate; retain other Stop hooks and unknown shapes.
     old_stop = hooks.get('Stop')
     if isinstance(old_stop, list):
@@ -284,7 +294,7 @@ def _merge_hook_config(target: Path) -> dict[str, Any]:
             if not isinstance(group, dict) or not isinstance(group.get('hooks'), list):
                 cleaned.append(group)
                 continue
-            handlers = [h for h in group['hooks'] if not (isinstance(h, dict) and h.get('command') == command)]
+            handlers = [h for h in group['hooks'] if not _owns_hook(h, script)]
             if handlers:
                 cleaned.append({**group, 'hooks': handlers})
         if cleaned:
@@ -295,9 +305,24 @@ def _merge_hook_config(target: Path) -> dict[str, Any]:
         old = hooks.setdefault(event, [])
         if not isinstance(old, list):
             raise store.MemoryError("config_invalid", "A Codex hook event must contain a list.")
-        if any(isinstance(g, dict) and any(isinstance(h, dict) and h.get("command") == command for h in g.get("hooks", [])) for g in old):
-            continue
-        old.extend(groups)
+        found = False
+        merged = []
+        for group in old:
+            if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+                merged.append(group)
+                continue
+            handlers = []
+            for handler in group["hooks"]:
+                if _owns_hook(handler, script):
+                    if found:
+                        continue
+                    # Keep reviewed settings and matcher while migrating the interpreter.
+                    handler = {**handler, "command": command}
+                    found = True
+                handlers.append(handler)
+            if handlers or not group["hooks"]:
+                merged.append({**group, "hooks": handlers})
+        hooks[event] = merged if found else [*merged, *groups]
     store.write_json_atomic(hook_file, data)
     return {"path": str(hook_file), "status": "configured_requires_review"}
 
@@ -328,14 +353,7 @@ def _remove_hook_config(target: Path) -> dict[str, Any]:
                 continue
             kept = []
             for handler in group["hooks"]:
-                command = handler.get("command", "") if isinstance(handler, dict) else ""
-                try:
-                    tokens = shlex.split(command)
-                    owns_handler = (handler.get("type") == "command" and len(tokens) == 2 and tokens[1] == script
-                                    and Path(tokens[0]).name.startswith("python"))
-                except (ValueError, TypeError, AttributeError):
-                    owns_handler = False
-                if owns_handler:
+                if _owns_hook(handler, script):
                     removed += 1
                 else:
                     kept.append(handler)

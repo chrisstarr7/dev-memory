@@ -9,6 +9,26 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  managed-runtime:
+    name: managed Python (${{ matrix.os }})
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: '1'
+      DEV_MEMORY_VECTOR_INTEGRATION: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: No system Python, isolated installation, offline recall and real vectors
+        env:
+          DEV_MEMORY_HOME: ${{ runner.temp }}/dev-memory-managed
+        run: node tests/managed_python_smoke.cjs
   vectors:
     name: vectors (${{ matrix.runner.os }}, ${{ matrix.python }})
     timeout-minutes: 20

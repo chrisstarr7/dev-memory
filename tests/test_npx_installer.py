@@ -29,6 +29,13 @@ class NpxTests(unittest.TestCase):
         self.env = {**os.environ, 'DEV_MEMORY_VECTOR_SETUP':'0', 'HOME':str(self.home), 'USERPROFILE':str(self.home),
                     'CODEX_HOME':str(self.home/'.codex'), 'DEV_MEMORY_HOME':str(self.home/'.dev-memory'),
                     'DSH_HOME':str(self.home/'.dsh'), 'PYTHONDONTWRITEBYTECODE':'1'}
+        shim = self.base/'managed-python.cjs'
+        shim.write_text("if (process.env.TEST_RUNTIME_WINDOWS) Object.defineProperty(process, 'platform', {value:'win32'});\nrequire("+
+                        json.dumps((ROOT/'bin/python-runtime.cjs').as_posix())+
+                        ").ensurePython = async (options) => { if (process.env.TEST_NO_RUNTIME_DOWNLOAD && options.allowDownload) "
+                        "throw Object.assign(new Error('Unexpected download'), {code:'unexpected_download'}); return "+
+                        json.dumps(sys.executable)+"; };", encoding='utf-8')
+        self.env['NODE_OPTIONS'] = '--require "'+shim.as_posix()+'"'
 
     def run_cli(self, *args, env=None):
         return subprocess.run([shutil.which('node'), str(ROOT/'bin/install.cjs'), *args],
@@ -185,7 +192,7 @@ class NpxTests(unittest.TestCase):
         for args,expected in ((['--help'],0),(['unknown','--json'],2),
                               (['codex','--agent','claude','--json'],2),(['--json'],2)):
             with self.subTest(args=args):
-                result=self.run_cli(*args)
+                result=self.run_cli(*args, env={**self.env, 'TEST_RUNTIME_WINDOWS':'1', 'TEST_NO_RUNTIME_DOWNLOAD':'1'})
                 self.assertEqual(result.returncode,expected,result.stdout+result.stderr)
                 self.assertFalse((self.project/'.dev-memory').exists())
                 self.assertEqual(list(self.home.iterdir()),[])
@@ -205,44 +212,39 @@ class NpxTests(unittest.TestCase):
         self.assertEqual(json.loads(result.stdout)['status'],'failed')
         self.assertFalse((self.project/'.dev-memory').exists())
 
-    def test_missing_python_returns_nonzero_receipt_without_writes(self):
-        empty=self.base/'empty'; empty.mkdir()
-        if os.name == 'nt':
-            # Windows can find py.exe through system locations even with an empty PATH.
-            shim = self.base/'no-python.cjs'
-            shim.write_text("require('node:child_process').spawnSync = () => ({error: {code: 'ENOENT'}, status: null});", encoding='utf-8')
-            result = subprocess.run([shutil.which('node'), '--require', str(shim), str(ROOT/'bin/install.cjs'), 'codex', '--json'],
-                                    cwd=self.project, env=self.env, capture_output=True, text=True, encoding='utf-8', timeout=20)
-        else:
-            result=self.run_cli('codex','--json',env={**self.env,'PATH':str(empty)})
+    def test_bootstrap_failure_returns_nonzero_receipt_without_project_writes(self):
+        shim = self.base/'failed-python.cjs'
+        shim.write_text("Object.defineProperty(process, 'platform', {value: 'darwin'});\nrequire("+
+                        json.dumps((ROOT/'bin/python-runtime.cjs').as_posix())+
+                        ").ensurePython = async () => { throw Object.assign(new Error('下载失败，请检查网络。'), {code:'python_download_failed'}); };", encoding='utf-8')
+        result = subprocess.run([shutil.which('node'), '--require', str(shim), str(ROOT/'bin/install.cjs'), 'codex', '--json'],
+                                cwd=self.project, env=self.env, capture_output=True, text=True, encoding='utf-8', timeout=20)
         self.assertEqual(result.returncode,1)
-        self.assertEqual(json.loads(result.stdout)['error'],'python_unavailable')
+        self.assertEqual(json.loads(result.stdout)['error'],'python_download_failed')
         self.assertFalse((self.project/'.dev-memory').exists())
         self.assertEqual(list(self.home.iterdir()),[])
 
-    def test_windows_prefers_recommended_python_and_falls_back_when_missing(self):
+    def test_windows_uses_managed_python_without_probing_host_python(self):
         shim = self.base/'python-selection.cjs'
         shim.write_text("""Object.defineProperty(process, 'platform', {value: 'win32'});
-const probes = [];
 require('node:child_process').spawnSync = (command, args) => {
-  if (args.includes('-c')) {
-    probes.push([command, args[0]]);
-    return {status: args[0] === process.env.TEST_PYTHON_VERSION ? 0 : 1};
-  }
-  console.log(JSON.stringify({selected: [command, args[0]], probes}));
+  if (args.includes('-c')) throw new Error('Host Python must not be probed');
+  console.log(JSON.stringify({selected: [command, args[0]]}));
   return {status: 0};
 };
 """, encoding='utf-8')
-        for version in ('-3.14', '-3'):
-            with self.subTest(version=version):
-                result = subprocess.run([shutil.which('node'), '--require', str(shim), str(ROOT/'bin/install.cjs'), 'codex', '--json'],
-                                        cwd=self.project, env={**self.env, 'TEST_PYTHON_VERSION':version},
-                                        capture_output=True, text=True, encoding='utf-8', timeout=20)
-                self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
-                payload = json.loads(result.stdout)
-                self.assertEqual(payload['selected'], ['py', version])
-                self.assertEqual(payload['probes'][0], ['py', '-3.14'])
-                self.assertFalse((self.project/'.dev-memory').exists())
+        result = subprocess.run([shutil.which('node'), '--require', str(shim), str(ROOT/'bin/install.cjs'), 'codex', '--json'],
+                                cwd=self.project, env=self.env, capture_output=True, text=True, encoding='utf-8', timeout=20)
+        self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
+        self.assertEqual(json.loads(result.stdout)['selected'], [sys.executable, '-B'])
+        self.assertFalse((self.project/'.dev-memory').exists())
+
+    def test_managed_install_ignores_unrelated_python_environment(self):
+        result = self.run_cli('opencode', '--without-vectors', '--json', env={**self.env,
+                              'TEST_RUNTIME_WINDOWS':'1', 'PYTHONHOME':str(self.base/'obsolete-python'),
+                              'PYTHONPATH':str(self.base/'unrelated-modules')})
+        self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
+        self.assertEqual(json.loads(result.stdout)['status'], 'installed')
 
     def test_npm_manifest_has_no_dependencies_or_install_side_effects(self):
         package=json.loads((ROOT/'package.json').read_text(encoding="utf-8"))
@@ -250,7 +252,7 @@ require('node:child_process').spawnSync = (command, args) => {
         self.assertFalse(package.get('dependencies'))
         self.assertFalse(package.get('devDependencies'))
         self.assertFalse(package.get('scripts'))
-        self.assertEqual(set(package['files']),{'install.py','bin/install.cjs','LICENSE',
+        self.assertEqual(set(package['files']),{'install.py','bin/install.cjs','bin/python-runtime.cjs','LICENSE',
                             *('skills/dev-memory/'+name for name in dev_memory.SKILL_FILES)})
 
     @unittest.skipUnless(shutil.which('npm'), 'npm pack check requires npm')

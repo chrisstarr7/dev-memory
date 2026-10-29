@@ -4,16 +4,18 @@ The source of truth remains the existing `memory.sqlite3` in each scope. Origina
 
 ## Runtime and installation
 
-Prepare the user-managed prerequisites before Skill installation; see [environment preparation](../../../docs/installation.md#environment-prerequisites). On Windows, the pinned vector packages support standard x64 CPython 3.10–3.14; recommend the latest 3.14 patch and the current x64 Microsoft Visual C++ Redistributable. Native Windows ARM64, 32-bit, Python 3.15 and free-threaded builds have no complete matching wheel set for these pins. The base SQLite runtime retains its separate Python 3.10+ requirement. macOS continues to use the managed native Python 3.12 runtime.
+The recommended npx entrypoint automatically prepares standard CPython 3.12 on Windows x64 and native macOS (Intel/Apple Silicon); system Python may be missing or older. The shared interpreter lives at `<global-root>/python-runtime` and does not alter PATH, the default Python, registry or shell configuration. Ordinary memory operations use the bound interpreter directly, without Node or uv. See [installation details](../../../docs/installation.md#environment-prerequisites).
+
+Linux and direct Python entrypoints still require Python 3.10+ with sqlite3. Windows vector pins support standard x64 CPython 3.10–3.14; native ARM64, 32-bit, 3.15 and free-threaded Python lack a complete wheel set. macOS vectors require 13+. Check native-library failures against platform prerequisites; do not infer a missing Visual C++ runtime from a dependency download error.
 
 Setup checks the actual vector interpreter and selects dependencies for that version, including when the existing virtual environment was created by a different host Python. Errors identify the stage, a sanitized cause and a preparation/remediation step. A missing wheel can mean incompatible Python/architecture or an incomplete package mirror; a failed native-library import does not by itself prove a missing VC++ runtime. Raw dependency logs, proxy credentials and download URLs are not copied into memory receipts.
 
-Install/update attempts vector setup automatically. Use `--without-vectors` for basic installation without dependency/model downloads. A vector setup failure is reported separately from successful base installation. It must not enable paused capture, recreate missing stores, or discard existing records. Ordinary recall never installs packages or downloads models.
+Install/update attempts vector setup automatically. Use `--without-vectors` to skip vector dependency/model downloads; first-time managed Python preparation still needs network access. A vector setup failure is reported separately from successful base installation. It must not enable paused capture, recreate missing stores, or discard existing records. Ordinary recall never installs packages or downloads models.
 
 The shared runtime is `<global-root>/vector-runtime/`:
 
 - `venv/`: isolated Python environment, with `fastembed==0.9.1` and `sqlite-vec==0.1.9`. ONNX Runtime is pinned for the effective Python version.
-- On macOS, `bootstrap/`, `python/` and `venv-py312/` hold pinned `uv==0.13.6` and an isolated native Python 3.12 runtime. This avoids both missing Intel wheels and host Python builds that omit SQLite extensions. It does not replace the user's Python. macOS ONNX Runtime is pinned to 1.23.2 and requires macOS 13 or newer.
+- On macOS, `venv-py312/` holds the vector environment. New npx installations reuse the dedicated Python above as its base rather than downloading another interpreter. Direct Python installations may also prepare `bootstrap/` and `python/` here using pinned `uv==0.13.6`; existing valid environments are preserved. macOS ONNX Runtime is pinned to 1.23.2 and requires macOS 13 or newer.
 - `models/`: local model assets shared by projects, not project memory data.
 - `config.json`: runtime paths, model identity and artifact fingerprints; `enabled:false` is preserved by updates.
 
@@ -27,22 +29,13 @@ Windows x64 and macOS Apple Silicon/Intel are separate compatibility targets. Py
 
 Use the installed Skill's Python entry point; the package's `dev-memory` bin is an installer. Put a custom `--global-root PATH` before `vectors`.
 
-Windows PowerShell, default Codex installation:
+Use the current host binding’s absolute `python` and `cli` paths from the project’s `.dev-memory/activation.json`; do not assume `python3` or `py -3` is installed. For user-only activation, use the installed user guidance’s paths. With those two values substituted:
 
-```powershell
-py -3 "$env:USERPROFILE\.agents\skills\dev-memory\scripts\dev_memory.py" vectors setup
-py -3 "$env:USERPROFILE\.agents\skills\dev-memory\scripts\dev_memory.py" vectors status --scope both --project-root .
-py -3 "$env:USERPROFILE\.agents\skills\dev-memory\scripts\dev_memory.py" vectors sync --scope both --project-root .
-py -3 "$env:USERPROFILE\.agents\skills\dev-memory\scripts\dev_memory.py" vectors finish --scope both --project-root . --wait-seconds 3
-```
-
-macOS/Linux, default Codex installation:
-
-```sh
-python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py vectors setup
-python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py vectors status --scope both --project-root .
-python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py vectors sync --scope both --project-root .
-python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py vectors finish --scope both --project-root . --wait-seconds 3
+```text
+<python> <cli> vectors setup
+<python> <cli> vectors status --scope both --project-root .
+<python> <cli> vectors sync --scope both --project-root .
+<python> <cli> vectors finish --scope both --project-root . --wait-seconds 3
 ```
 
 Replace the interpreter and Skill paths for another host. `status` inspects state; `sync` requests a bounded batch; `finish` checks the result and waits within its limit. None of them initializes a missing memory store or changes capture mode. Scope `both` means the global store and specified current project, never every registered project.
