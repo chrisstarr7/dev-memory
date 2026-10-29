@@ -220,6 +220,30 @@ class NpxTests(unittest.TestCase):
         self.assertFalse((self.project/'.dev-memory').exists())
         self.assertEqual(list(self.home.iterdir()),[])
 
+    def test_windows_prefers_recommended_python_and_falls_back_when_missing(self):
+        shim = self.base/'python-selection.cjs'
+        shim.write_text("""Object.defineProperty(process, 'platform', {value: 'win32'});
+const probes = [];
+require('node:child_process').spawnSync = (command, args) => {
+  if (args.includes('-c')) {
+    probes.push([command, args[0]]);
+    return {status: args[0] === process.env.TEST_PYTHON_VERSION ? 0 : 1};
+  }
+  console.log(JSON.stringify({selected: [command, args[0]], probes}));
+  return {status: 0};
+};
+""", encoding='utf-8')
+        for version in ('-3.14', '-3'):
+            with self.subTest(version=version):
+                result = subprocess.run([shutil.which('node'), '--require', str(shim), str(ROOT/'bin/install.cjs'), 'codex', '--json'],
+                                        cwd=self.project, env={**self.env, 'TEST_PYTHON_VERSION':version},
+                                        capture_output=True, text=True, encoding='utf-8', timeout=20)
+                self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload['selected'], ['py', version])
+                self.assertEqual(payload['probes'][0], ['py', '-3.14'])
+                self.assertFalse((self.project/'.dev-memory').exists())
+
     def test_npm_manifest_has_no_dependencies_or_install_side_effects(self):
         package=json.loads((ROOT/'package.json').read_text(encoding="utf-8"))
         self.assertEqual(package['bin'],{'dev-memory':'bin/install.cjs'})

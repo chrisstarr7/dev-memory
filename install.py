@@ -253,6 +253,12 @@ def report(result: dict, args: argparse.Namespace, agent: str) -> None:
             print('向量能力：' + str(vector_result.get('status', 'unavailable'))
                   + (' (' + str(vector_result['reason']) + ')' if vector_result.get('reason') else ''))
             if vector_result.get('status') not in {'ready', 'not_requested'}:
+                if vector_result.get('phase'):
+                    print('向量准备阶段：' + str(vector_result['phase']))
+                if vector_result.get('message'):
+                    print('原因：' + str(vector_result['message']))
+                if vector_result.get('remediation'):
+                    print('处理建议：' + str(vector_result['remediation']))
                 print('原文与关键词记忆仍可用；向量能力未就绪，可稍后运行 vectors setup 重试。')
         cleanup = result.get("old_program_cleanup", "")
         if isinstance(cleanup, str) and cleanup.startswith("pending:"):

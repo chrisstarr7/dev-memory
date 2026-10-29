@@ -1,5 +1,40 @@
 # 安装与宿主配置
 
+<a id="environment-prerequisites"></a>
+## 环境准备
+
+先完成本节，再运行下方 Skill 安装命令。基础功能要求 Node.js 22+、npm/npx、Git 和 Python 3.10+（含 sqlite3）。默认安装还会准备本地向量，需要完整 Python 的 venv、ensurepip 组件及对应平台的二进制依赖；基础记忆可用不代表向量环境已经满足要求。
+
+- **Windows 推荐：**标准版 64 位 CPython 3.14 最新补丁，x64，Microsoft Visual C++ x64 运行库。当前固定依赖支持标准 CPython 3.10–3.14；不支持 3.15、32 位、原生 ARM64 或自由线程 Python。不要用安装 Visual Studio/Build Tools 代替选择匹配的二进制包。
+- **macOS：**向量环境要求 macOS 13+；Apple Silicon 与 Intel 分别使用原生架构。安装器会下载独立 Python 3.12，不替换系统 Python。Homebrew 不适用于当前系统时，可使用 [Python 官方安装程序](https://www.python.org/downloads/macos/)准备宿主环境。
+- **Linux：**使用发行版提供的 Python 3.10+，包含 venv、pip 和可加载扩展的 sqlite3；本地向量需要当前平台对应的预编译依赖。发行版将这些组件拆包时，按其官方安装说明补齐。
+
+Windows 按需安装：
+
+```powershell
+winget install --exact --id OpenJS.NodeJS.LTS
+winget install --exact --id Git.Git
+winget install --exact --id Python.Python.3.14 --architecture x64
+winget install --exact --id "Microsoft.VCRedist.2015+.x64"
+```
+
+已有 Python 3.14 的升级与检查：
+
+```powershell
+winget upgrade --exact --id Python.Python.3.14 --architecture x64
+py -3.14 -c "import sys,struct,sqlite3,venv; print(sys.version); print(sys.executable); print('bits:',struct.calcsize('P')*8)"
+node --version
+git --version
+```
+
+安装或升级后应先重新打开终端再检查。Python 输出应为 3.14.x、64 位；npx 入口会优先选择可用的 3.14。其他兼容版本可继续使用，安装器按实际向量虚拟环境选择依赖，不用宿主版本猜测旧环境的版本。
+
+macOS 的 Homebrew 用户可执行 `brew install node git python@3.14`，已有环境升级用 `brew upgrade node git python@3.14`；检查 `node --version`、`git --version`、`python3.14 --version`。请遵守 [Homebrew 支持范围](https://docs.brew.sh/Installation)。
+
+sqlite-vec、FastEmbed、ONNX Runtime 和模型由 Skill 自动准备。用户负责运行目录写权限，以及软件源和模型源的网络、代理与证书配置；企业软件源必须提供匹配版本的二进制包。安装器不会关闭 TLS 校验，也不会自动修改系统代理或安装系统运行库。`--without-vectors` 可明确选择仅安装基础记忆功能。
+
+依赖范围依据：[sqlite-vec 0.1.9 文件](https://pypi.org/project/sqlite-vec/0.1.9/#files)、[ONNX Runtime 1.23.2](https://pypi.org/project/onnxruntime/1.23.2/#files)、[ONNX Runtime 1.31.1](https://pypi.org/project/onnxruntime/1.31.1/#files)、[FastEmbed 依赖](https://pypi.org/pypi/fastembed/0.9.1/json)。系统运行库依据：[ORT 要求](https://onnxruntime.ai/docs/install/#requirements)、[微软 VC++ 下载](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)。
+
 ## 推荐：短命令在线安装
 
 在**项目根目录**执行，先将 `<agent>` 替换为下方宿主表中的参数。macOS、Linux、Windows 使用同一条命令：

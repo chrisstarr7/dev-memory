@@ -13,6 +13,39 @@
 
 Dev Memory 是用于 AI 辅助开发的 Skill 和本地 Python 程序。它帮助 AI 召回相关研发习惯与项目规则，并根据真实要求或证据保存长期知识。AI 判断含义，程序负责校验并将记录存入 SQLite。
 
+## 安装前准备
+
+先准备环境，再安装 Skill；已经符合要求的软件无需重复安装。
+
+| 能力 | 环境要求 |
+| --- | --- |
+| 安装与基础记忆 | Node.js 22+（含 npm/npx）、Git、Python 3.10+（含 sqlite3） |
+| Windows 本地向量 | x64 环境下的标准版 **64 位 CPython 3.10–3.14**，推荐 **3.14 的最新补丁版本**；安装 Microsoft Visual C++ x64 运行库。当前固定依赖不支持 Python 3.15、32 位、原生 ARM64 或自由线程版本。 |
+| macOS 本地向量 | macOS 13+，支持 Apple Silicon 与 Intel；安装器自动准备兼容的 Python 3.12 向量环境。 |
+
+**Windows PowerShell：按需安装缺少的前置软件。**
+
+```powershell
+winget install --exact --id OpenJS.NodeJS.LTS
+winget install --exact --id Git.Git
+winget install --exact --id Python.Python.3.14 --architecture x64
+winget install --exact --id "Microsoft.VCRedist.2015+.x64"
+```
+
+已安装 Python 3.14 时，使用 `winget upgrade --exact --id Python.Python.3.14 --architecture x64` 升级。完成后重新打开终端并检查：
+
+```powershell
+node --version
+git --version
+py -3.14 -c "import sys,struct,sqlite3,venv; print(sys.version); print(sys.executable); print('bits:',struct.calcsize('P')*8)"
+```
+
+Python 应显示 3.14.x 和 64 位。Windows 的 npx 入口优先使用已安装的 Python 3.14；向量准备会检查虚拟环境真正使用的解释器。
+
+**macOS 已安装 Homebrew 时：**执行 `brew install node git python@3.14`；已有环境升级用 `brew upgrade node git python@3.14`。再检查 `node --version`、`git --version` 和 `python3.14 --version`。其他安装方式与 Linux 说明见[环境准备](../installation.md#environment-prerequisites)。
+
+安装器会自动下载 sqlite-vec、FastEmbed、ONNX Runtime 和模型到隔离目录。用户需允许访问 Python 软件源、模型下载源，并有运行目录写权限；无需手动安装上述依赖、配置 GPU/API Key 或安装 C++ 编译工具。依据：[Python 安装](https://learn.microsoft.com/en-us/windows/dev-environment/python)、[ONNX Runtime 环境要求](https://onnxruntime.ai/docs/install/#requirements)、[Homebrew Python](https://formulae.brew.sh/formula/python%403.14)。
+
 ## 安装
 
 在开发项目的根目录执行：
@@ -33,7 +66,7 @@ npx -y --prefer-online chrisstarr7/dev-memory codex
 | OpenCode | `opencode` | `AGENTS.md` |
 | DeepSeek Harness | `deepseek` | `AGENTS.md` |
 
-安装需要 Node.js 22+（含 npm/npx）、Git 和 Python 3.10+（含 sqlite3）。基础记忆运行时只依赖 Python 标准库；安装还会尝试在独立环境准备本地向量依赖与模型，失败时保留基础功能并报告向量降级。只需离线基础安装时添加 `--without-vectors`。参数应对应实际运行 AI 的宿主：通过 OpenCode 使用 DeepSeek 模型时，选择 `opencode`。
+基础记忆运行时只依赖 Python 标准库。向量依赖与模型在独立环境中准备；失败时保留基础功能，并说明失败原因。只需离线基础安装时添加 `--without-vectors`。参数应对应实际运行 AI 的宿主：通过 OpenCode 使用 DeepSeek 模型时，选择 `opencode`。
 
 Codex 安装会同时启用用户级全局习惯和当前项目记忆。在未初始化的其他项目中，用户级引导只召回全局习惯。需要项目记忆时，在该项目再次运行安装命令。其他宿主目前仅使用项目引导。安装或升级后，在项目中开启新的 AI 会话；之后正常提出需求即可，不必每轮调用 Skill 或说“记住”。新建记忆库从空库开始，已有记录会保留。
 
