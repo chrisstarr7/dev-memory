@@ -14,6 +14,96 @@ from test_dev_memory import MemoryTestCase, store
 
 
 class MaintenanceTests(MemoryTestCase):
+    def test_recalling_reviewed_memory_does_not_requeue_maintenance(self):
+        memory_id = self.add_project_rule(title='Stable source requirement', content='Keep the explicit eligibility restriction.')
+        reviewed = self.maintain('MAINTENANCE_REVIEW', [memory_id], turn='review-before-recall')
+        self.assertEqual(reviewed['status'], 'checked_noop', reviewed)
+        for _ in range(5):
+            recalled = store.recall('Stable source requirement eligibility restriction', project_root=self.project_a,
+                global_root=self.global_root, force=True, session_id='recall-only-session')
+            project = next(s for s in recalled['stores'] if s['scope'] == 'project')
+            self.assertIn(memory_id, [r['id'] for r in project['records']])
+        self.assertEqual(store.maintenance_prepare('project', project_root=self.project_a, force=True)['status'], 'idle')
+        _, db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM maintenance_pending').fetchone()[0], 0)
+
+    def test_pending_queue_counts_only_eligible_current_statuses(self):
+        ids = {}
+        for n, (status, claim) in enumerate([
+            ('active', 'desired'), ('candidate', 'desired'), ('candidate', 'hypothesis'),
+            ('stale', 'desired'), ('conflicted', 'desired'), ('archived', 'desired'),
+            ('superseded', 'desired'),
+        ]):
+            ids[(status, claim)] = self.add_project_rule(turn=f'status-{n}',
+                content=f'Independent status fixture {n}.', status=status, claim_type=claim)
+        pack = store.maintenance_prepare('project', project_root=self.project_a, force=True)
+        self.assertEqual(pack['pending_count'], 2)
+        _, db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            queued = {row[0] for row in conn.execute('SELECT memory_id FROM maintenance_pending')}
+        self.assertEqual(queued, {ids[('active', 'desired')], ids[('candidate', 'desired')]})
+        for n, status in enumerate(('candidate', 'active')):
+            result = self.apply(scope='project', turn=f'archive-status-{n}', operations=[{
+                'op':'ARCHIVE', 'id':ids[(status, 'desired')], 'expected_revision':1}])
+            self.assertEqual(result['status'], 'saved', result)
+            pack = store.maintenance_prepare('project', project_root=self.project_a, force=True)
+            if n == 0:
+                self.assertEqual(pack['pending_count'], 1)
+            else:
+                self.assertEqual(pack['status'], 'idle')
+
+    def test_revisions_of_one_record_do_not_reach_five_record_threshold(self):
+        memory_id = self.add_project_rule(content='Initial distinct requirement.')
+        for n in range(1, 6):
+            result = self.apply(scope='project', turn=f'revised-{n}', operations=[{
+                'op': 'REVISE', 'id': memory_id, 'expected_revision': n,
+                'record': self.record(content=f'Confirmed distinct requirement version {n}.')}])
+            self.assertEqual(result['stores'][0]['maintenance']['status'], 'waiting')
+        pack = store.maintenance_prepare('project', project_root=self.project_a, force=True)
+        self.assertEqual(pack['pending_count'], 1)
+
+    def test_upgrade_surfaces_active_hypothesis_but_review_cannot_hide_it(self):
+        memory_id = self.add_project_rule(content='Legacy uncertain requirement.')
+        _, db = store.project_paths(self.project_a)
+        with contextlib.closing(sqlite3.connect(db)) as conn:
+            conn.execute("UPDATE memories SET claim_type='hypothesis' WHERE id=?", (memory_id,))
+            conn.execute('DELETE FROM maintenance_pending')
+            conn.execute("UPDATE meta SET value='4' WHERE key='maintenance_review_version'")
+            conn.commit()
+        self.apply(scope='project', turn='upgrade-legacy', operations=[{'op':'NOOP','reason':'Inspect schema upgrade.'}])
+        pack = store.maintenance_prepare('project', project_root=self.project_a)
+        record = next(r for r in pack['records'] if r['id'] == memory_id)
+        self.assertIn('active_hypothesis', record['review_context']['issues'])
+        self.assertEqual(record['claim_type'], 'hypothesis')
+        rejected = self.maintain('MAINTENANCE_REVIEW', [memory_id], turn='cannot-acknowledge')
+        self.assertEqual(rejected['stores'][0]['error'], 'provenance_error')
+        self.assertEqual(self.detail(memory_id)['record']['status'], 'active')
+        archived = self.apply(scope='project', turn='archive-legacy', operations=[{
+            'op':'ARCHIVE','id':memory_id,'expected_revision':1}])
+        self.assertEqual(archived['status'], 'saved', archived)
+        self.assertEqual(self.detail(memory_id)['record']['status'], 'archived')
+
+    def test_review_pack_bounds_evidence_and_discloses_omitted_history(self):
+        memory_id = self.add_project_rule(content='Source-bound requirement.')
+        for n in range(4):
+            self.apply(scope='project', turn=f'evidence-{n}', operations=[{
+                'op':'ADD_EVIDENCE','id':memory_id,'expected_revision':n+1,
+                'source':self.source(f'Independent source excerpt {n}.')}])
+        pack = store.maintenance_prepare('project', project_root=self.project_a, force=True)
+        record = next(r for r in pack['records'] if r['id'] == memory_id)
+        context = record['review_context']
+        self.assertEqual(context['evidence_count'], 5)
+        self.assertEqual(len(context['evidence']), 3)
+        self.assertTrue(context['evidence_incomplete'])
+        self.assertEqual(pack['evidence_incomplete_ids'], [memory_id])
+        self.assertTrue(pack['context_incomplete'])
+        self.assertLessEqual(sum(len(json.dumps(r,ensure_ascii=False)) for r in pack['records']), 12000)
+        with patch.object(store, '_maintenance_record', side_effect=AssertionError('Metadata call must not load evidence')):
+            metadata = store.maintenance_prepare('project', project_root=self.project_a, force=True, include_records=False)
+        self.assertEqual(metadata['status'], 'due')
+        self.assertNotIn('records', metadata)
+
     def apply(self, **kwargs):
         # These tests exercise full maintenance packs, which are now explicitly requested.
         return super().apply(maintenance='prepare', **kwargs)

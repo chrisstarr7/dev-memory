@@ -74,31 +74,64 @@ flowchart TD
 
 The capture question applies to requirements, choices, conventions, decisions, verified facts, methods, and corrections—not just mistakes. Assess new information when it appears and at turn end, including review-only work. Save an important correction before the edit it affects; save other eligible increments before delivery.
 
-Current instructions take priority over memory. The AI turns applicable active records, including their conditions and exceptions, into task decisions and checks; inactive candidates are not instructions. Recheck old observations and test results against the workspace. Recall supplies context to the AI; a returned record alone does not prove the AI followed it.
-
 Global and project writes have separate receipts; report a failed or partial write accurately. No eligible increment means no empty write.
 
-## Organization
+## Recall
 
-Changed active rules and inactive non-hypothesis candidates enter a queue in their own store. Five pending records, a pending body of at least 1,200 characters, or an unreviewed change waiting the default seven-day interval can make one related group due for review.
+Recall retrieves a bounded set of relevant memories for the current task. It does not load the entire library or search other projects. The assistant runs one focused `context` request at task start, after context loss, or when the project, module, or topic materially changes, then reuses that result while it remains valid.
+
+1. Use task terms and an optional development intent to find relevant records. Keyword retrieval works independently; a ready local vector index adds semantic matches.
+2. Return selected record bodies within the configured budget. The default combined budget is 5 records / 4,000 characters, reserving space for both global habits and current-project rules. An unused global allocation is available to the project when no eligible active global rules exist or global recall is disabled.
+3. The AI checks applicability, conditions, exceptions and source currency before using the result. Current instructions take priority. An old code observation or test result must be checked against the current workspace.
+
+If relevant bodies are omitted because of the budget, the response identifies them as incomplete. The assistant can fetch the specific records it needs rather than reload the library. A returned memory is context, not proof that the AI adopted it or that its referenced code still behaves the same way.
+
+| Record status | Normal recall | Automatic review queue |
+| --- | --- | --- |
+| `active`, non-hypothesis | Eligible within relevance and size limits | Its changed revision is queued |
+| `candidate`, non-hypothesis | Excluded; not an instruction | Eligible for review without activation |
+| `candidate` + `hypothesis` | Excluded | Excluded; remains unconfirmed |
+| `conflicted` | May be returned as conflict context; resolve before relying on it | Excluded from routine review; needs explicit conflict resolution |
+| `stale`, `archived`, `superseded` | Excluded | Excluded |
+| Legacy `active` + `hypothesis` | Excluded | Included as an anomaly requiring source-backed revision or archival |
+
+Monthly recall counts measure full record details returned to the AI, not proven adoption. Cached and read-only retrieval and capture-paused stores do not increment the counter. Counts are independent of the review queue: repeated recall alone does not schedule organization, and a new record can need review before it has ever been recalled.
+
+## Automatic organization
+
+Organization reviews changed knowledge for future usefulness, source authority, currentness and duplication. It can retain a correct record, improve its wording or tags, merge genuinely equivalent records, or revise/archive a claim when authoritative evidence justifies it. It does not automatically turn similar text into one rule, promote a candidate, or discard an old record because of its age.
+
+Each store maintains its own queue of current record revisions. Review becomes due when **any** of these conditions holds:
+
+| Trigger | Meaning |
+| --- | --- |
+| 5 pending records | Five distinct eligible record IDs; five edits of one record still count as one |
+| A pending body reaches 1,200 characters | A long record can be reviewed before the count threshold |
+| An unreviewed change waits 7 days | Default age threshold, evaluated on the next authorized interaction |
+
+These thresholds schedule review, not a background rewrite. Normal `context` and save responses return a due notice without historical bodies. At a safe task boundary, the assistant requests one related review pack, assesses it and applies revision-checked changes. If work is urgent or sources are insufficient, the unresolved records remain queued. Once a review cycle starts, later turns can drain the smaller remainder without waiting for another five records.
 
 ```mermaid
 flowchart TD
-    S([An eligible rule or candidate changes]) --> Q[Queue its revision in the owning store]
+    S([An eligible record changes]) --> Q[Queue its current revision in the owning store]
     Q --> D{Review due?}
     D -->|No| L([Leave queued for later])
     D -->|Yes| M[Return due metadata]
     M --> B{Quiet task boundary?}
     B -->|No| L
     B -->|Yes| R[Read one related pack]
-    R --> C{Safe action justified after full review?}
+    R --> C{Sources and meaning sufficiently checked?}
     C -->|No| L
-    C -->|Yes| A[Merge, compact, retag or mark reviewed]
+    C -->|Yes| A[Retain, compact, retag, merge or correct]
     A --> F[Revision-checked apply and inspect receipt]
     F --> E([Finish; remaining work waits])
 ```
 
-One turn handles at most one related pack per store, with a limit of 8 records and 12,000 characters. Unread, oversized, or uncertain records stay explicit and queued; a character limit never permits dropping a condition. Organization preserves evidence and inactive candidate status. There is no daemon, continuous conversation listener, or required extra model call. The [protocol](skills/dev-memory/references/protocol.md) specifies operations, controls, and revision checks.
+One turn handles at most one related pack per store: **8 records / 12,000 characters, including embedded source evidence**. A pack includes up to three recent evidence excerpts per record and marks omitted evidence explicitly. Missing context calls for targeted source inspection; a short acknowledgement without its original proposal cannot establish additional detailed requirements.
+
+The assistant preserves valid conditions, exceptions, negative rules and scope boundaries. It keeps desired contracts separate from observed implementation facts, rechecks cited code, and prefers a concise invariant plus a canonical document reference over copying a specification. Legacy active hypotheses must be resolved before being marked reviewed. Unread, oversized or unresolved records remain pending; a character limit never permits silently dropping constraints.
+
+A review-protocol upgrade may queue eligible existing records once without changing their contents. Pause, disable, exclusion and read-only controls remain in force. There is no daemon, continuous conversation listener or required extra model call; automatic use depends on the host loading the instructions and the assistant executing them. Normal recall does not load review evidence. Evidence and revision history remain available after organization, so fewer active records do not imply equivalent disk-space savings. See the [protocol](skills/dev-memory/references/protocol.md) for operations and safeguards.
 
 ## Storage and privacy
 
