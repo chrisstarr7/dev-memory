@@ -15,7 +15,7 @@ function fail(error, message) {
 }
 
 const candidates = process.platform === 'win32'
-  ? [['py', '-3'], ['python3'], ['python']]
+  ? [['py', '-3.14'], ['py', '-3'], ['python3'], ['python']]
   : [['python3'], ['python']];
 const check = 'import sys, sqlite3; sqlite3.connect(":memory:").close(); sys.exit(0 if sys.version_info >= (3, 10) else 1)';
 const python = candidates.find(([command, ...prefix]) => {

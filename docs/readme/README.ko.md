@@ -17,6 +17,10 @@ Dev Memory는 AI 개발 도우미용 이식 가능한 Skill과 로컬 Python 프
 
 ## 빠른 시작
 
+**먼저 실행 환경을 준비하세요.** Node.js 22+, Git, sqlite3가 포함된 Python 3.10+가 필요합니다. Windows 로컬 벡터는 표준64비트 CPython 3.10–3.14(최신3.14 권장)와 x64 Visual C++ 런타임이 필요합니다. 현재 고정 의존성은3.15,32비트,네이티브ARM64,free-threaded Python을 지원하지 않습니다.
+
+Windows 설치는 `winget install --exact --id Python.Python.3.14 --architecture x64`, 기존3.14 업데이트는 `winget upgrade --exact --id Python.Python.3.14 --architecture x64`를 사용하세요. 런타임은 `winget install --exact --id "Microsoft.VCRedist.2015+.x64"`로 준비하고 새 터미널에서 `py -3.14 --version`을 확인합니다. macOS는13+가 필요하며 벡터용Python3.12를 자동 준비합니다. Homebrew 사용자는 `brew install node git python@3.14`, 기존 환경 업데이트는 `brew upgrade node git python@3.14`를 사용할 수 있습니다. 자세한 내용은 [환경 준비](../installation.md#environment-prerequisites)를 참조하세요. 의존 패키지와 모델을 직접 설치할 필요는 없습니다.
+
 **개발 프로젝트 루트**에서 실행합니다.
 
 ```sh

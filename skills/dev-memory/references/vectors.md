@@ -4,6 +4,10 @@ The source of truth remains the existing `memory.sqlite3` in each scope. Origina
 
 ## Runtime and installation
 
+Prepare the user-managed prerequisites before Skill installation; see [environment preparation](../../../docs/installation.md#environment-prerequisites). On Windows, the pinned vector packages support standard x64 CPython 3.10–3.14; recommend the latest 3.14 patch and the current x64 Microsoft Visual C++ Redistributable. Native Windows ARM64, 32-bit, Python 3.15 and free-threaded builds have no complete matching wheel set for these pins. The base SQLite runtime retains its separate Python 3.10+ requirement. macOS continues to use the managed native Python 3.12 runtime.
+
+Setup checks the actual vector interpreter and selects dependencies for that version, including when the existing virtual environment was created by a different host Python. Errors identify the stage, a sanitized cause and a preparation/remediation step. A missing wheel can mean incompatible Python/architecture or an incomplete package mirror; a failed native-library import does not by itself prove a missing VC++ runtime. Raw dependency logs, proxy credentials and download URLs are not copied into memory receipts.
+
 Install/update attempts vector setup automatically. Use `--without-vectors` for basic installation without dependency/model downloads. A vector setup failure is reported separately from successful base installation. It must not enable paused capture, recreate missing stores, or discard existing records. Ordinary recall never installs packages or downloads models.
 
 The shared runtime is `<global-root>/vector-runtime/`:

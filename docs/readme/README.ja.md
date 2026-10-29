@@ -17,6 +17,10 @@ Dev Memory は AI 開発支援用の可搬な Skill とローカル Python プ�
 
 ## クイックスタート
 
+**先に環境を準備してください。** Node.js 22+、Git、sqlite3 を含む Python 3.10+ が必要です。Windows のローカルベクトルには標準64ビット CPython 3.10–3.14（最新の3.14を推奨）、x64 Visual C++ランタイムが必要です。3.15、32ビット、ネイティブARM64、free-threaded Pythonは現在の固定依存関係の対象外です。
+
+Windowsでは `winget install --exact --id Python.Python.3.14 --architecture x64` で導入、既存3.14の更新は `winget upgrade --exact --id Python.Python.3.14 --architecture x64` を使います。ランタイムは `winget install --exact --id "Microsoft.VCRedist.2015+.x64"`、新しい端末で `py -3.14 --version` を確認します。macOSは13+が必要で、ベクトル用Python3.12を自動準備します。Homebrewユーザーは `brew install node git python@3.14`、既存環境の更新は `brew upgrade node git python@3.14` を使えます。詳細は[環境準備](../installation.md#environment-prerequisites)を参照してください。依存パッケージとモデルの手動インストールは不要です。
+
 **開発プロジェクトのルート**で実行します。
 
 ```sh

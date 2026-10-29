@@ -47,6 +47,22 @@ def snapshot(changes=None, extra=None, manifest_change=None):
 
 
 class OnlineTests(unittest.TestCase):
+    def test_human_report_explains_vector_environment_failure(self):
+        args = install.parse_arguments(install.argument_parser(), ['opencode'])
+        result = {'status': 'installed', 'path': 'synthetic-skill', 'vectors': {
+            'status': 'degraded', 'reason': 'dependency_wheel_unavailable', 'phase': 'dependencies',
+            'message': '当前解释器或软件源没有匹配的二进制依赖。',
+            'remediation': '请使用 README 中的标准版 Python 环境。',
+            'stderr': 'private proxy credentials must not appear'}}
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            install.report(result, args, 'opencode')
+        text = output.getvalue()
+        self.assertIn('dependencies', text)
+        self.assertIn(result['vectors']['message'], text)
+        self.assertIn(result['vectors']['remediation'], text)
+        self.assertNotIn('private proxy credentials', text)
+
     def setUp(self):
         scratch = tempfile.TemporaryDirectory(prefix='online 中文 ')
         self.addCleanup(scratch.cleanup)

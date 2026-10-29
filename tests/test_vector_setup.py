@@ -25,6 +25,12 @@ class VectorSetupTests(unittest.TestCase):
         runtime = patch.object(setup, "_compatible_python", return_value=sys.executable)
         runtime.start()
         self.addCleanup(runtime.stop)
+        self.real_info = setup._interpreter_info
+        self.info = dict(version=list(sys.version_info[:2]), implementation='CPython', architecture='AMD64',
+                         bits=64, free_threaded=False, sqlite_extensions=True)
+        info = patch.object(setup, '_interpreter_info', return_value=self.info)
+        info.start()
+        self.addCleanup(info.stop)
 
     def fake_probe(self):
         root = self.base / "vector-runtime"
@@ -69,6 +75,9 @@ class VectorSetupTests(unittest.TestCase):
         probe = self.fake_probe()
         with patch.object(setup, "_run", side_effect=[{}, {}, probe]):
             self.assertEqual(setup.setup(self.base)["status"], "ready")
+        python = Path(setup.read_config(self.base)['python'])
+        python.parent.mkdir(parents=True, exist_ok=True)
+        python.write_text('fixture', encoding='utf-8')
         with patch.object(setup, "_run", return_value=probe) as run:
             result = setup.setup(self.base)
         self.assertTrue(result["reused"])
@@ -169,6 +178,82 @@ class VectorSetupTests(unittest.TestCase):
             self.assertIn("onnxruntime==1.31.1", setup._packages())
         with patch.object(setup, "_mac", return_value=False), patch.object(setup.sys, "version_info", (3, 10)):
             self.assertIn("onnxruntime==1.23.2", setup._packages())
+
+    def test_sanitized_command_failures_and_network_precedence(self):
+        cases = [
+            ('CERTIFICATE_VERIFY_FAILED\nNo matching distribution found', 'certificate_error'),
+            ('ProxyError: failed\nNo matching distribution found', 'proxy_error'),
+            ('403 Client Error\nNo matching distribution found', 'download_access_denied'),
+            ('Could not fetch URL\nNo matching distribution found', 'download_network_error'),
+            ('No module named pip', 'python_environment_incomplete'),
+            ('Permission denied', 'runtime_permission_denied'),
+            ('ResolutionImpossible', 'dependency_conflict'),
+            ('No matching distribution found for onnxruntime', 'dependency_wheel_unavailable'),
+            ('DLL load failed', 'native_dependency_load_failed'),
+            ('unrecognized failure', 'dependency_install_failed'),
+        ]
+        for stderr, reason in cases:
+            with self.subTest(reason=reason), patch.object(setup.subprocess, 'run', return_value=
+                    subprocess.CompletedProcess(['python'], 1, 'https://user:secret@private.example/path', stderr)):
+                with self.assertRaises(setup.SetupFailure) as raised:
+                    setup._run(['python', '-m', 'pip', 'install'], time.monotonic()+10)
+                details = raised.exception.details
+                self.assertEqual(details['reason'], reason)
+                self.assertEqual(details['exit_code'], 1)
+                self.assertNotIn('secret', json.dumps(details))
+                self.assertNotIn('private.example', json.dumps(details))
+
+    def test_setup_keeps_diagnostic_and_never_publishes_failed_config(self):
+        failure = setup._command_failure('No matching distribution found for onnxruntime', 1, True)
+        with patch.object(setup, '_run', side_effect=[{}, failure]):
+            result = setup.setup(self.base)
+        self.assertEqual(result['reason'], 'dependency_wheel_unavailable')
+        self.assertEqual(result['phase'], 'dependencies')
+        self.assertIn('remediation', result)
+        self.assertFalse((self.base/'vector-runtime/config.json').exists())
+
+    def test_windows_rejects_incompatible_host_before_creating_environment(self):
+        with patch.object(setup, '_mac', return_value=False), patch.object(setup.platform, 'system', return_value='Windows'), \
+             patch.object(setup.struct, 'calcsize', return_value=4), \
+             patch.object(setup, '_run', side_effect=AssertionError('must fail before subprocess')):
+            result = setup.setup(self.base)
+        self.assertEqual(result['reason'], 'windows_architecture_unsupported')
+
+    def test_windows_prerequisite_matrix(self):
+        for changes, reason in [({'version':[3,15]}, 'windows_python_unsupported'),
+                                ({'free_threaded':True}, 'windows_python_unsupported'),
+                                ({'implementation':'PyPy'}, 'windows_python_unsupported'),
+                                ({'architecture':'ARM64'}, 'windows_architecture_unsupported')]:
+            with self.subTest(changes=changes), self.assertRaises(setup.SetupFailure) as raised:
+                setup._windows_preflight({**self.info, **changes})
+            self.assertEqual(raised.exception.details['reason'], reason)
+
+    def test_missing_venv_components_fail_before_installation(self):
+        with patch.object(setup, '_mac', return_value=False), \
+             patch.object(setup.importlib.util, 'find_spec', return_value=None), \
+             patch.object(setup, '_run', side_effect=AssertionError('must not install')):
+            result = setup.setup(self.base)
+        self.assertEqual(result['reason'], 'python_environment_incomplete')
+
+    def test_existing_interpreter_controls_pin_even_when_host_version_differs(self):
+        root=self.base/'vector-runtime'
+        python=root/'venv'/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+        python.parent.mkdir(parents=True); python.write_text('fixture', encoding='utf-8')
+        probe=self.fake_probe()
+        for effective, host, expected in [([3,10],(3,14),'onnxruntime==1.23.2'),([3,14],(3,15),'onnxruntime==1.31.1')]:
+            with self.subTest(effective=effective), patch.object(setup, '_mac', return_value=False), \
+                 patch.object(setup.platform, 'system', return_value='Windows'), \
+                 patch.object(setup.sys,'version_info',host), \
+                 patch.object(setup, '_interpreter_info', return_value={**self.info,'version':effective}), \
+                 patch.object(setup, '_run', side_effect=[{},probe]) as run:
+                result=setup.setup(self.base)
+                self.assertEqual(result['status'],'ready',result)
+                self.assertIn(expected,run.call_args_list[0].args[0])
+
+    def test_interpreter_info_uses_bounded_stdlib_probe(self):
+        with patch.object(setup, '_run', return_value=self.info) as run:
+            self.assertEqual(self.real_info(Path(sys.executable),time.monotonic()+1),self.info)
+        self.assertNotIn('pip',run.call_args.args[0])
 
 
 if __name__ == "__main__":

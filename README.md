@@ -13,6 +13,39 @@
 
 Dev Memory is a Skill and local Python program for AI-assisted development. It helps your assistant recall relevant habits and project rules, then save durable knowledge backed by requirements or evidence. The assistant judges meaning; the program validates and stores records in SQLite.
 
+## Prerequisites
+
+Prepare the environment before installing the Skill. Skip preparation steps for software that already meets these requirements.
+
+| Capability | Requirements |
+| --- | --- |
+| Installation and base memory | Node.js 22+ with npm/npx, Git, Python 3.10+ with sqlite3 |
+| Windows local vectors | Standard **64-bit CPython 3.10–3.14**, x64; recommend the latest **3.14** patch. Install the Microsoft Visual C++ x64 Redistributable. Python 3.15, 32-bit, native ARM64 and free-threaded builds are outside the current pinned dependency support. |
+| macOS local vectors | macOS 13+ on Apple Silicon or Intel; setup prepares its own compatible Python 3.12 vector environment. |
+
+**Windows PowerShell — install missing prerequisites:**
+
+```powershell
+winget install --exact --id OpenJS.NodeJS.LTS
+winget install --exact --id Git.Git
+winget install --exact --id Python.Python.3.14 --architecture x64
+winget install --exact --id "Microsoft.VCRedist.2015+.x64"
+```
+
+To update an existing Python 3.14 installation, run `winget upgrade --exact --id Python.Python.3.14 --architecture x64`. Reopen the terminal, then verify:
+
+```powershell
+node --version
+git --version
+py -3.14 -c "import sys,struct,sqlite3,venv; print(sys.version); print(sys.executable); print('bits:',struct.calcsize('P')*8)"
+```
+
+The Python check should report 3.14.x and 64 bits. The Windows npx launcher prefers an available Python 3.14; vector setup validates the interpreter actually used by its virtual environment.
+
+**macOS with Homebrew:** run `brew install node git python@3.14`; update an existing installation with `brew upgrade node git python@3.14`. Verify with `node --version`, `git --version` and `python3.14 --version`. For other setups and Linux, see [environment preparation](docs/installation.md#environment-prerequisites).
+
+Setup downloads sqlite-vec, FastEmbed, ONNX Runtime and the model into an isolated directory. Allow access to your Python package source and model downloads, and write access to the runtime directory. You do not need to install these packages manually, compile C++ code, or configure a GPU/API key. See [Python installation](https://learn.microsoft.com/en-us/windows/dev-environment/python), [ONNX Runtime requirements](https://onnxruntime.ai/docs/install/#requirements) and [Homebrew Python](https://formulae.brew.sh/formula/python%403.14).
+
 ## Install
 
 Run this from the root of a development project:
@@ -33,7 +66,7 @@ For another AI host, replace `codex` with its parameter:
 | OpenCode | `opencode` | `AGENTS.md` |
 | DeepSeek Harness | `deepseek` | `AGENTS.md` |
 
-Installation needs Node.js 22+ with npm/npx, Git, and Python 3.10+ with sqlite3. The base memory runtime uses the Python standard library. Installation also attempts to prepare local vector search in an isolated environment; dependency or model setup failure leaves base memory available and reports vector degradation. Use `--without-vectors` for a basic offline installation. Choose the host running the assistant: DeepSeek through OpenCode uses `opencode`.
+The base memory runtime uses the Python standard library. Vector setup runs in an isolated environment; if it fails, base memory remains available and the installer explains the failure. Use `--without-vectors` for a basic offline installation. Choose the host running the assistant: DeepSeek through OpenCode uses `opencode`.
 
 Codex setup enables global habits for your user and project memory for the current project. In an uninitialized project, its user guidance recalls global habits only. Run the install command again in each project that needs its own memory. Other hosts currently use project guidance only. After installation or upgrade, start a new AI session in the project. You can then work normally without invoking the Skill or saying “remember this.” New stores start empty; existing records are retained.
 
