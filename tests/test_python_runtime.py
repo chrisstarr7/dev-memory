@@ -18,6 +18,7 @@ const root = path.join(process.env.DEV_MEMORY_HOME, 'python-runtime');
 Object.defineProperty(process, 'platform', {value: process.env.FIXTURE_PLATFORM || 'darwin'});
 Object.defineProperty(process, 'arch', {value: process.env.FIXTURE_ARCH || 'arm64'});
 const python = path.join(root, 'python', 'cpython-3.12-fixture', 'bin', 'python3.12');
+let found = python;
 const calls = [];
 let downloads=0;
 require('node:child_process').spawnSync = (command, args, options) => {
@@ -41,8 +42,13 @@ require('node:child_process').spawnSync = (command, args, options) => {
   if (args[0]==='python' && args[1]==='install') {
     if (process.env.FIXTURE_INSTALL_FAIL) return {status:1,stdout:'private download URL and secret'};
     fs.mkdirSync(path.dirname(python),{recursive:true}); fs.writeFileSync(python,'python fixture');
+    if (process.env.FIXTURE_INTERNAL_LINK) {
+      const alias = path.join(root,'python','cpython-3.12-alias');
+      fs.symlinkSync(path.dirname(path.dirname(python)),alias,'junction');
+      found=path.join(alias,'bin','python3.12');
+    }
   }
-  return {status:0,stdout:args[1]==='find'?python:''};
+  return {status:0,stdout:args[1]==='find'?found:''};
 };
 if (!process.env.FIXTURE_BAD_HASH) {
   require('node:crypto').createHash = () => ({update(){return this},digest(){
@@ -59,6 +65,14 @@ if (fixture === 'existing') {
 if (fixture === 'escape') {
   fs.mkdirSync(root,{recursive:true});
   fs.writeFileSync(path.join(root,'runtime.json'),JSON.stringify({python:path.join(process.env.DEV_MEMORY_HOME,'outside.exe')}));
+}
+if (fixture === 'linked-escape') {
+  const outside=path.join(process.env.DEV_MEMORY_HOME,'outside');
+  fs.mkdirSync(outside,{recursive:true});fs.writeFileSync(path.join(outside,'python'),'must not execute');
+  fs.mkdirSync(path.join(root,'python'),{recursive:true});
+  const alias=path.join(root,'python','alias');
+  fs.symlinkSync(outside,alias,'junction');
+  fs.writeFileSync(path.join(root,'runtime.json'),JSON.stringify({python:path.join(alias,'python')}));
 }
 if (fixture === 'corrupt' || fixture === 'missing') {
   fs.mkdirSync(root,{recursive:true});
@@ -148,6 +162,20 @@ class PythonRuntimeTests(unittest.TestCase):
 
     def test_escape_in_manifest_is_rejected_without_execution(self):
         result=self.run_fixture(FIXTURE_ACTION='escape')
+        self.assertEqual(result['code'],'python_runtime_unsafe_path')
+        self.assertEqual(result['calls'],[])
+        self.assertEqual(result['downloads'],0)
+
+    def test_internal_uv_alias_is_resolved_before_execution_and_publication(self):
+        result=self.run_fixture(FIXTURE_INTERNAL_LINK='1')
+        expected=self.base/'python-runtime/python/cpython-3.12-fixture/bin/python3.12'
+        self.assertEqual(Path(result['result']),expected.resolve())
+        manifest=json.loads((self.base/'python-runtime/runtime.json').read_text(encoding='utf-8'))
+        self.assertEqual(Path(manifest['python']),expected.resolve())
+        self.assertEqual(Path(result['calls'][-1]['command']),expected.resolve())
+
+    def test_link_outside_python_directory_is_rejected_before_execution(self):
+        result=self.run_fixture(FIXTURE_ACTION='linked-escape')
         self.assertEqual(result['code'],'python_runtime_unsafe_path')
         self.assertEqual(result['calls'],[])
         self.assertEqual(result['downloads'],0)

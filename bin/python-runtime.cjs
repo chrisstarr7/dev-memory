@@ -65,17 +65,20 @@ function validatePython(python, root, deadline) {
   if (typeof python !== 'string' || !path.isAbsolute(python) || !inside(path.join(root, 'python'), python)) {
     throw failure('python_runtime_unsafe_path', '专用 Python 记录指向运行目录之外；未执行该程序。');
   }
-  safePath(python);
-  if (!fs.statSync(python).isFile() || !inside(path.join(root, 'python'), fs.realpathSync(python))) {
+  const directory = safePath(path.join(root, 'python'));
+  const resolved = fs.realpathSync(python);
+  if (!inside(directory, resolved) || !fs.statSync(resolved).isFile()) {
     throw failure('python_runtime_unsafe_path', '专用 Python 解释器路径不安全。');
   }
-  const info = JSON.parse(run(python, ['-I', '-c', PROBE], root, Math.min(deadline, Date.now() + 10000)));
+  // uv maintains minor-version aliases; execute and persist only their in-directory real target.
+  safePath(resolved);
+  const info = JSON.parse(run(resolved, ['-I', '-c', PROBE], root, Math.min(deadline, Date.now() + 10000)));
   if (info.implementation !== 'CPython' || JSON.stringify(info.version) !== '[3,12]' || info.bits !== 64
       || !(process.arch === 'arm64' ? ['arm64','aarch64'] : ['x86_64','amd64']).includes(info.architecture)
-      || path.resolve(info.executable) !== path.resolve(python)) {
+      || path.resolve(info.executable) !== resolved) {
     throw failure('python_runtime_invalid', '专用 Python 校验失败；需要完整的 64 位 CPython 3.12。');
   }
-  return python;
+  return resolved;
 }
 
 function existing(root, deadline) {
@@ -169,8 +172,8 @@ async function ensurePython({ allowDownload = true, onProgress = () => {} } = {}
       // uv checks its own installation cache first; reinstall only after the cached probe failed.
       if (fs.existsSync(path.join(root, 'runtime.json'))) install.push('--reinstall');
       run(uv, install, root, deadline);
-      const python = run(uv, ['python', 'find', '--managed-python', '--no-python-downloads', '--no-project', '--no-config', request], root, deadline);
-      validatePython(python, root, deadline);
+      const found = run(uv, ['python', 'find', '--managed-python', '--no-python-downloads', '--no-project', '--no-config', request], root, deadline);
+      const python = validatePython(found, root, deadline);
       const temporary = safePath(path.join(root, `runtime-${token}.json`));
       fs.writeFileSync(temporary, JSON.stringify({ python, version: '3.12' }) + '\n', { mode: 0o600, flag: 'wx' });
       fs.renameSync(temporary, path.join(root, 'runtime.json'));
