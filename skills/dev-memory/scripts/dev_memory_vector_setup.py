@@ -202,11 +202,15 @@ def _interpreter_info(python: Path, deadline: float) -> dict:
 
 
 def _compatible_python(root: Path, deadline: float) -> str:
-    """Mac 使用支持 SQLite 扩展的独立 Python 3.12，保留宿主环境。"""
+    """优先复用 npx 的专用 Python；直接 Python 安装仍保留 Mac 引导。"""
     if not _mac():
         return sys.executable
     if tuple(int(part) for part in platform.mac_ver()[0].split(".")[:1] if part) < (13,):
         raise RuntimeError("macos_13_required")
+    shared = Path(os.environ.get("DEV_MEMORY_HOME") or Path.home() / ".dev-memory").expanduser().resolve()
+    if (sys.version_info[:2] == (3, 12)
+            and Path(sys.executable).resolve().is_relative_to(shared / "python-runtime" / "python")):
+        return sys.executable
     directory = root / "python"
     bootstrap = root / "bootstrap"
     if directory.is_symlink() or bootstrap.is_symlink():

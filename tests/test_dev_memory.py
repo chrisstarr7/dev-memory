@@ -803,6 +803,47 @@ class IntegrationTests(MemoryTestCase):
             os.environ.clear()
             os.environ.update(before)
 
+    def test_hook_python_migration_preserves_options_and_removes_duplicates(self) -> None:
+        target = self.home / "installed skill"
+        codex_home = self.home / "codex"
+        codex_home.mkdir()
+        script = str((target / "scripts/codex_hook.py").resolve())
+        old_command = dev_memory.shlex.join([str(self.home / "old runtime/python.exe"), script])
+        handler = {"type": "command", "command": old_command, "timeout": 1,
+                   "additionalContextLimit": 500, "trusted": False}
+        other = {"type": "command", "command": "echo other", "timeout": 3}
+        other_python = {"type": "command", "command": dev_memory.shlex.join([
+            str(self.home / "old runtime/python.exe"), str(self.home / "other/codex_hook.py")])}
+        malformed = {"type": "command", "command": "'unclosed"}
+        data = {"trust": "review", "hooks": {
+            "SessionStart": [{"matcher": "resume", "custom": True,
+                              "hooks": [handler, other, dict(handler), other_python, malformed]},
+                             {"matcher": "startup", "hooks": [dict(handler)]}],
+            "UserPromptSubmit": [{"hooks": [dict(handler), dict(handler)]}],
+            "Stop": [{"hooks": [dict(handler), other]}],
+            "UnknownEvent": "preserved",
+        }}
+        hook_file = codex_home / "hooks.json"
+        hook_file.write_text(json.dumps(data), encoding="utf-8")
+        with patch.dict(os.environ, {"CODEX_HOME": str(codex_home)}):
+            dev_memory._merge_hook_config(target)
+            updated = json.loads(hook_file.read_text(encoding="utf-8"))
+            expected = {**handler, "command": dev_memory._hook_command(target)}
+            self.assertEqual(updated["trust"], "review")
+            self.assertEqual(updated["hooks"]["SessionStart"], [
+                {"matcher": "resume", "custom": True,
+                 "hooks": [expected, other, other_python, malformed]}])
+            self.assertEqual(updated["hooks"]["UserPromptSubmit"], [{"hooks": [expected]}])
+            self.assertEqual(updated["hooks"]["Stop"], [{"hooks": [other]}])
+            self.assertEqual(updated["hooks"]["UnknownEvent"], "preserved")
+            dev_memory._merge_hook_config(target)
+            self.assertEqual(json.loads(hook_file.read_text(encoding="utf-8")), updated)
+            result = dev_memory._remove_hook_config(target)
+            self.assertEqual(result["handlers_removed"], 2)
+            after = json.loads(hook_file.read_text(encoding="utf-8"))
+            self.assertEqual(after["hooks"]["SessionStart"], [
+                {"matcher": "resume", "custom": True, "hooks": [other, other_python, malformed]}])
+
     def test_benchmark_fixture_is_identical_and_synthetic(self) -> None:
         self.assertIn("prior confirmed refund policy", bench_compare.TASK)
         self.assertIn("14", json.dumps(bench_compare.CRITERIA))

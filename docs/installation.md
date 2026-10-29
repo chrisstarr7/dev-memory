@@ -1,39 +1,9 @@
 # 安装与宿主配置
 
 <a id="environment-prerequisites"></a>
-## 环境准备
+## 安装条件
 
-先完成本节，再运行下方 Skill 安装命令。基础功能要求 Node.js 22+、npm/npx、Git 和 Python 3.10+（含 sqlite3）。默认安装还会准备本地向量，需要完整 Python 的 venv、ensurepip 组件及对应平台的二进制依赖；基础记忆可用不代表向量环境已经满足要求。
-
-- **Windows 推荐：**标准版 64 位 CPython 3.14 最新补丁，x64，Microsoft Visual C++ x64 运行库。当前固定依赖支持标准 CPython 3.10–3.14；不支持 3.15、32 位、原生 ARM64 或自由线程 Python。不要用安装 Visual Studio/Build Tools 代替选择匹配的二进制包。
-- **macOS：**向量环境要求 macOS 13+；Apple Silicon 与 Intel 分别使用原生架构。安装器会下载独立 Python 3.12，不替换系统 Python。Homebrew 不适用于当前系统时，可使用 [Python 官方安装程序](https://www.python.org/downloads/macos/)准备宿主环境。
-- **Linux：**使用发行版提供的 Python 3.10+，包含 venv、pip 和可加载扩展的 sqlite3；本地向量需要当前平台对应的预编译依赖。发行版将这些组件拆包时，按其官方安装说明补齐。
-
-Windows 按需安装：
-
-```powershell
-winget install --exact --id OpenJS.NodeJS.LTS
-winget install --exact --id Git.Git
-winget install --exact --id Python.Python.3.14 --architecture x64
-winget install --exact --id "Microsoft.VCRedist.2015+.x64"
-```
-
-已有 Python 3.14 的升级与检查：
-
-```powershell
-winget upgrade --exact --id Python.Python.3.14 --architecture x64
-py -3.14 -c "import sys,struct,sqlite3,venv; print(sys.version); print(sys.executable); print('bits:',struct.calcsize('P')*8)"
-node --version
-git --version
-```
-
-安装或升级后应先重新打开终端再检查。Python 输出应为 3.14.x、64 位；npx 入口会优先选择可用的 3.14。其他兼容版本可继续使用，安装器按实际向量虚拟环境选择依赖，不用宿主版本猜测旧环境的版本。
-
-macOS 的 Homebrew 用户可执行 `brew install node git python@3.14`，已有环境升级用 `brew upgrade node git python@3.14`；检查 `node --version`、`git --version`、`python3.14 --version`。请遵守 [Homebrew 支持范围](https://docs.brew.sh/Installation)。
-
-sqlite-vec、FastEmbed、ONNX Runtime 和模型由 Skill 自动准备。用户负责运行目录写权限，以及软件源和模型源的网络、代理与证书配置；企业软件源必须提供匹配版本的二进制包。安装器不会关闭 TLS 校验，也不会自动修改系统代理或安装系统运行库。`--without-vectors` 可明确选择仅安装基础记忆功能。
-
-依赖范围依据：[sqlite-vec 0.1.9 文件](https://pypi.org/project/sqlite-vec/0.1.9/#files)、[ONNX Runtime 1.23.2](https://pypi.org/project/onnxruntime/1.23.2/#files)、[ONNX Runtime 1.31.1](https://pypi.org/project/onnxruntime/1.31.1/#files)、[FastEmbed 依赖](https://pypi.org/pypi/fastembed/0.9.1/json)。系统运行库依据：[ORT 要求](https://onnxruntime.ai/docs/install/#requirements)、[微软 VC++ 下载](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)。
+在线安装只需 **Node.js 22+（含 npm/npx）和 Git**。Windows x64、macOS Intel / Apple Silicon 会自动准备专用 Python；无需安装或升级系统 Python。macOS 本地向量要求 13+。Linux 与直接 Python 入口另需 Python 3.10+（含 sqlite3）；完整向量安装还需要 venv、ensurepip 和可加载扩展的 sqlite3。
 
 ## 推荐：短命令在线安装
 
@@ -43,9 +13,21 @@ sqlite-vec、FastEmbed、ONNX Runtime 和模型由 Skill 自动准备。用户�
 npx -y --prefer-online chrisstarr7/dev-memory <agent>
 ```
 
-支持 Codex、Claude Code、Cursor、Gemini CLI、GitHub Copilot、OpenCode 和 DeepSeek Harness，参数与路径见下表。需要 Node.js 22+、npm/npx、Git 和 Python 3.10+（含 sqlite3）。`npx` 直接获取这个公开 GitHub 仓库的程序，不需要 npm 账号。安装器无第三方 Node 依赖、无安装生命周期脚本，记忆运行时仍是 Python 标准库和 SQLite；安装完成后的记忆管理不调用 npx 或网络下载。
+支持 Codex、Claude Code、Cursor、Gemini CLI、GitHub Copilot、OpenCode 和 DeepSeek Harness，参数与路径见下表。Windows/macOS 无需预装 Python；Linux 仍需 Python 3.10+（含 sqlite3）。`npx` 直接获取这个公开 GitHub 仓库的程序，不需要 npm 账号。安装器无第三方 Node 依赖、无安装生命周期脚本，记忆运行时仍是 Python 标准库和 SQLite；安装完成后的记忆管理不调用 npx 或网络下载。
 
 成功时显示程序、项目和引导文件。一条命令完成下载、运行检查、独立空库初始化和项目引导。新项目默认为 `full-project`：自动记录有依据的长期项目规范、契约、决策和经验；持久记忆仅有全局与项目两层，不创建任务记忆。旧项目仍是 developer-first 且希望开启完整项目捕获时，让 AI 使用 `.dev-memory/activation.json` 中当前宿主的 `python` 和 `cli` 路径，调用 `mode full-project --project-root /项目路径`；同一命令接受 `developer-first` 以切回。重复执行复用相同的受管理程序，有变化时自动更新；已有记忆与配置不会清空。默认使用当前目录；其他目录执行时可加 `--project /项目绝对路径`。加 `--json` 获取机器回执。
+
+## 专用 Python 与系统环境隔离
+
+Windows/macOS 的 npx 入口通过固定版本 `uv==0.13.6` 下载标准 CPython 3.12，校验 uv 下载包完整性，验证解释器后才用于安装。即使没有系统 Python，或系统版本低于 3.10，也不需要先升级系统环境。该机制只适用于此 npx 入口；直接执行 `install.py`、Python 在线入口和外部 Skill 管理器仍需准备自己的兼容解释器。
+
+- 默认保存到 `~/.dev-memory/python-runtime`；`DEV_MEMORY_HOME` 可改变根目录。同一用户的多个项目和宿主复用，不随 npx 临时缓存删除。
+- 不修改 PATH、默认 Python、注册表、Shell 配置或项目虚拟环境。安装绑定保存持久解释器的绝对路径；日常召回、保存和维护不调用 Node、uv 或 Dashboard。
+- 首次准备需要访问 GitHub、Python 下载源、Python 软件源及模型源，并有运行目录写权限。已有可用 Python 环境离线复用；`--without-vectors` 只跳过向量依赖与模型，不免除首次 Python 下载。
+- 向量依赖继续隔离在 `<global-root>/vector-runtime` 的虚拟环境内；新的 npx 安装复用专用 Python 创建它，已有合格向量环境继续使用。
+- Skill 升级、卸载保留共享 Python 和记忆，不会破坏其他项目绑定。不要手动删除仍有项目使用的运行目录。
+
+此运行环境不是记忆的作用域：项目数据库仍各自独立，全局记忆仍按现有规则管理。隔离方式依据 [uv 的受管 Python 说明](https://docs.astral.sh/uv/concepts/python-versions/)。
 
 ## Codex 一次安装同时配置全局与项目
 
@@ -176,7 +158,7 @@ python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py setup --project-root /
 
 ## 没有 Node.js：Python 在线入口
 
-macOS / Linux（使用系统 Bash、curl 和 Python）：
+以下替代入口仍需已安装 Python 3.10+（含 sqlite3），不会通过 Node 自动准备解释器。macOS / Linux（使用 Bash、curl 和 Python）：
 
 ```sh
 bash -o pipefail -c 'curl -fsSL --max-time 30 https://raw.githubusercontent.com/chrisstarr7/dev-memory/main/install.py | python3 - "$@"' -- codex
@@ -192,7 +174,7 @@ py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercont
 
 ## 离线源码 / 仅安装程序
 
-已有完整源码时，在仓库目录执行 `python3 install.py codex --project /业务项目绝对路径`。这与在线安装调用同一套运行检查和初始化逻辑；Windows 使用 `py -3`。
+此入口使用用户提供的 Python 3.10+（含 sqlite3），不会自动安装解释器。已有完整源码时，在仓库目录执行 `python3 install.py codex --project /业务项目绝对路径`。这与在线安装调用同一套运行检查和初始化逻辑；Windows 使用 `py -3`。
 
 高级用法：`python3 install.py codex` 只安装程序，不初始化项目；`python3 install.py` 可交互选择宿主。非交互环境必须指定宿主。原 `--agent` 参数仍支持。
 
@@ -204,7 +186,7 @@ py -3 -c "import urllib.request as u; exec(u.urlopen('https://raw.githubusercont
 DISABLE_TELEMETRY=1 npx skills@1.7.2 add chrisstarr7/dev-memory -g -a codex --copy -y
 ```
 
-这个外部管理器只复制程序；要得到默认项目记忆，应从它报告的实际安装副本运行上面的 `setup` 一次。`-g` 是程序安装位置，业务记忆仍留在所属项目。外部安装器需要 Node >=22.20.0；核心不依赖 Node，也不收集遥测。
+这个外部管理器只复制程序，不准备专用 Python；仍需 Python 3.10+（含 sqlite3）。要得到默认项目记忆，应从它报告的实际安装副本运行上面的 `setup` 一次。`-g` 是程序安装位置，业务记忆仍留在所属项目。外部安装器需要 Node >=22.20.0；核心不依赖 Node，也不收集遥测。
 
 ## 检查与故障
 
@@ -212,6 +194,9 @@ AI 可从安装副本运行 `doctor --project-root <路径>`，检查 `project_a
 
 - **网络失败**：先确认能访问 GitHub，再重试同一在线命令；没有“安装成功”和项目初始化回执时，不算完成。下载、校验失败不会安装，安装阶段超时可能留下部分结果，应检查后重试。
 - **HTTPS 证书错误**：保持证书验证，不使用 `-k` 或关闭 SSL 检查。macOS 安装包读取会加载系统 CA；自定义 `SSL_CERT_FILE` / `SSL_CERT_DIR` 会被保留。Windows/Python 首次下载失败时检查系统或管理员的 CA 配置。
+- **Python 准备失败**：按安装器提示区分下载、完整性校验和目录权限问题，修复后重试同一条 npx 命令。无需先卸载系统 Python；安装器不会关闭 TLS 校验或自动修改系统代理。
+- **Windows 原生依赖加载失败**：先核对错误说明、解释器与依赖架构。若缺少 VC++ 运行库，按 [ONNX Runtime 系统要求](https://onnxruntime.ai/docs/install/#requirements)执行 `winget install --exact --id "Microsoft.VCRedist.2015+.x64"` 后重试。安装器不自动安装系统运行库，也不要求安装 Visual Studio / C++ 编译工具。仅凭依赖下载失败不能判定缺少运行库。
+- **直接 Python 入口版本不兼容**：基础记忆要求 3.10+。Windows 向量固定依赖支持标准 x64 CPython 3.10–3.14；32 位、原生 ARM64、3.15 和自由线程版本没有完整匹配包。可改用推荐 npx 入口自动准备兼容 Python；Linux 按发行版说明准备 venv、pip 和 SQLite 扩展支持。依赖范围见 [sqlite-vec 文件](https://pypi.org/project/sqlite-vec/0.1.9/#files)、[ORT 1.23.2](https://pypi.org/project/onnxruntime/1.23.2/#files)、[ORT 1.31.1](https://pypi.org/project/onnxruntime/1.31.1/#files)。
 - **找不到 npx**：使用含 npm 的 Node.js 22+，或使用上面的 Python 在线入口。
 - **Windows PowerShell 限制 npx.ps1**：用 `npx.cmd -y chrisstarr7/dev-memory codex`，无需修改执行策略。
 - **原会话未生效**：新建该项目会话，使宿主重新加载启动指令。

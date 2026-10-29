@@ -17,9 +17,9 @@ Dev Memory は AI 開発支援用の可搬な Skill とローカル Python プ�
 
 ## クイックスタート
 
-**先に環境を準備してください。** Node.js 22+、Git、sqlite3 を含む Python 3.10+ が必要です。Windows のローカルベクトルには標準64ビット CPython 3.10–3.14（最新の3.14を推奨）、x64 Visual C++ランタイムが必要です。3.15、32ビット、ネイティブARM64、free-threaded Pythonは現在の固定依存関係の対象外です。
+**Node.js 22+（npm/npx）と Git** が必要です。Windows x64 と macOS（Apple Silicon / Intel）では専用 Python 3.12 を自動準備するため、システム Python の導入・更新は不要です。macOS のローカルベクトルには13+が必要です。Linux と Python 直接導入には Python 3.10+（sqlite3 含む）が必要です。
 
-Windowsでは `winget install --exact --id Python.Python.3.14 --architecture x64` で導入、既存3.14の更新は `winget upgrade --exact --id Python.Python.3.14 --architecture x64` を使います。ランタイムは `winget install --exact --id "Microsoft.VCRedist.2015+.x64"`、新しい端末で `py -3.14 --version` を確認します。macOSは13+が必要で、ベクトル用Python3.12を自動準備します。Homebrewユーザーは `brew install node git python@3.14`、既存環境の更新は `brew upgrade node git python@3.14` を使えます。詳細は[環境準備](../installation.md#environment-prerequisites)を参照してください。依存パッケージとモデルの手動インストールは不要です。
+専用 Python は `~/.dev-memory/python-runtime` に保存され、同じユーザーのプロジェクト間で共有します（`DEV_MEMORY_HOME` でルートを変更可能）。PATH、既定 Python、レジストリ、シェル設定は変更しません。初回のダウンロードにはネット接続が必要ですが、準備済み環境はオフラインで再利用します。更新・アンインストール時も実行環境とメモリを保持します。詳細は[導入ガイド](../installation.md#environment-prerequisites)を参照してください。
 
 **開発プロジェクトのルート**で実行します。
 
@@ -27,7 +27,7 @@ Windowsでは `winget install --exact --id Python.Python.3.14 --architecture x64
 npx -y --prefer-online chrisstarr7/dev-memory <agent>
 ```
 
-`<agent>` を下表の引数に置き換えてください。Node.js 22+（npm/npx）、Git、Python 3.10+（sqlite3 を含む）が必要です。導入後のメモリ処理は Python 標準ライブラリで動作し、npx や外部メモリサービスは不要です。
+`<agent>` を下表の引数に置き換えてください。導入後のメモリ処理は Python 標準ライブラリで動作し、npx や外部メモリサービスは不要です。
 
 | AI ホスト | 引数 | プロジェクトの指示ファイル |
 | --- | --- | --- |

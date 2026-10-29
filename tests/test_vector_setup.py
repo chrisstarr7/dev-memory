@@ -22,6 +22,7 @@ class VectorSetupTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.base = Path(self.tmp.name).resolve()
         self.compatible_python = setup._compatible_python
+        self.real_compatible_python = setup._compatible_python
         runtime = patch.object(setup, "_compatible_python", return_value=sys.executable)
         runtime.start()
         self.addCleanup(runtime.stop)
@@ -254,6 +255,17 @@ class VectorSetupTests(unittest.TestCase):
         with patch.object(setup, '_run', return_value=self.info) as run:
             self.assertEqual(self.real_info(Path(sys.executable),time.monotonic()+1),self.info)
         self.assertNotIn('pip',run.call_args.args[0])
+
+    def test_mac_reuses_npx_python_without_downloading_another_interpreter(self):
+        python = self.base/'python-runtime/python/cpython-3.12.12-macos-aarch64-none/bin/python3.12'
+        with patch.object(setup, '_mac', return_value=True), \
+             patch.dict(os.environ, {'DEV_MEMORY_HOME':str(self.base)}), \
+             patch.object(setup.platform, 'mac_ver', return_value=('13.0', (), '')), \
+             patch.object(setup.sys, 'version_info', (3,12)), \
+             patch.object(setup.sys, 'executable', str(python)), \
+             patch.object(setup, '_run', side_effect=AssertionError('must reuse without downloads')):
+            self.assertEqual(self.real_compatible_python(self.base/'vector-runtime', time.monotonic()+10), str(python))
+            self.assertEqual(self.real_compatible_python(self.base/'historical-root/vector-runtime', time.monotonic()+10), str(python))
 
 
 if __name__ == "__main__":
