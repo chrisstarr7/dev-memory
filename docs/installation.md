@@ -3,7 +3,7 @@
 <a id="environment-prerequisites"></a>
 ## 安装条件
 
-在线安装只需 **Node.js 22+（含 npm/npx）和 Git**。Windows x64、macOS Intel / Apple Silicon 会自动准备专用 Python；无需安装或升级系统 Python。macOS 本地向量要求 13+。Linux 与直接 Python 入口另需 Python 3.10+（含 sqlite3）；完整向量安装还需要 venv、ensurepip 和可加载扩展的 sqlite3。
+推荐的 Windows x64 与 macOS npx 安装只需 **Node.js 22+（含 npm/npx）和 Git**。安装器会自动准备 dev-memory 专用的 CPython 3.12、隔离虚拟环境、向量依赖和模型；不要求用户安装系统 Python，也不写入系统 Python 或全局 site-packages。macOS 本地向量要求 13+。Linux 与直接 Python 入口另需 Python 3.10+（含 sqlite3）；完整向量安装还需要 venv、ensurepip 和可加载扩展的 sqlite3。
 
 ## 推荐：短命令在线安装
 
@@ -21,10 +21,10 @@ npx -y --prefer-online chrisstarr7/dev-memory <agent>
 
 Windows/macOS 的 npx 入口通过固定版本 `uv==0.13.6` 下载标准 CPython 3.12，校验 uv 下载包完整性，验证解释器后才用于安装。即使没有系统 Python，或系统版本低于 3.10，也不需要先升级系统环境。该机制只适用于此 npx 入口；直接执行 `install.py`、Python 在线入口和外部 Skill 管理器仍需准备自己的兼容解释器。
 
-- 默认保存到 `~/.dev-memory/python-runtime`；`DEV_MEMORY_HOME` 可改变根目录。同一用户的多个项目和宿主复用，不随 npx 临时缓存删除。
-- 不修改 PATH、默认 Python、注册表、Shell 配置或项目虚拟环境。安装绑定保存持久解释器的绝对路径；日常召回、保存和维护不调用 Node、uv 或 Dashboard。
-- 首次准备需要访问 GitHub、Python 下载源、Python 软件源及模型源，并有运行目录写权限。已有可用 Python 环境离线复用；`--without-vectors` 只跳过向量依赖与模型，不免除首次 Python 下载。
-- 向量依赖继续隔离在 `<global-root>/vector-runtime` 的虚拟环境内；新的 npx 安装复用专用 Python 创建它，已有合格向量环境继续使用。
+- 默认保存到 `~/.dev-memory/python-runtime` 和 `~/.dev-memory/vector-runtime`；`DEV_MEMORY_HOME` 可改变根目录。这些目录只供 dev-memory 使用，同一用户的多个项目和宿主复用，不随 npx 临时缓存删除。Python、虚拟环境、模型、wheel 下载缓存均留在此目录。
+- 不修改 PATH、默认 Python、全局 site-packages、注册表、Shell 配置或项目虚拟环境。安装绑定保存持久解释器的绝对路径；日常召回、保存和维护不调用 Node、uv 或 Dashboard。
+- 首次准备需要访问 GitHub、Python 下载源、PyPI 和模型源，并有运行目录写权限。向量包默认从 PyPI 安装到 dev-memory 自己的虚拟环境，不读取或修改其他 Python 项目的 pip 配置，也不使用系统级 pip 缓存；代理和 CA 证书环境变量仍有效。企业网络要求使用内部镜像时，可在安装前设置 `DEV_MEMORY_PIP_INDEX_URL` 为组织批准且包含所需 wheel 的镜像地址。`--without-vectors` 只跳过向量依赖与模型，不免除首次 Python 下载。
+- 向量依赖隔离在 `<global-root>/vector-runtime/venv`；新的 npx 安装复用 dev-memory 专用 Python 创建它，已有合格向量环境继续使用。
 - Skill 升级、卸载保留共享 Python 和记忆，不会破坏其他项目绑定。不要手动删除仍有项目使用的运行目录。
 
 此运行环境不是记忆的作用域：项目数据库仍各自独立，全局记忆仍按现有规则管理。隔离方式依据 [uv 的受管 Python 说明](https://docs.astral.sh/uv/concepts/python-versions/)。

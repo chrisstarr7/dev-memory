@@ -57,6 +57,8 @@ class VectorSetupTests(unittest.TestCase):
         self.assertEqual(config["model_name"], setup.MODEL)
         self.assertEqual(config["packages"], list(setup._packages()))
         self.assertIn("--copies", run.call_args_list[0].args[0])
+        self.assertEqual(run.call_args_list[1].args[0][6:8],
+                         ["--cache-dir", str(self.base/"vector-runtime"/"pip-cache")])
         self.assertEqual(run.call_args_list[1].args[0][-3:], list(setup._packages()))
         self.assertFalse((self.base / "global" / "memory.sqlite3").exists())
 
@@ -270,14 +272,60 @@ class VectorSetupTests(unittest.TestCase):
                 self.assertNotIn('secret', json.dumps(details))
                 self.assertNotIn('private.example', json.dumps(details))
 
+    def test_pip_install_uses_skill_source_without_changing_parent_environment(self):
+        parent = {'PIP_INDEX_URL': 'https://stale.example/simple',
+                  'PIP_EXTRA_INDEX_URL': 'https://other.example/simple', 'PIP_NO_INDEX': '1',
+                  'PIP_FIND_LINKS': 'C:/wheelhouse', 'PIP_TRUSTED_HOST': 'stale.example',
+                  'PIP_CONSTRAINT': 'C:/other-project/constraints.txt', 'PIP_REQUIRE_HASHES': '1',
+                  'PIP_CACHE_DIR': 'C:/shared/pip-cache', 'PIP_PROXY': 'http://proxy.example',
+                  'HTTPS_PROXY': 'http://proxy.example', 'SSL_CERT_FILE': 'C:/certs/company.pem'}
+        with patch.dict(os.environ, parent, clear=True), \
+             patch.object(setup.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                 ['python', '-m', 'pip', 'install'], 0, '{}\n', '')) as run:
+            setup._run(['python', '-m', 'pip', 'install'], time.monotonic()+10)
+            env = run.call_args.kwargs['env']
+            self.assertEqual(env['PIP_CONFIG_FILE'], os.devnull)
+            self.assertEqual(env['PIP_INDEX_URL'], 'https://pypi.org/simple')
+            self.assertTrue(all(key not in env for key in ('PIP_EXTRA_INDEX_URL', 'PIP_FIND_LINKS',
+                                                           'PIP_NO_INDEX', 'PIP_TRUSTED_HOST', 'PIP_CONSTRAINT',
+                                                           'PIP_REQUIRE_HASHES', 'PIP_CACHE_DIR')))
+            self.assertEqual(env['HTTPS_PROXY'], parent['HTTPS_PROXY'])
+            self.assertEqual(env['SSL_CERT_FILE'], parent['SSL_CERT_FILE'])
+            self.assertEqual(env['PIP_PROXY'], parent['PIP_PROXY'])
+            self.assertEqual(os.environ['PIP_INDEX_URL'], parent['PIP_INDEX_URL'])
+
+    def test_pip_install_accepts_skill_scoped_mirror_override(self):
+        with patch.dict(os.environ, {'DEV_MEMORY_PIP_INDEX_URL': 'https://mirror.example/simple'}, clear=True), \
+             patch.object(setup.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                 ['python', '-m', 'pip', 'install'], 0, '{}\n', '')) as run:
+            setup._run(['python', '-m', 'pip', 'install'], time.monotonic()+10)
+            self.assertEqual(run.call_args.kwargs['env']['PIP_INDEX_URL'], 'https://mirror.example/simple')
+
     def test_setup_keeps_diagnostic_and_never_publishes_failed_config(self):
-        failure = setup._command_failure('No matching distribution found for onnxruntime', 1, True)
-        with patch.object(setup, '_run', side_effect=[{}, failure]):
+        command = ['python', '-m', 'pip', 'install', '--only-binary=:all:', 'onnxruntime==1.31.1']
+        failure = setup._command_failure('No matching distribution found for onnxruntime', 1, True, command)
+        with patch.object(setup, '_mac', return_value=False), \
+             patch.object(setup.platform, 'system', return_value='Windows'), \
+             patch.object(setup, '_run', side_effect=[{}, failure]):
             result = setup.setup(self.base)
         self.assertEqual(result['reason'], 'dependency_wheel_unavailable')
         self.assertEqual(result['phase'], 'dependencies')
-        self.assertIn('remediation', result)
+        self.assertEqual(result['package_requirement'], 'onnxruntime==1.31.1')
+        self.assertIn('CPython', result['message'])
+        self.assertIn('3.13', result['message'])
+        self.assertIn('AMD64', result['message'])
+        self.assertIn('DEV_MEMORY_PIP_INDEX_URL', result['remediation'])
+        self.assertNotIn('改 Python 版本', result['remediation'])
         self.assertFalse((self.base/'vector-runtime/config.json').exists())
+
+    def test_missing_wheel_diagnostic_uses_only_the_requested_package_pin(self):
+        command = ['python', '-m', 'pip', 'install', 'onnxruntime==1.31.1', 'https://private.example/token']
+        failure = setup._command_failure(
+            'No matching distribution found for onnxruntime; index https://user:secret@private.example/simple',
+            1, True, command)
+        self.assertEqual(failure.details['package_requirement'], 'onnxruntime==1.31.1')
+        self.assertNotIn('secret', json.dumps(failure.details))
+        self.assertNotIn('private.example', json.dumps(failure.details))
 
     def test_windows_rejects_incompatible_host_before_creating_environment(self):
         with patch.object(setup, '_mac', return_value=False), patch.object(setup.platform, 'system', return_value='Windows'), \

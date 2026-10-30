@@ -43,7 +43,7 @@ npx -y --prefer-online chrisstarr7/dev-memory codex
 
 Codex 安装会同时启用用户级全局习惯和当前项目记忆。在未初始化的其他项目中，用户级引导只召回全局习惯。需要项目记忆时，在该项目再次运行安装命令。其他宿主目前仅使用项目引导。安装或升级后，在项目中开启新的 AI 会话；之后正常提出需求即可，不必每轮调用 Skill 或说“记住”。新建记忆库从空库开始，已有记录会保留。
 
-专用 Python 默认存放在 `~/.dev-memory/python-runtime`（`DEV_MEMORY_HOME` 可更改根目录），同一用户的多个项目共用。它不修改 PATH、默认 Python、注册表或 Shell 配置；可用环境离线复用，日常记忆操作直接调用绑定的解释器。升级或卸载 Skill 均保留该运行环境及已有记忆。
+安装时自动为 dev-memory 准备独立 CPython 和向量依赖，放在 `~/.dev-memory/python-runtime` 与 `~/.dev-memory/vector-runtime`（`DEV_MEMORY_HOME` 可更改根目录）。它们只供 dev-memory 使用，可由同一用户的多个项目共用；不会安装进系统 Python、全局 site-packages，也不修改 PATH、注册表或 Shell 配置。依赖和下载缓存都在该目录内。依赖默认从 PyPI 下载，不受其他 Python 项目的 pip 镜像配置影响；企业环境可用 `DEV_MEMORY_PIP_INDEX_URL` 指定获准的镜像。升级或卸载 Skill 均保留该运行环境及已有记忆。
 
 其他安装方式、权限和宿主细节见[安装与卸载说明](docs/installation.md)。
 

@@ -34,7 +34,8 @@ class SetupTests(unittest.TestCase):
 
     def test_one_command_installs_and_activates_empty_stores_idempotently(self):
         env = {**os.environ, 'HOME': str(self.home), 'USERPROFILE': str(self.home),
-               'CODEX_HOME': str(self.home / '.codex'), 'DEV_MEMORY_HOME': str(self.global_root)}
+               'CODEX_HOME': str(self.home / '.codex'), 'DEV_MEMORY_HOME': str(self.global_root),
+               'DEV_MEMORY_VECTOR_SETUP': '0'}
         cmd = [sys.executable, '-B', str(ROOT / 'install.py'), 'codex', '--project', str(self.project), '--json']
         for _ in range(2):
             run = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=15)
@@ -318,7 +319,8 @@ class SetupTests(unittest.TestCase):
 
     def test_codex_project_install_also_enables_user_habits(self):
         env = {**os.environ, 'HOME': str(self.home), 'USERPROFILE': str(self.home),
-               'CODEX_HOME': str(self.home / '.codex'), 'DEV_MEMORY_HOME': str(self.global_root)}
+               'CODEX_HOME': str(self.home / '.codex'), 'DEV_MEMORY_HOME': str(self.global_root),
+               'DEV_MEMORY_VECTOR_SETUP': '0'}
         cmd = [sys.executable, '-B', str(ROOT / 'install.py'), 'codex', '--project', str(self.project), '--json']
         run = subprocess.run(cmd, env=env, cwd=self.project, capture_output=True, text=True, timeout=15)
         self.assertEqual(run.returncode, 0, run.stderr + run.stdout)
