@@ -29,8 +29,8 @@ def argument_parser() -> argparse.ArgumentParser:
 
 def parse_arguments(parser: argparse.ArgumentParser, argv: list[str] | None) -> argparse.Namespace:
     args = parser.parse_args(argv)
-    args.operation = "update" if args.agent == "update" else "install"
-    if args.operation == "update":
+    args.operation = args.agent if args.agent in {"update", "uninstall"} else "install"
+    if args.operation in {"update", "uninstall"}:
         args.agent = args.update_agent
     elif args.update_agent:
         parser.error("额外的 AI 参数；更新请使用 update codex。")
@@ -82,6 +82,23 @@ def main(argv: list[str] | None = None) -> int:
             agent = ALIASES.get(selected, selected)
     if agent not in dev_memory.AGENT_DIRS:
         parser.error("未知 AI；可选：" + ", ".join(dev_memory.AGENT_DIRS))
+    if args.operation == "uninstall":
+        if args.project or args.upgrade or args.with_codex_hooks or args.without_vectors:
+            parser.error("卸载仅接受宿主参数、--target 和 --json。")
+        try:
+            result = {"operation": "uninstall", **dev_memory.uninstall(args.target, agent)}
+        except store.MemoryError as exc:
+            result = {"status": "failed", "operation": "uninstall", "error": exc.code, "message": exc.message}
+        except (OSError, sqlite3.Error):
+            result = {"status": "failed", "operation": "uninstall", "error": "uninstall_failed",
+                      "message": "卸载失败；记忆数据未删除，请检查程序目录权限。"}
+        if args.json:
+            print(json.dumps(result, ensure_ascii=True))
+        elif result["status"] == "uninstalled":
+            print("卸载成功；记忆库和项目引导已保留。")
+        else:
+            print("卸载未完成：" + result["message"], file=sys.stderr)
+        return 0 if result["status"] == "uninstalled" else 1
     enable_user = agent == "codex" and args.project is not None
 
     result: dict = {"operation": args.operation}
