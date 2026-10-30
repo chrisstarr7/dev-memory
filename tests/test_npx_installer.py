@@ -205,6 +205,23 @@ class NpxTests(unittest.TestCase):
         self.assertFalse((self.home / '.agents').exists())
         self.assertFalse((self.home / '.dev-memory').exists())
 
+    def test_npx_uninstall_removes_program_but_preserves_project_memory(self):
+        installed = self.run_cli('codex', '--json')
+        self.assertEqual(installed.returncode, 0, installed.stdout + installed.stderr)
+        payload = json.loads(installed.stdout)
+        target = Path(payload['path'])
+        database = self.project / '.dev-memory' / 'memory.sqlite3'
+        self.assertTrue(database.is_file())
+
+        removed = self.run_cli('uninstall', 'codex', '--json')
+        self.assertEqual(removed.returncode, 0, removed.stdout + removed.stderr)
+        receipt = json.loads(removed.stdout)
+        self.assertEqual(receipt['operation'], 'uninstall')
+        self.assertEqual(receipt['status'], 'uninstalled')
+        self.assertFalse(target.exists())
+        self.assertTrue(database.is_file())
+        self.assertTrue((self.project / 'AGENTS.md').is_file())
+
     def test_source_failure_does_not_become_wrapper_success(self):
         (self.project/'AGENTS.md').write_text('<!-- dev-memory:managed:start -->', encoding="utf-8")
         result=self.run_cli('codex','--json')

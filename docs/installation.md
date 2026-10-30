@@ -229,11 +229,13 @@ python3 install.py update codex
 
 `--upgrade` 仅用于强制重建同版本受管理程序；普通安装和更新无需追加。安装器拒绝用旧源码覆盖较新版本。`old_program_cleanup` 如为 `pending:<目录名>`，新程序已经就位，但旧程序备份因文件占用尚未删除；确认文件不再占用后清理该具名旧程序目录。该备份不含记忆。
 
-从实际副本卸载程序：
+在任意目录使用与安装、更新相同的 npx 命令卸载受管理程序：
 
 ```sh
-python3 ~/.agents/skills/dev-memory/scripts/dev_memory.py uninstall --agent codex
+npx -y --prefer-online chrisstarr7/dev-memory uninstall codex
 ```
+
+自定义 Skill 目录使用 `--target <Skill目录>`；其他宿主替换 `codex` 参数。
 
 程序卸载保留所有记忆，不遍历其他项目。项目引导的管理块和私有绑定也保留，下一次安装初始化可复用；若不再使用，可删除该项目指令中的 `dev-memory:managed:start/end` 管理块。不要删除无关指令。要删除记忆内容，使用 `forget` 的预览与确认流程。
 

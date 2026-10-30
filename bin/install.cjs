@@ -14,7 +14,7 @@ function fail(error, message) {
   process.exit(1);
 }
 
-// Reject malformed install requests before downloading a runtime; Python owns full CLI validation.
+// Reject malformed lifecycle requests before preparing a runtime; Python owns full CLI validation.
 function installationRequested() {
   const aliases = {claude: 'claude-code', gemini: 'gemini-cli', copilot: 'github-copilot',
     deepseek: 'deepseek-harness', dsh: 'deepseek-harness'};
@@ -32,7 +32,7 @@ function installationRequested() {
       if (flag === '--agent') option = aliases[argument] || argument;
     } else if (!switches.has(args[i])) return false;
   }
-  if (positional[0] === 'update') positional.shift();
+  if (['update', 'uninstall'].includes(positional[0])) positional.shift();
   if (positional.length > 1) return false;
   const host = aliases[positional[0]] || positional[0];
   return hosts.has(host || option) && (!host || !option || host === option);
@@ -72,7 +72,7 @@ async function main() {
     child.on('error', error => fail('dashboard_start_failed', '无法启动本地看板：' + error.message));
     child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 1)));
   } else {
-    if (!args.some(arg => arg === '--project' || arg.startsWith('--project='))) {
+    if (!['update', 'uninstall'].includes(args[0]) && !args.some(arg => arg === '--project' || arg.startsWith('--project='))) {
       args.push('--project', project);
     }
     const [command, ...prefix] = python;
