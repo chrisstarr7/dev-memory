@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import platform
+import re
 import sqlite3
 import subprocess
 import struct
@@ -27,7 +28,20 @@ class SetupFailure(RuntimeError):
             self.details['exit_code'] = exit_code
 
 
-def _command_failure(output: str, exit_code: int, pip: bool) -> SetupFailure:
+def _missing_requirement(output: str, command: list[str]) -> str | None:
+    match = re.search(r'(?:no matching distribution found for|could not find a version that satisfies the requirement)\s+([a-z0-9_.-]+)',
+                      output, re.IGNORECASE)
+    if not match:
+        return None
+    name = match.group(1).replace('_', '-').lower()
+    for argument in command:
+        requirement = re.fullmatch(r'([a-z0-9_.-]+)(?:==[a-z0-9_.+!-]+)?', argument, re.IGNORECASE)
+        if requirement and requirement.group(1).replace('_', '-').lower() == name:
+            return argument
+    return None
+
+
+def _command_failure(output: str, exit_code: int, pip: bool, command: list[str] | None = None) -> SetupFailure:
     # Match categories locally; never return dependency logs, URLs or credentials.
     text = output.lower()
     categories = (
@@ -47,13 +61,18 @@ def _command_failure(output: str, exit_code: int, pip: bool) -> SetupFailure:
         (('resolutionimpossible', 'conflicting dependencies'),
          'dependency_conflict', '固定依赖版本无法共同解析。', '核对 Python 版本和软件源；若均符合要求，请提交此错误代码供维护者检查固定版本。'),
         (('no matching distribution found', 'could not find a version that satisfies the requirement'),
-         'dependency_wheel_unavailable', '当前 Python、架构或软件源没有所需的二进制依赖包。', 'Windows 使用标准 64 位 CPython 3.14，并确认软件源提供所需版本；不要改为源码编译。'),
+         'dependency_wheel_unavailable', '当前 pip 软件源没有提供所需的兼容二进制依赖包。', '先核对实际 Python/架构与受支持范围，再检查 pip 索引或企业镜像是否同步了所需 wheel；不要尝试源码编译。'),
         (('dll load failed', 'winerror 126', 'library not loaded', 'wrong architecture', 'incompatible architecture'),
          'native_dependency_load_failed', '原生向量依赖加载失败。', '检查 Python 与依赖架构一致；Windows 还需核对 Visual C++ 运行库，macOS 核对系统版本。'),
     )
     for patterns, reason, message, remediation in categories:
         if any(pattern in text for pattern in patterns):
-            return SetupFailure(reason, message, remediation, exit_code)
+            failure = SetupFailure(reason, message, remediation, exit_code)
+            if reason == 'dependency_wheel_unavailable' and command:
+                if requirement := _missing_requirement(output, command):
+                    failure.details['package_requirement'] = requirement
+                    failure.details['message'] = f'当前 pip 软件源没有提供 {requirement} 的兼容二进制包。'
+            return failure
     return SetupFailure('dependency_install_failed' if pip else 'vector_probe_failed',
                         '依赖安装进程失败。' if pip else '向量环境验证进程失败。',
                         '检查安装前置条件；此结果尚不能判定具体环境原因。', exit_code)
@@ -138,13 +157,20 @@ def _run(command: list[str], deadline: float, *, offline: bool = False) -> dict:
         raise subprocess.TimeoutExpired(command[0], 0)
     env = {**os.environ, "PYTHONUTF8": "1", "HF_HUB_DISABLE_TELEMETRY": "1",
            "TOKENIZERS_PARALLELISM": "false", "OMP_NUM_THREADS": "1"}
+    if '-m' in command and 'pip' in command:
+        # Keep package resolution predictable and confined to this Skill's venv.
+        for key in tuple(env):
+            if key.startswith('PIP_') and key not in {'PIP_CERT', 'PIP_CLIENT_CERT', 'PIP_PROXY', 'PIP_TIMEOUT', 'PIP_RETRIES'}:
+                env.pop(key)
+        env.update(PIP_CONFIG_FILE=os.devnull,
+                   PIP_INDEX_URL=os.environ.get('DEV_MEMORY_PIP_INDEX_URL') or 'https://pypi.org/simple')
     if offline:
         env.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1")
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace",
                             timeout=remaining, env=env,
                             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
     if result.returncode:
-        raise _command_failure(result.stderr + '\n' + result.stdout, result.returncode, 'pip' in command)
+        raise _command_failure(result.stderr + '\n' + result.stdout, result.returncode, 'pip' in command, command)
     return json.loads(result.stdout.strip().splitlines()[-1]) if result.stdout.strip().startswith("{") else {}
 
 
@@ -229,7 +255,7 @@ def _compatible_python(root: Path, deadline: float) -> str:
         raise ValueError("unsafe_runtime_path")
     if not uv.is_file():
         _run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:",
-              "--target", str(bootstrap), UV_PACKAGE], deadline)
+              "--cache-dir", str(root / "pip-cache"), "--target", str(bootstrap), UV_PACKAGE], deadline)
     _run([str(uv), "python", "install", "--install-dir", str(directory),
           f"cpython-3.12-macos-{architecture}-none"], deadline)
     python = existing()
@@ -247,7 +273,7 @@ def _setup(global_root: Path, *, timeout_seconds: float = 180) -> dict:
         config = read_config(global_root)
         if config.get("enabled") is False:
             return {"status": "disabled", "reason": "explicitly_disabled"}
-        if root.exists() and any(path.is_symlink() for path in (root / "venv", root / "models")):
+        if root.exists() and any(path.is_symlink() for path in (root / "venv", root / "models", root / "pip-cache")):
             raise ValueError("unsafe_runtime_path")
         venv = root / ("venv-py312" if _mac() else "venv")
         if venv.is_symlink():
@@ -286,7 +312,8 @@ def _setup(global_root: Path, *, timeout_seconds: float = 180) -> dict:
                 return {"status": "ready", "reused": True, "model": MODEL,
                         "model_fingerprint": config["model_fingerprint"], "architecture": info['architecture']}
         phase = "dependencies"
-        _run([str(python), "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:", *packages], deadline)
+        _run([str(python), "-m", "pip", "install", "--disable-pip-version-check", "--only-binary=:all:",
+              "--cache-dir", str(root / "pip-cache"), *packages], deadline)
         phase = "model_and_probe"
         probe = _run([str(python), "-c", PROBE, str(root), "download", MODEL], deadline)
         if not probe.get("model_fingerprint"):
@@ -306,6 +333,14 @@ def _setup(global_root: Path, *, timeout_seconds: float = 180) -> dict:
     except subprocess.TimeoutExpired:
         return {"status": "degraded", "reason": "setup_timeout", "phase": phase}
     except SetupFailure as exc:
+        if exc.details.get('reason') == 'dependency_wheel_unavailable' and phase == 'dependencies':
+            info = locals().get('info')
+            if info:
+                version = '.'.join(str(part) for part in info['version'])
+                architecture = f"{info['architecture']} {info['bits']}-bit"
+                exc.details['message'] += f"（{info['implementation']} {version}, {platform.system()} {architecture}）。"
+                if platform.system() == 'Windows' and info['bits'] == 64 and info['architecture'].lower() in {'amd64', 'x86_64'}:
+                    exc.details['remediation'] = '当前 Windows x64 解释器已通过支持范围检查；若设置了 DEV_MEMORY_PIP_INDEX_URL，检查该镜像是否同步此 wheel。未设置时安装器使用 PyPI，可提交报错的包版本供维护者核对。无需更换 Python，也不要源码编译。'
         return {"status": "degraded", "phase": phase, **exc.details}
     except PermissionError:
         return {"status": "degraded", "phase": phase, **_command_failure('permission denied', 1, False).details}
