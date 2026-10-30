@@ -217,3 +217,13 @@ npx -y --prefer-online chrisstarr7/dev-memory update codex
 - [보안](../../SECURITY.md) · [기여](../../CONTRIBUTING.md) · [MIT 라이선스](../../LICENSE).
 
 [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues)에 비식별화한 문제만 제출하고 비공개 DB, 인증 정보, 원본 대화를 첨부하지 마세요.
+
+## 제거
+
+설치 바인딩에 기록된 Python과 Skill 경로를 사용해 CLI를 실행하세요.
+
+```sh
+<바인딩의 Python> <Skill 디렉터리>/scripts/dev_memory.py uninstall --agent codex
+```
+
+`codex`는 실제 호스트로 바꾸세요. 사용자 지정 Skill 경로에서는 `--target <Skill 디렉터리>`도 지정합니다. 제거하면 관리 대상 프로그램, Codex 사용자 안내, 이 Skill의 hooks가 삭제되며 프로젝트 안내와 메모리 저장소는 보존됩니다. 프로젝트 안내를 제거하려면 `dev-memory:managed:start/end` 관리 블록만 삭제하세요. 메모리를 삭제할 때는 CLI의 `forget` 미리보기와 확인 절차를 사용하세요. 자세한 내용은 [설치 및 제거](../installation.md)를 참고하세요.
