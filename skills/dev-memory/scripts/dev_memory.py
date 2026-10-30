@@ -512,7 +512,15 @@ def _install_locked(install_path: Path, with_hooks: bool, upgrade: bool) -> dict
 
 def uninstall(target: Path | None, agent: str = "codex") -> dict[str, Any]:
     install_path = _install_path(target, agent)
+    try:
+        install_path.lstat()
+    except FileNotFoundError:
+        return {"status": "not_installed", "path": str(install_path), "memory_data_preserved": True}
     with _installation_lock(install_path):
+        try:
+            install_path.lstat()
+        except FileNotFoundError:
+            return {"status": "not_installed", "path": str(install_path), "memory_data_preserved": True}
         _check_managed_install(install_path)
         user_activation = activation.remove_user(agent, install_path)
         hooks = _remove_hook_config(install_path)

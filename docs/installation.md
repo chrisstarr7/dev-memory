@@ -239,6 +239,8 @@ npx -y --prefer-online chrisstarr7/dev-memory uninstall codex
 
 程序卸载保留所有记忆，不遍历其他项目。项目引导的管理块和私有绑定也保留，下一次安装初始化可复用；若不再使用，可删除该项目指令中的 `dev-memory:managed:start/end` 管理块。不要删除无关指令。要删除记忆内容，使用 `forget` 的预览与确认流程。
 
+若对应宿主的 Skill 未安装，卸载命令会提示“无需卸载”并正常结束，不创建安装目录，也不改动记忆数据。若目标目录存在但不是 dev-memory 管理的安装，命令会拒绝删除。
+
 外部管理器安装的副本通过同一管理器 update/remove。不要混用升级方式。
 
 ## 可选 Codex hooks
