@@ -367,7 +367,7 @@ class DashboardTests(MemoryTestCase):
         self.assertNotIn("Traceback", errors)
 
     def test_live_loopback_page_rejects_foreign_host_and_missing_csrf(self) -> None:
-        self._seed()
+        project_id, _ = self._seed()
         script = Path(dashboard.__file__).with_name("dev_memory.py")
         process = subprocess.Popen([sys.executable, "-u", str(script), "--global-root", str(self.global_root),
                                     "dashboard", "serve", "--project-root", str(self.project_a), "--no-open"],
@@ -422,6 +422,7 @@ class DashboardTests(MemoryTestCase):
                 opener.open(bad_origin, timeout=5)
             self.assertEqual(origin_rejected.exception.code, 403)
             self.assertIn("来源与本机看板不一致", origin_rejected.exception.read().decode())
+            origin_rejected.exception.close()
             month = datetime.now(timezone.utc).strftime("%Y-%m")
             self.assertEqual(store.recall_stats("project", month, project_root=self.project_a)["total_recalls"], 0)
             backup = urllib.request.Request(clean_url + "action",
@@ -430,6 +431,23 @@ class DashboardTests(MemoryTestCase):
             with opener.open(backup, timeout=5) as response:
                 self.assertIn("备份已创建", response.read().decode())
             self.assertTrue(list((self.project_a / ".dev-memory" / "backups").glob("*.sqlite3")))
+            edit = {"csrf": csrf.group(1), "scope": key, "id": project_id, "revision": "1",
+                    "action": "revise", "content": "Updated refund rule", "conditions": "", "exceptions": "",
+                    "reason": "The old conditions and exceptions no longer apply."}
+            with opener.open(urllib.request.Request(clean_url + "action", data=urlencode(edit).encode()), timeout=5) as response:
+                self.assertIn("Updated refund rule", response.read().decode())
+            record = store.show_record("project", project_id, project_root=self.project_a)["record"]
+            self.assertEqual(record["conditions"], "")
+            self.assertEqual(record["exceptions"], "")
+            for field in ("title", "content"):
+                with self.subTest(empty_required_field=field):
+                    invalid = {**edit, "revision": str(record["revision"]), field: ""}
+                    with self.assertRaises(urllib.error.HTTPError) as rejected:
+                        opener.open(urllib.request.Request(clean_url + "action", data=urlencode(invalid).encode()), timeout=5)
+                    self.assertEqual(rejected.exception.code, 400)
+                    rejected.exception.close()
+                    unchanged = store.show_record("project", project_id, project_root=self.project_a)["record"]
+                    self.assertEqual(unchanged, record)
         except Exception as exc:
             process.terminate()
             _, errors = process.communicate(timeout=5)
@@ -437,4 +455,41 @@ class DashboardTests(MemoryTestCase):
         finally:
             if process.poll() is None:
                 process.terminate()
+                process.communicate(timeout=5)
+
+    def test_two_dashboard_ports_keep_independent_browser_sessions(self) -> None:
+        self._seed()
+        script = Path(dashboard.__file__).with_name("dev_memory.py")
+        jar = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                            urllib.request.HTTPCookieProcessor(jar))
+        processes, sessions = [], []
+        try:
+            for _ in range(2):
+                process = subprocess.Popen([sys.executable, "-u", str(script), "--global-root", str(self.global_root),
+                                            "dashboard", "serve", "--no-open"],
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                processes.append(process)
+                lines: queue.Queue[str] = queue.Queue()
+                threading.Thread(target=lambda p=process, q=lines: q.put(p.stdout.readline()), daemon=True).start()
+                url = lines.get(timeout=30).strip()
+                self.assertTrue(url.startswith("http://127.0.0.1:"), url)
+                with opener.open(url, timeout=5) as response:
+                    body = response.read().decode()
+                csrf = re.search(r'name=csrf value="([^"]+)"', body).group(1)
+                sessions.append((urlsplit(url)._replace(query="").geturl(), csrf))
+            for url, csrf in sessions:
+                with opener.open(url, timeout=5) as response:
+                    self.assertIn("记忆总览", response.read().decode())
+                preview = {"csrf": csrf, "scope": "global", "q": "Reuse implementations"}
+                with opener.open(urllib.request.Request(url + "preview", data=urlencode(preview).encode()), timeout=5) as response:
+                    self.assertIn("只读预览", response.read().decode())
+            self.assertEqual(len(list(jar)), 2)
+            for cookie in jar:
+                self.assertTrue(cookie.has_nonstandard_attr("HttpOnly"))
+                self.assertEqual(cookie.get_nonstandard_attr("SameSite"), "Strict")
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.terminate()
                 process.communicate(timeout=5)

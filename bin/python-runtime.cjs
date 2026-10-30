@@ -123,7 +123,11 @@ function download(url, expectedHash, root, deadline) {
 async function ensurePython({ allowDownload = true, onProgress = () => {} } = {}) {
   const target = TARGETS[`${process.platform}-${process.arch}`];
   if (!target) throw failure('python_runtime_platform_unsupported', '自动 Python 环境支持 Windows x64 及 macOS Intel/Apple Silicon。');
-  const root = safePath(path.resolve(process.env.DEV_MEMORY_HOME || path.join(os.homedir(), '.dev-memory'), 'python-runtime'));
+  let base = process.env.DEV_MEMORY_HOME || path.join(os.homedir(), '.dev-memory');
+  // Match Python's expanduser() for the current user's configured store root.
+  if (base === '~') base = os.homedir();
+  else if (base.startsWith('~/') || (process.platform === 'win32' && base.startsWith('~\\'))) base = path.join(os.homedir(), base.slice(2));
+  const root = safePath(path.resolve(base, 'python-runtime'));
   const deadline = Date.now() + 180000;
   try {
     const python = existing(root, deadline);

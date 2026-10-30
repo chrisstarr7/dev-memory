@@ -125,12 +125,12 @@ Use the configured global root if it is not the default. Restart the dashboard a
 用户要求安装并初始化时：
 
 1. 确认当前宿主、本地命令权限及原业务项目根目录。无法确认时，只询问缺失的信息。
-2. 检查 Python 3.10+ 和 sqlite3。在原项目根目录运行本页在线命令，选择实际宿主，并在末尾加 `--json`。其他目录使用显式 `--project <原项目绝对路径>`；自定义宿主目录用 `--target`。
+2. 在原项目根目录运行本页在线命令，选择实际宿主，并在末尾加 `--json`。Windows x64 与 macOS Intel/Apple Silicon 的 npx 入口会准备专用 Python，无需预检或升级系统 Python；Linux 和直接 Python 入口才需预先准备 Python 3.10+ 与 sqlite3。其他目录使用显式 `--project <原项目绝对路径>`；自定义宿主目录用 `--target`。
 3. 检查退出码为 0、`status: installed`、`runtime_check.status: passed`、`project_setup.status: initialized`、`activation: configured`，以及两个 `stores` 的实际结果。只复制文件不算初始化成功。
 4. 报告项目、程序路径和引导文件。用户新建该项目会话后正常开发即可，不需要启用、保存、召回或继续的 Skill 口令。
 5. 重复执行在线命令更新受管理安装和项目绑定。未知文件、非受管理目录、符号链接或损坏的标记会拒绝覆盖；保留无关配置。外部管理器安装应继续使用原管理器更新，从实际副本运行 `setup`。
 
-不修改个人全局指令，不开启后台进程，不配置默认 hooks，也不授予宿主信任。初始化是用户授权的项目配置变化，合并的管理块外内容保持原样。失败最多一次针对明确原因的重试，如实说明已安装/已初始化的部分。
+不配置默认 hooks、不授予宿主信任，也不启动后台进程。Codex 的推荐 npx 安装会按其功能同时更新用户级全局引导和当前项目引导；其他宿主仅更新当前项目引导。管理块外内容保持原样。失败最多一次针对明确原因的重试，如实说明已安装/已初始化的部分。
 
 ## 初始化另一个项目
 

@@ -14,7 +14,9 @@ MODULE = ROOT / 'bin/python-runtime.cjs'
 
 HARNESS = r'''
 const fs = require('node:fs'), path = require('node:path');
-const root = path.join(process.env.DEV_MEMORY_HOME, 'python-runtime');
+const root = path.join(process.env.FIXTURE_ROOT || process.env.DEV_MEMORY_HOME, 'python-runtime');
+if (process.env.FIXTURE_HOME) require('node:os').homedir = () => process.env.FIXTURE_HOME;
+if (process.env.FIXTURE_CWD) process.chdir(process.env.FIXTURE_CWD);
 Object.defineProperty(process, 'platform', {value: process.env.FIXTURE_PLATFORM || 'darwin'});
 Object.defineProperty(process, 'arch', {value: process.env.FIXTURE_ARCH || 'arm64'});
 const python = path.join(root, 'python', 'cpython-3.12-fixture', 'bin', 'python3.12');
@@ -143,6 +145,23 @@ class PythonRuntimeTests(unittest.TestCase):
         self.assertEqual(len(result['calls']),1)
         self.assertIn('-I',result['calls'][0]['args'])
 
+    def test_tilde_root_reuses_the_same_interpreter_from_different_projects(self):
+        home = self.base/'home'; home.mkdir()
+        projects = [self.base/'project-a', self.base/'project-b']
+        for project in projects:
+            project.mkdir()
+        for platform, configured, relative in [('darwin', '~', ''), ('darwin', '~/private', 'private'),
+                                                ('win32', '~\\private', 'private')]:
+            root = home/relative
+            for project in projects:
+                with self.subTest(platform=platform, root=configured, project=project.name):
+                    result = self.run_fixture(DEV_MEMORY_HOME=configured, FIXTURE_ROOT=str(root),
+                        FIXTURE_HOME=str(home), FIXTURE_CWD=str(project), FIXTURE_PLATFORM=platform, FIXTURE_ARCH='x64',
+                        FIXTURE_ACTION='existing', FIXTURE_NO_DOWNLOAD='1')
+                    self.assertEqual(Path(result.get('result', '')), root/'python-runtime/python/cpython-3.12-fixture/bin/python3.12', result)
+                    self.assertEqual(result['downloads'], 0)
+                    self.assertEqual(list(project.iterdir()), [])
+
     def test_missing_interpreter_does_not_download_for_help(self):
         result=self.run_fixture(FIXTURE_NO_DOWNLOAD='1')
         self.assertEqual(result['code'],'python_runtime_missing')
@@ -228,7 +247,7 @@ class PythonRuntimeTests(unittest.TestCase):
                 result=self.run_fixture(DEV_MEMORY_HOME=str(sub),FIXTURE_ACTION=action)
                 self.assertIn('result',result)
                 self.assertIn('--reinstall',result['calls'][2]['args'])
-                self.assertEqual(json.loads((sub/'python-runtime/runtime.json').read_text())['python'],result['result'])
+                self.assertEqual(json.loads((sub/'python-runtime/runtime.json').read_text(encoding='utf-8'))['python'],result['result'])
 
     def test_wrong_architecture_is_not_published(self):
         result=self.run_fixture(FIXTURE_WRONG_ARCH='1')
