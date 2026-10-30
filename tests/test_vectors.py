@@ -139,6 +139,43 @@ class VectorTests(MemoryTestCase):
             self.assertFalse(vectors._exists(conn, 'vector_state'))
             self.assertEqual(conn.execute('SELECT content FROM memories WHERE id=?', (mid,)).fetchone()[0], '仅已送达订单可退款')
 
+    def test_search_skips_model_and_extension_when_index_is_empty(self):
+        with self.connection() as conn:
+            vectors._schema(conn)
+            conn.execute('CREATE TABLE memory_vectors(memory_id TEXT, embedding BLOB)')
+        with patch.object(vectors, '_settings', return_value={'model_fingerprint': 'fixture'}), \
+             patch.object(vectors, '_encode', side_effect=AssertionError('empty index cannot infer')), \
+             patch.object(vectors, '_load', side_effect=AssertionError('empty index needs no extension')):
+            result = vectors.search('query', 'project', project_root=self.project_a, global_root=self.global_root)
+        self.assertEqual(result, {'status': 'pending', 'records': []})
+
+    def test_search_skips_model_and_extension_when_all_indexes_are_ineligible(self):
+        mid = self.add_project_rule()
+        config = {'model_fingerprint': 'fixture'}
+        with self.connection() as conn:
+            vectors._schema(conn)
+            conn.execute('CREATE TABLE memory_vectors(memory_id TEXT, embedding BLOB)')
+            conn.execute('INSERT INTO memory_vectors VALUES(?,?)', (mid, b'not loaded'))
+        cases = [
+            ('pending', 1, vectors._model_key(config), 'active', 'desired', 'project'),
+            ('ready', 0, vectors._model_key(config), 'active', 'desired', 'project'),
+            ('ready', 1, 'old-model', 'active', 'desired', 'project'),
+            ('ready', 1, vectors._model_key(config), 'archived', 'desired', 'project'),
+            ('ready', 1, vectors._model_key(config), 'candidate', 'desired', 'project'),
+            ('ready', 1, vectors._model_key(config), 'active', 'hypothesis', 'project'),
+            ('ready', 1, vectors._model_key(config), 'active', 'desired', 'global'),
+        ]
+        for state, revision, model, status, claim, scope in cases:
+            with self.subTest(state=state, revision=revision, model=model, status=status, claim=claim, scope=scope):
+                with self.connection() as conn:
+                    conn.execute('UPDATE memories SET status=?,claim_type=?,scope=? WHERE id=?', (status, claim, scope, mid))
+                    conn.execute("INSERT OR REPLACE INTO vector_state VALUES(?,?,?,?,0,'')", (mid, revision, model, state))
+                with patch.object(vectors, '_settings', return_value=config), \
+                     patch.object(vectors, '_encode', side_effect=AssertionError('ineligible index cannot infer')), \
+                     patch.object(vectors, '_load', side_effect=AssertionError('ineligible index needs no extension')):
+                    result = vectors.search('query', 'project', project_root=self.project_a, global_root=self.global_root)
+                self.assertEqual(result, {'status': 'pending', 'records': []})
+
     def test_changed_raw_revision_invalidates_vector_without_loading_extension(self):
         mid = self.add_project_rule()
         with self.connection() as conn:

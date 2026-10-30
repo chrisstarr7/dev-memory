@@ -358,13 +358,20 @@ def search(query, kind, *, project_root=None, global_root=None, query_cache=None
         conn = store._connect(database, readonly=True)
         if not _exists(conn, 'memory_vectors') or not _exists(conn, 'vector_state'):
             return {'status': 'pending', 'records': []}
+        # Skip model startup when no current index is eligible for this scope.
+        conn.set_progress_handler(lambda: int(time.monotonic()>cache['deadline']), 1000)
+        eligible = conn.execute("""SELECT EXISTS(SELECT 1 FROM vector_state v JOIN memories m ON m.id=v.memory_id
+            WHERE v.state='ready' AND v.revision=m.revision AND v.model_key=? AND m.scope=?
+            AND m.status IN ('active','conflicted') AND m.claim_type!='hypothesis')""",
+            (_model_key(settings), kind)).fetchone()[0]
+        if not eligible:
+            return {'status': 'pending', 'records': []}
         key = (_model_key(settings), query)
         if key not in cache:
             if cache.get('failed') or time.monotonic() >= cache['deadline']:
                 return {'status': 'deferred', 'reason': 'query_timeout', 'records': []}
             cache[key] = _encode([query], settings, query=True, timeout=max(.001, cache['deadline']-time.monotonic()))[0]
         _load(conn, settings)
-        conn.set_progress_handler(lambda: int(time.monotonic()>cache['deadline']), 1000)
         # Filter authoritative eligibility before ranking, so stale vectors cannot occupy all K slots.
         rows = conn.execute("""SELECT e.memory_id,vec_distance_cosine(e.embedding,?) AS distance
             FROM memory_vectors e JOIN vector_state v ON e.memory_id=v.memory_id

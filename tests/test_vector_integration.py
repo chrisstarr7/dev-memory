@@ -72,9 +72,12 @@ class RealVectorIntegration(MemoryTestCase):
                 title='接口模型注解', content='请求和响应模型必须补齐接口文档注解。',
                 conditions='新增或修改 DTO 和 VO 时。', do='保持 Swagger 注解完整。',
                 dont='不能遗漏新增字段。')
-        started = vectors.schedule('project', project_root=self.project_a, global_root=runtime_root)
+        # Intel macOS CI can need slightly longer for the first cold ONNX process.
+        # Keep the production worker bounded while giving this integration test a fair cold-start window.
+        with patch.object(vectors, 'WORK_SECONDS', 20):
+            started = vectors.schedule('project', project_root=self.project_a, global_root=runtime_root)
         self.assertIn(started['status'], ('running', 'scheduled', 'ready'), started)
-        until = time.monotonic() + 13
+        until = time.monotonic() + 23
         while time.monotonic() < until:
             indexed = vectors.status('project', project_root=self.project_a, global_root=runtime_root)
             if indexed.get('ready') == 1:

@@ -28,7 +28,8 @@ class VectorSetupTests(unittest.TestCase):
         self.addCleanup(runtime.stop)
         self.real_info = setup._interpreter_info
         self.info = dict(version=list(sys.version_info[:2]), implementation='CPython', architecture='AMD64',
-                         bits=64, free_threaded=False, sqlite_extensions=True)
+                         bits=64, free_threaded=False, sqlite_extensions=True, pip_available=True,
+                         prefix=str(self.base/'vector-runtime/venv'))
         info = patch.object(setup, '_interpreter_info', return_value=self.info)
         info.start()
         self.addCleanup(info.stop)
@@ -92,6 +93,71 @@ class VectorSetupTests(unittest.TestCase):
         (root / "config.json").write_text(json.dumps(config), encoding="utf-8")
         (Path(probe["model_dir"]) / "model.onnx").write_bytes(b"tampered")
         self.assertFalse(setup._verify_artifacts(config, root))
+
+    def test_incomplete_venv_repairs_pip_before_installing_dependencies(self):
+        probe = self.fake_probe()
+        python = self.base/'vector-runtime/venv'/('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+        python.parent.mkdir(parents=True)
+        python.write_text('fixture', encoding='utf-8')
+        with patch.object(setup, '_mac', return_value=False), \
+             patch.object(setup, '_interpreter_info', return_value={**self.info, 'pip_available':False}), \
+             patch.object(setup, '_run', side_effect=[{}, {}, probe]) as run:
+            result = setup.setup(self.base)
+        self.assertEqual(result['status'], 'ready', result)
+        self.assertEqual(run.call_args_list[0].args[0], [str(python), '-m', 'ensurepip', '--upgrade'])
+        self.assertEqual(run.call_args_list[1].args[0][:4], [str(python), '-m', 'pip', 'install'])
+        self.assertFalse((self.base/'global').exists())
+
+    def test_pip_repair_failure_never_installs_dependencies_or_publishes_config(self):
+        failure = setup._command_failure('No module named ensurepip', 1, False)
+        with patch.object(setup, '_mac', return_value=False), \
+             patch.object(setup, '_interpreter_info', return_value={**self.info, 'pip_available':False}), \
+             patch.object(setup, '_run', side_effect=[{}, failure]) as run:
+            result = setup.setup(self.base)
+        self.assertEqual(result['reason'], 'python_environment_incomplete', result)
+        self.assertEqual(result['phase'], 'environment')
+        self.assertEqual(run.call_count, 2)
+        self.assertIn('ensurepip', run.call_args.args[0])
+        self.assertFalse((self.base/'vector-runtime/config.json').exists())
+
+    def test_pip_repair_refuses_an_interpreter_using_the_system_prefix(self):
+        python = self.base/'vector-runtime/venv'/('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+        python.parent.mkdir(parents=True)
+        python.write_text('fixture', encoding='utf-8')
+        with patch.object(setup, '_mac', return_value=False), \
+             patch.object(setup, '_interpreter_info', return_value={**self.info, 'pip_available':False, 'prefix':sys.base_prefix}), \
+             patch.object(setup, '_run', side_effect=AssertionError('must not repair outside the venv')):
+            result = setup.setup(self.base)
+        self.assertEqual(result['reason'], 'runtime_environment_mismatch', result)
+        self.assertFalse((self.base/'vector-runtime/config.json').exists())
+
+    def test_interrupted_venv_recovers_using_only_its_bundled_pip(self):
+        venv = self.base/'vector-runtime/venv'
+        subprocess.run([sys.executable, '-m', 'venv', '--without-pip', '--copies', str(venv)],
+                       check=True, capture_output=True, timeout=30)
+        python = venv/('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+        self.assertFalse(self.real_info(python, time.monotonic()+10)['pip_available'])
+        probe = self.fake_probe()
+        real_run = setup._run
+        def offline_run(command, deadline, **kwargs):
+            if command[1:4] == ['-m', 'pip', 'install']:
+                return {}
+            if command[1:3] == ['-c', setup.PROBE]:
+                return probe
+            return real_run(command, deadline, **kwargs)
+        def pip_info(interpreter, deadline):
+            # Host macOS Python may omit SQLite extensions; this test exercises only pip recovery.
+            return {**self.real_info(interpreter, deadline), 'sqlite_extensions':True}
+        with patch.object(setup, '_mac', return_value=False), \
+             patch.object(setup, '_interpreter_info', side_effect=pip_info), \
+             patch.object(setup, '_run', side_effect=offline_run) as run:
+            first = setup.setup(self.base, timeout_seconds=30)
+            self.assertEqual(first['status'], 'ready', first)
+            self.assertTrue(self.real_info(python, time.monotonic()+10)['pip_available'])
+            self.assertTrue(setup.setup(self.base, timeout_seconds=30)['reused'])
+        repairs = [call.args[0] for call in run.call_args_list if 'ensurepip' in call.args[0]]
+        self.assertEqual(repairs, [[str(python), '-m', 'ensurepip', '--upgrade']])
+        self.assertFalse((self.base/'global').exists())
 
     def test_setup_does_not_publish_config_on_dependency_failure(self):
         with patch.object(setup, "_run", side_effect=RuntimeError("failed")):

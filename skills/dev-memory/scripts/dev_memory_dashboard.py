@@ -631,7 +631,8 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
             if location:
                 self.send_header("Location", location)
             if set_cookie:
-                self.send_header("Set-Cookie", f"dev_memory_session={access}; HttpOnly; SameSite=Strict; Path=/")
+                # Cookies share a host across ports; keep each dashboard's session separate.
+                self.send_header("Set-Cookie", f"dev_memory_session_{self.server.server_port}={access}; HttpOnly; SameSite=Strict; Path=/")
             self.end_headers()
             self.wfile.write(encoded)
 
@@ -642,7 +643,7 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
             cookie = SimpleCookie()
             try:
                 cookie.load(self.headers.get("Cookie", ""))
-                item = cookie.get("dev_memory_session")
+                item = cookie.get(f"dev_memory_session_{self.server.server_port}")
                 return bool(item and secrets.compare_digest(item.value, access))
             except (CookieError, ValueError):
                 return False
@@ -690,7 +691,7 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
                 if not 0 < length <= 1_000_000:
                     self._respond("Invalid request size", 413); return
                 raw = self.rfile.read(length).decode("utf-8")
-                form = {key: values[0] for key, values in parse_qs(raw).items()}
+                form = {key: values[0] for key, values in parse_qs(raw, keep_blank_values=True).items()}
                 if not secrets.compare_digest(form.get("csrf", ""), app.csrf):
                     self._respond("页面安全令牌已失效，请刷新看板后重试。", 403); return
                 if route == "/preview":

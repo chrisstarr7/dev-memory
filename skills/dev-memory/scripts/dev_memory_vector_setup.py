@@ -191,12 +191,13 @@ def _windows_preflight(info: dict) -> None:
 
 
 def _interpreter_info(python: Path, deadline: float) -> dict:
-    code = "import json,platform,sqlite3,struct,sys,sysconfig; print(json.dumps(dict(version=list(sys.version_info[:2]),implementation=platform.python_implementation(),architecture=platform.machine(),bits=struct.calcsize('P')*8,free_threaded=bool(sysconfig.get_config_var('Py_GIL_DISABLED')),sqlite_extensions=hasattr(sqlite3.Connection,'enable_load_extension'))))"
+    code = "import importlib.util,json,platform,sqlite3,struct,sys,sysconfig; print(json.dumps(dict(version=list(sys.version_info[:2]),implementation=platform.python_implementation(),architecture=platform.machine(),bits=struct.calcsize('P')*8,free_threaded=bool(sysconfig.get_config_var('Py_GIL_DISABLED')),sqlite_extensions=hasattr(sqlite3.Connection,'enable_load_extension'),pip_available=importlib.util.find_spec('pip') is not None,prefix=sys.prefix)))"
     info = _run([str(python), '-c', code], deadline)
     if (not isinstance(info, dict) or not isinstance(info.get('version'), list) or len(info['version']) != 2
             or any(type(v) is not int for v in info['version']) or not isinstance(info.get('architecture'), str)
             or not isinstance(info.get('implementation'), str) or type(info.get('bits')) is not int
-            or type(info.get('free_threaded')) is not bool or type(info.get('sqlite_extensions')) is not bool):
+            or type(info.get('free_threaded')) is not bool or type(info.get('sqlite_extensions')) is not bool
+            or type(info.get('pip_available')) is not bool or not isinstance(info.get('prefix'), str)):
         raise SetupFailure('runtime_info_invalid', '无法验证向量虚拟环境的解释器信息。', '检查虚拟环境完整性后重新运行安装。')
     return info
 
@@ -271,6 +272,12 @@ def _setup(global_root: Path, *, timeout_seconds: float = 180) -> dict:
         if not info['sqlite_extensions']:
             raise SetupFailure('sqlite_extensions_unsupported', '向量解释器不支持 SQLite 扩展加载。',
                                '使用支持 SQLite 扩展的标准 CPython；macOS 使用 Skill 管理的 Python 3.12。')
+        if not info['pip_available']:
+            if Path(info['prefix']).resolve() != venv.resolve():
+                raise SetupFailure('runtime_environment_mismatch', '向量解释器没有绑定到预期虚拟环境，未修复 pip。',
+                                   '检查 vector-runtime 中的虚拟环境配置；不要用系统 Python 替换其解释器。')
+            # An interrupted venv can contain its interpreter before ensurepip completes.
+            _run([str(python), '-m', 'ensurepip', '--upgrade'], deadline)
         packages = _packages(info['version'])
         if config.get("enabled") and config.get("packages") == list(packages) and _verify_artifacts(config, root):
             phase = "offline_probe"
