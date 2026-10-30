@@ -96,9 +96,12 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, ensure_ascii=True))
         elif result["status"] == "uninstalled":
             print("卸载成功；记忆库和项目引导已保留。")
+        elif result["status"] == "not_installed":
+            host_name = next((alias for alias, name in ALIASES.items() if name == agent), agent)
+            print(f"{host_name} 版 dev-memory 不存在，无需卸载；记忆数据未删除。")
         else:
             print("卸载未完成：" + result["message"], file=sys.stderr)
-        return 0 if result["status"] == "uninstalled" else 1
+        return 0 if result["status"] in {"uninstalled", "not_installed"} else 1
     enable_user = agent == "codex" and args.project is not None
 
     result: dict = {"operation": args.operation}

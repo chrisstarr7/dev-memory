@@ -213,3 +213,5 @@ npx -y --prefer-online chrisstarr7/dev-memory uninstall codex
 ```
 
 将 `codex` 替换为实际宿主；自定义 Skill 目录可添加 `--target <Skill目录>`。卸载会移除受管理的程序，以及 Codex 用户级引导和本 Skill 的 hooks；项目引导与记忆库会保留。如需移除项目引导，只删除其中 `dev-memory:managed:start/end` 管理块。删除记忆请使用 CLI 的 `forget` 预览与确认流程。详见[安装与卸载说明](docs/installation.md#升级与卸载)。
+
+若对应宿主的 Skill 未安装，卸载命令会提示“无需卸载”并正常结束，不创建安装目录，也不改动记忆数据。若目录存在但不是 dev-memory 管理的安装，命令会拒绝删除。

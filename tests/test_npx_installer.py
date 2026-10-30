@@ -222,6 +222,27 @@ class NpxTests(unittest.TestCase):
         self.assertTrue(database.is_file())
         self.assertTrue((self.project / 'AGENTS.md').is_file())
 
+    def test_npx_uninstall_missing_host_reports_selected_host(self):
+        for host in ('opencode', 'claude'):
+            with self.subTest(host=host):
+                result = self.run_cli('uninstall', host)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(f'{host} 版 dev-memory 不存在，无需卸载', result.stdout)
+        self.assertFalse((self.home / '.config/opencode/skills/dev-memory').exists())
+        self.assertFalse((self.home / '.claude/skills/dev-memory').exists())
+        self.assertFalse((self.home / '.config').exists())
+        self.assertFalse((self.home / '.dev-memory').exists())
+
+    def test_npx_uninstall_still_refuses_unmanaged_directory(self):
+        target = self.home / '.config/opencode/skills/dev-memory'
+        target.mkdir(parents=True)
+        user_file = target / 'keep.txt'
+        user_file.write_text('user data', encoding='utf-8')
+        result = self.run_cli('uninstall', 'opencode')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('Target is not a dev-memory-managed installation', result.stderr)
+        self.assertEqual(user_file.read_text(encoding='utf-8'), 'user data')
+
     def test_source_failure_does_not_become_wrapper_success(self):
         (self.project/'AGENTS.md').write_text('<!-- dev-memory:managed:start -->', encoding="utf-8")
         result=self.run_cli('codex','--json')
