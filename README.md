@@ -1,37 +1,37 @@
 <h1 align="center">dev-memory</h1>
 
-<p align="center"><strong>Local memory for your development habits and project rules.</strong></p>
+<p align="center"><strong>让 AI 记住你的研发习惯，以及每个项目自己的规则。</strong></p>
 
 <p align="center">
-  <a href="https://github.com/chrisstarr7/dev-memory/actions/workflows/check.yml"><img src="https://github.com/chrisstarr7/dev-memory/actions/workflows/check.yml/badge.svg" alt="Program checks" /></a>
+  <a href="https://github.com/chrisstarr7/dev-memory/actions/workflows/check.yml"><img src="https://github.com/chrisstarr7/dev-memory/actions/workflows/check.yml/badge.svg" alt="程序检查" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-08C" alt="MIT License" /></a>
-  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10 or newer" />
-  <img src="https://img.shields.io/badge/storage-local%20SQLite-4493F8" alt="Local SQLite storage" />
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10 或以上" />
+  <img src="https://img.shields.io/badge/storage-local%20SQLite-4493F8" alt="本地 SQLite 存储" />
 </p>
 
-<p align="center"><strong>English</strong> · <a href="docs/readme/README.zh-CN.md">简体中文</a> · <a href="docs/readme/README.ja.md">日本語</a> · <a href="docs/readme/README.ko.md">한국어</a></p>
+<p align="center"><strong>简体中文</strong> · <a href="docs/readme/README.en.md">English</a> · <a href="docs/readme/README.ja.md">日本語</a> · <a href="docs/readme/README.ko.md">한국어</a></p>
 
-Dev Memory is a Skill and local Python program for AI-assisted development. It helps your assistant recall relevant habits and project rules, then save durable knowledge backed by requirements or evidence. The assistant judges meaning; the program validates and stores records in SQLite.
+Dev Memory 是用于 AI 辅助开发的 Skill 和本地 Python 程序。它帮助 AI 召回相关研发习惯与项目规则，并根据真实要求或证据保存长期知识。AI 判断含义，程序负责校验并将记录存入 SQLite。
 
-## Requirements
+## 安装条件
 
-Have **Node.js 22+ (npm/npx) and Git** installed. On Windows x64 and macOS (Apple Silicon or Intel), the installer automatically prepares its own Python 3.12; you do not need to install or upgrade system Python. Local vectors require macOS 13+.
+已有 **Node.js 22+（含 npm/npx）和 Git** 即可。Windows x64 与 macOS（Apple Silicon / Intel）会自动准备专用 Python 3.12，**无需安装或升级系统 Python**。macOS 本地向量要求系统版本 13+。
 
-Linux and the direct Python installation routes need Python 3.10+ with sqlite3. See [installation details](docs/installation.md#environment-prerequisites) for platform requirements and troubleshooting.
+Linux 或直接使用 Python 安装入口时，仍需 Python 3.10+（含 sqlite3）。其他要求与故障排查见[安装说明](docs/installation.md#environment-prerequisites)。
 
-## Install
+## 安装
 
-Run this from the root of a development project:
+在开发项目的根目录执行：
 
 ```sh
 npx -y --prefer-online chrisstarr7/dev-memory codex
 ```
 
-For another AI host, replace `codex` with its parameter:
+使用其他 AI 宿主时，将 `codex` 换成对应参数：
 
-| Host | Parameter | Project guidance |
+| 宿主 | 参数 | 项目引导文件 |
 | --- | --- | --- |
-| Codex | `codex` | `AGENTS.md` or an existing nonempty `AGENTS.override.md` |
+| Codex | `codex` | `AGENTS.md`，或已有的非空 `AGENTS.override.md` |
 | Claude Code | `claude` | `CLAUDE.local.md` |
 | Cursor | `cursor` | `.cursor/rules/dev-memory.mdc` |
 | Gemini CLI | `gemini` | `GEMINI.md` |
@@ -39,177 +39,177 @@ For another AI host, replace `codex` with its parameter:
 | OpenCode | `opencode` | `AGENTS.md` |
 | DeepSeek Harness | `deepseek` | `AGENTS.md` |
 
-The base memory runtime uses the Python standard library. Vector setup runs in an isolated environment; if it fails, base memory remains available and the installer explains the failure. Use `--without-vectors` to skip vector dependencies and model downloads; first-time Python preparation still needs network access. Choose the host running the assistant: DeepSeek through OpenCode uses `opencode`.
+基础记忆运行时只依赖 Python 标准库。向量依赖与模型在独立环境中准备；失败时保留基础功能，并说明失败原因。添加 `--without-vectors` 可跳过向量依赖与模型下载；首次准备专用 Python 仍需联网。参数应对应实际运行 AI 的宿主：通过 OpenCode 使用 DeepSeek 模型时，选择 `opencode`。
 
-Codex setup enables global habits for your user and project memory for the current project. In an uninitialized project, its user guidance recalls global habits only. Run the install command again in each project that needs its own memory. Other hosts currently use project guidance only. After installation or upgrade, start a new AI session in the project. You can then work normally without invoking the Skill or saying “remember this.” New stores start empty; existing records are retained.
+Codex 安装会同时启用用户级全局习惯和当前项目记忆。在未初始化的其他项目中，用户级引导只召回全局习惯。需要项目记忆时，在该项目再次运行安装命令。其他宿主目前仅使用项目引导。安装或升级后，在项目中开启新的 AI 会话；之后正常提出需求即可，不必每轮调用 Skill 或说“记住”。新建记忆库从空库开始，已有记录会保留。
 
-The dedicated Python is shared by this user’s projects at `~/.dev-memory/python-runtime` (`DEV_MEMORY_HOME` overrides the base directory). It does not change PATH, the default Python, registry, or shell configuration. Valid runtimes are reused offline; ordinary memory calls invoke the bound interpreter directly. Skill upgrades and removal preserve this runtime and your memory data.
+专用 Python 默认存放在 `~/.dev-memory/python-runtime`（`DEV_MEMORY_HOME` 可更改根目录），同一用户的多个项目共用。它不修改 PATH、默认 Python、注册表或 Shell 配置；可用环境离线复用，日常记忆操作直接调用绑定的解释器。升级或卸载 Skill 均保留该运行环境及已有记忆。
 
-See [installation and removal](docs/installation.md) for alternate paths, permissions, and host details.
+其他安装方式、权限和宿主细节见[安装与卸载说明](docs/installation.md)。
 
-## What it remembers
+## 记录什么
 
-Dev Memory has **two persistent scopes**:
+Dev Memory 只有**两层持久记忆**：
 
-| Scope | What belongs there | Example |
+| 范围 | 适合保存的信息 | 示例 |
 | --- | --- | --- |
-| Global | De-identified development habits useful across projects | Check for a suitable existing implementation before adding one |
-| Current project | Durable rules, contracts, decisions, and evidenced facts | API requirements, security boundaries, coding conventions |
+| 全局 | 脱离具体项目后仍可复用的研发习惯 | 新增实现前先检查是否已有合适代码 |
+| 当前项目 | 长期有效的规则、契约、决策和有依据的事实 | API 要求、安全边界、代码规范 |
 
-Temporary requests, work in progress, and unconfirmed guesses stay in the current conversation. Dev Memory does not save conversation transcripts or task checkpoints. A new chat may need to inspect the code to recover progress. Never save credentials in either scope.
+一次性要求、任务进度和未确认猜测留在当前对话中。Dev Memory 不保存对话正文或任务检查点。开启新会话后，可能需要重新检查代码来确认进度。两个范围都不能保存凭证。
 
-Project knowledge can include acceptance rules, compatibility, deployment constraints, migrations, and verified incident lessons. Save a code observation only if it is durable, non-obvious, and likely to change future work; it describes what exists, not what the user wants. The assistant keeps the original scope and checks for equivalent records before writing. A review-only task can still reveal a durable new rule, even when the code already complies.
+项目知识也可以包括验收规则、兼容要求、部署约束、迁移和经过验证的故障经验。代码现状只有在长期有效、不易重新发现且可能影响后续工作时才值得记录；它只说明观察到了什么，不能代替用户期望。写入前，AI 应保持原有适用范围，并检查是否已有等价记录。即使审查后无需改代码，新提出的长期规则仍可能值得保存。
 
-For global habits, an explicit ongoing cross-project instruction can become an active rule immediately. A reusable requirement, choice, or correction without that explicit scope is first saved as an **inactive candidate**. It becomes an active soft preference only after evidence from two independent tasks. AI summaries and repeated recall do not count as new evidence.
+全局习惯有两种证据路径：明确要求长期适用于所有项目时，可以立即保存为有效规则；没有明确跨项目声明的可复用要求、选择或纠错，首次先保存为**未生效候选**，取得两个独立任务的证据后才晋升为软偏好。AI 的总结和重复召回不算新证据。
 
-New project stores use `full-project` mode, which allows eligible project knowledge to be saved automatically. The optional `developer-first` mode blocks new project records. Upgrades preserve existing modes and pause, disable, and read-only controls; switching an older project to `full-project` is explicit.
+新项目默认使用 `full-project` 模式，允许自动保存合格的项目知识。可选的 `developer-first` 模式会阻止新增项目记录。升级保留原有模式，以及暂停、禁用和只读设置；旧项目切换到 `full-project` 需要明确操作。
 
-## How it works
+## 日常如何工作
 
-For an initialized project, this [Mermaid flowchart](https://mermaid.js.org/syntax/flowchart.html) shows how recall guides the task and how new information is assessed during the work:
+已初始化项目的 [Mermaid 流程图](https://mermaid.js.org/syntax/flowchart.html)如下。召回用于指导任务，新信息在工作过程中持续评估：
 
 ```mermaid
 flowchart TD
-    S([Task starts or topic changes]) --> R[Recall global and current project memory]
-    R --> A[Turn applicable active memory into task decisions and checks]
-    A --> W[Do the task; note new information as it appears]
-    W --> E[Assess future use, evidence, durability, scope, controls and existing records]
-    E --> G{Eligible change to save?}
-    G -->|No| F([Deliver result])
-    G -->|Yes| P[Add or update in the owning store; check the receipt]
+    S([任务开始或切换主题]) --> R[召回全局与当前项目记忆]
+    R --> A[把适用的有效记忆转成任务决策与检查项]
+    A --> W[执行任务；及时识别新信息]
+    W --> E[评估未来用途、证据、长期性、范围、控制和现有记录]
+    E --> G{有合格的内容需要保存？}
+    G -->|否| F([交付结果])
+    G -->|是| P[新增或修订所属记忆库；核对回执]
     P --> F
 ```
 
-The capture question applies to requirements, choices, conventions, decisions, verified facts, methods, and corrections—not just mistakes. Assess new information when it appears and at turn end, including review-only work. Save an important correction before the edit it affects; save other eligible increments before delivery.
+记录判断适用于要求、选择、规范、决策、有依据的事实、方法和纠错，不限于发现错误。新信息出现时及每轮结束前都应评估，纯审查任务也一样。重要纠错在受影响修改前保存；其他合格增量在交付前保存。
 
-Global and project writes have separate receipts; report a failed or partial write accurately. No eligible increment means no empty write.
+全局与项目分别提交，失败或部分成功都应如实说明；没有合格增量就不做空写入。
 
-## Recall
+## 按需召回
 
-Recall retrieves a bounded set of relevant memories for the current task. It does not load the entire library or search other projects. The assistant runs one focused `context` request at task start, after context loss, or when the project, module, or topic materially changes, then reuses that result while it remains valid.
+召回根据当前任务检索少量相关记忆，不会把整个记忆库交给 AI，也不会搜索其他项目。任务开始、上下文丢失，或项目、模块、主题发生实质变化时，AI 执行一次聚焦的 `context` 查询；结果仍然有效时直接复用，不必每轮重复查询。
 
-1. Use task terms and an optional development intent to find relevant records. Keyword retrieval works independently; a ready local vector index adds semantic matches.
-2. Return selected record bodies within the configured budget. The default combined budget is 5 records / 4,000 characters, reserving space for both global habits and current-project rules. An unused global allocation is available to the project when no eligible active global rules exist or global recall is disabled.
-3. The AI checks applicability, conditions, exceptions and source currency before using the result. Current instructions take priority. An old code observation or test result must be checked against the current workspace.
+1. 使用任务关键词和可选的开发意图寻找相关记录。关键词检索独立可用；本地向量索引就绪时，同时利用语义匹配。
+2. 在数量与字符预算内返回选中的记忆正文。默认联合预算为 5 条／4000 字符，为全局习惯和当前项目规则分别保留空间；没有合格的有效全局规则或全局召回关闭时，剩余预算可供项目使用。
+3. AI 核对适用范围、条件、例外及来源时效，再转成当前任务的决策与检查项。当前要求始终优先；旧代码观察和测试结果不能直接当作当前事实。
 
-If relevant bodies are omitted because of the budget, the response identifies them as incomplete. The assistant can fetch the specific records it needs rather than reload the library. A returned memory is context, not proof that the AI adopted it or that its referenced code still behaves the same way.
+预算不足时，结果会明确标出未返回的相关记录，AI 只补取当前必需的内容。返回了一条记忆，不代表 AI 一定采用，也不证明其中引用的代码仍然保持原行为。
 
-| Record status | Normal recall | Automatic review queue |
+| 记录状态 | 普通召回 | 自动整理队列 |
 | --- | --- | --- |
-| `active`, non-hypothesis | Eligible within relevance and size limits | Its changed revision is queued |
-| `candidate`, non-hypothesis | Excluded; not an instruction | Eligible for review without activation |
-| `candidate` + `hypothesis` | Excluded | Excluded; remains unconfirmed |
-| `conflicted` | May be returned as conflict context; resolve before relying on it | Excluded from routine review; needs explicit conflict resolution |
-| `stale`, `archived`, `superseded` | Excluded | Excluded |
-| Legacy `active` + `hypothesis` | Excluded | Included as an anomaly requiring source-backed revision or archival |
+| `active`，非假设 | 按相关性和预算选取 | 发生变更的当前版本入队 |
+| `candidate`，非假设 | 不返回为有效指令 | 可以整理，但保持未生效 |
+| `candidate + hypothesis` | 不参与 | 不进入，仍属未确认内容 |
+| `conflicted` | 可能作为冲突上下文返回，采用前须解决冲突 | 不进入常规队列，需明确的冲突处理 |
+| `stale`、`archived`、`superseded` | 不参与 | 不进入 |
+| 历史 `active + hypothesis` | 不参与 | 作为异常纳入，须有依据地修订或归档 |
 
-Monthly recall counts measure full record details returned to the AI, not proven adoption. Cached and read-only retrieval and capture-paused stores do not increment the counter. Counts are independent of the review queue: repeated recall alone does not schedule organization, and a new record can need review before it has ever been recalled.
+月度召回次数表示完整记忆正文曾返回给 AI，不表示已实际采用。缓存命中、只读查询和暂停采集时不增加计数。**召回统计与整理队列独立**：重复召回不会重新触发整理；新记忆即使从未召回，也可能需要质量审查。
 
-## Automatic organization
+## 自动整理
 
-Organization reviews changed knowledge for future usefulness, source authority, currentness and duplication. It can retain a correct record, improve its wording or tags, merge genuinely equivalent records, or revise/archive a claim when authoritative evidence justifies it. It does not automatically turn similar text into one rule, promote a candidate, or discard an old record because of its age.
+自动整理针对发生变化的知识，检查长期价值、来源依据、时效和重复情况。处理结果可以是保留、精简、调整标签、合并真正等价的记录，或依据权威证据修订、归档错误内容。不会只因文字相似就合并，也不会因记录变旧就删除，或在整理中自行晋升候选。
 
-Each store maintains its own queue of current record revisions. Review becomes due when **any** of these conditions holds:
+全局库和各项目库分别维护待审版本队列，满足以下任一条件时提示到期：
 
-| Trigger | Meaning |
+| 触发条件 | 准确含义 |
 | --- | --- |
-| 5 pending records | Five distinct eligible record IDs; five edits of one record still count as one |
-| A pending body reaches 1,200 characters | A long record can be reviewed before the count threshold |
-| An unreviewed change waits 7 days | Default age threshold, evaluated on the next authorized interaction |
+| 积压达到 5 条 | 5 个不同的合格记录 ID；同一条修改 5 次仍只算 1 条 |
+| 某条待审正文达到 1200 字符 | 长记录无需等待凑足 5 条 |
+| 某项待审修改满 7 天 | 默认时间阈值，在下一次获准的交互中判断 |
 
-These thresholds schedule review, not a background rewrite. Normal `context` and save responses return a due notice without historical bodies. At a safe task boundary, the assistant requests one related review pack, assesses it and applies revision-checked changes. If work is urgent or sources are insufficient, the unresolved records remain queued. Once a review cycle starts, later turns can drain the smaller remainder without waiting for another five records.
+**达到阈值表示需要审阅，不表示后台已经改写记忆。** 普通召回和保存只返回到期提示，不加载历史整理正文。AI 在合适的任务边界获取一组相关记录，判断后按修订版本提交，并检查回执；任务紧急或证据不足时保留待审。整理周期开始后，后续轮次可以继续处理不足 5 条的尾批，无需重新等待凑数。
 
 ```mermaid
 flowchart TD
-    S([An eligible record changes]) --> Q[Queue its current revision in the owning store]
-    Q --> D{Review due?}
-    D -->|No| L([Leave queued for later])
-    D -->|Yes| M[Return due metadata]
-    M --> B{Quiet task boundary?}
-    B -->|No| L
-    B -->|Yes| R[Read one related pack]
-    R --> C{Sources and meaning sufficiently checked?}
-    C -->|No| L
-    C -->|Yes| A[Retain, compact, retag, merge or correct]
-    A --> F[Revision-checked apply and inspect receipt]
-    F --> E([Finish; remaining work waits])
+    S([合格记录发生变化]) --> Q[在所属库排队当前版本]
+    Q --> D{达到审阅条件？}
+    D -->|否| L([留待后续交互])
+    D -->|是| M[返回到期元数据]
+    M --> B{处于合适的任务边界？}
+    B -->|否| L
+    B -->|是| R[读取一组相关记录]
+    R --> C{来源和含义已充分核对？}
+    C -->|否| L
+    C -->|是| A[保留、精简、改标签、合并或纠正]
+    A --> F[按版本提交并检查回执]
+    F --> E([结束；剩余工作留待以后])
 ```
 
-One turn handles at most one related pack per store: **8 records / 12,000 characters, including embedded source evidence**. A pack includes up to three recent evidence excerpts per record and marks omitted evidence explicitly. Missing context calls for targeted source inspection; a short acknowledgement without its original proposal cannot establish additional detailed requirements.
+每轮、每个库最多处理一组相关记录：**8 条／12000 字符，包含随附的来源证据**。每条最多附带 3 条近期证据摘要，并标明是否省略更早证据；缺少上下文时应定向核对来源，不能仅凭脱离原方案的简短确认推导出更多详细约束。
 
-The assistant preserves valid conditions, exceptions, negative rules and scope boundaries. It keeps desired contracts separate from observed implementation facts, rechecks cited code, and prefers a concise invariant plus a canonical document reference over copying a specification. Legacy active hypotheses must be resolved before being marked reviewed. Unread, oversized or unresolved records remain pending; a character limit never permits silently dropping constraints.
+整理必须保留有效条件、例外、否定要求和作用域，区分业务要求与代码事实；核对观察记录引用的当前代码，优先保留简明约束和权威文档入口，避免复制整份实施方案。历史 active 假设须解决后才能标记已审。未读完、超长或尚未确认的记录留在队列中，不能为了清空积压删减约束。
 
-A review-protocol upgrade may queue eligible existing records once without changing their contents. Pause, disable, exclusion and read-only controls remain in force. There is no daemon, continuous conversation listener or required extra model call; automatic use depends on the host loading the instructions and the assistant executing them. Normal recall does not load review evidence. Evidence and revision history remain available after organization, so fewer active records do not imply equivalent disk-space savings. See the [protocol](skills/dev-memory/references/protocol.md) for operations and safeguards.
+整理协议升级时，可能将已有合格记录重新排队一次，但不会因此改变正文。暂停、禁用、排除和只读控制继续有效。系统没有常驻整理进程或持续对话监听，也不强制额外调用模型；自动执行依赖宿主加载规则并由 AI 落实。普通召回不读取整理证据。整理后仍保留原始证据与修订历史，因此有效记录变少不等于磁盘占用同比减少。操作和保护机制见[操作协议](skills/dev-memory/references/protocol.md)。
 
-## Storage and privacy
+## 存储与隐私
 
-| Location | Contents |
+| 位置 | 内容 |
 | --- | --- |
-| `~/.dev-memory/global/` | Global SQLite store, configuration, optional views and backups |
-| `<project-root>/.dev-memory/` | This project's SQLite store and activation binding |
+| `~/.dev-memory/global/` | 全局 SQLite 库、配置、可选视图和备份 |
+| `<项目根目录>/.dev-memory/` | 当前项目的 SQLite 库与激活绑定 |
 
-One project lookup opens the global store and that project’s store; it does not search other projects. Separate clones and worktrees have separate project stores by default. SQLite is authoritative; optional Markdown views can be rebuilt. Session and turn IDs support retries, opt-outs, and recall caching. They are operational metadata, not a third memory scope.
+一次项目召回只打开全局库和当前项目库，不搜索其他项目。不同克隆和工作树默认各有自己的项目库。SQLite 是权威数据，可选的 Markdown 阅读视图可以重建。会话和轮次 ID 用于重试去重、隐私跳过与召回缓存，属于运行元数据，不是第三层记忆。
 
-The core has no telemetry or automatic memory upload. Text recalled into a hosted AI is still subject to that host’s data policy. Global records and their evidence must exclude project names, business details, code, paths, customer data, raw dialogue, logs, and secrets. Backups contain private data too.
+核心程序没有遥测，也不会自动上传记忆。召回内容若提交给托管 AI，仍受该宿主的数据政策约束。全局记录及证据必须去除项目名、业务细节、代码、路径、客户数据、原始对话、日志和密钥。备份也包含私有数据。
 
-Older databases may contain task/checkpoint rows. This version does not create, recall, maintain, or export them. It retains those rows for explicit audit or deletion: use `list --scope project --status all`, then the `forget preview` / `forget apply` workflow. Historical files under `reports/` may describe the former behavior.
+旧数据库可能仍有任务/检查点记录。当前版本不再创建、召回、整理或导出它们，但保留旧记录供显式审查和删除：先用 `list --scope project --status all` 查看，再走 `forget preview` / `forget apply` 流程。`reports/` 中的历史文件可能描述旧版行为。
 
-## Local semantic recall
+## 本地语义召回
 
-Each memory scope keeps its original text and optional vector index in the same SQLite database. The original text remains authoritative. Install or update prepares a local model when possible; if it is unavailable, keyword search and memory storage continue to work. Ordinary development does not download models. Similarity helps find candidates but does not change their status.
+每个记忆库继续使用现有 SQLite 文件：中文原文是权威数据，向量索引是可选的检索辅助。安装或更新时会尝试准备本地模型；模型不可用时，原文和关键词检索仍可使用。普通开发不会下载模型。向量检索只帮助找候选，不会改变记忆的有效状态。
 
-An unfinished vector calculation does not affect the saved memory. The dashboard shows index status and never starts model inference just because it is open. See [vector setup and recovery](skills/dev-memory/references/vectors.md) for platform details and diagnostics.
+未完成的向量计算不会影响已保存的原文。看板可查看索引状态；浏览看板不会启动模型推理。平台要求、恢复方法和诊断命令见[向量运行说明](skills/dev-memory/references/vectors.md)。
 
-## Local dashboard
+## 本地看板
 
-With Node.js 22+ and Git, run this from a project directory (Linux also needs Python 3.10+):
+已有 Node.js 22+ 和 Git 后，在项目目录运行（Linux 另需 Python 3.10+）：
 
 ```sh
 npx -y --prefer-online chrisstarr7/dev-memory dashboard
 ```
 
-It starts the dashboard locally and tries to open your browser. If no browser opens, copy the URL printed in the terminal. Keep the terminal open and press `Ctrl+C` to stop the server. It listens only on the local machine; its temporary access URL is private and must not be shared.
+命令会在本机启动看板并尝试打开浏览器。若浏览器没有打开，复制终端打印的地址到浏览器；保持终端运行，按 `Ctrl+C` 停止服务。看板只监听本机地址，不会上传记忆；地址含临时访问凭据，不要分享。
 
-Use the dashboard to view memory text, evidence, revisions and stored vectors; search records; preview recall; manage registered projects; and create backups. Monthly recall counts mean full memory details were returned to the AI, not that the AI adopted them; earlier periods cannot be reconstructed.
+看板支持查看原文、依据、修订历史和向量数据，搜索及筛选记录，预览召回，管理项目和备份。月度召回次数表示完整记忆曾返回给 AI，不代表 AI 一定采用；启用统计前的历史无法补算。
 
-If Windows reports a project-list permission error, the dashboard can still show global memory. See [Windows dashboard permissions](docs/installation.md#windows-dashboard-permissions) to repair the local folder, then restart it.
+若 Windows 页面提示项目列表权限错误，看板仍可显示全局记忆。按[Windows 看板权限修复](docs/installation.md#windows-dashboard-permissions)修复后重启看板。
 
-## Memory controls
+## 记忆控制
 
-You can ask the assistant to:
+可以直接告诉 AI：
 
-- Pause global memory writes while continuing to read existing rules.
-- Skip memory writes for one turn.
-- Show relevant memories.
-- Preview the records affected before deleting them.
+- “暂停全局记忆写入，但继续读取已有记录。”
+- “这一轮不要保存记忆。”
+- “查看相关记忆。”
+- “删除前先预览影响范围。”
 
-The current request always takes priority over memory. If capture or recall seems wrong, ask the assistant to run `doctor` from the installed program and check its actual result.
+当前要求始终优先于记忆。若记忆没有保存或无法读取，让 AI 对已安装程序运行一次 `doctor`，并核对实际回执；口头确认不等于写入成功。
 
-## Update
+## 更新
 
-Run this from the project, then start a new AI session:
+在项目目录运行更新命令，并在完成后开启新会话：
 
 ```sh
 npx -y --prefer-online chrisstarr7/dev-memory update codex
 ```
 
-Replace `codex` with your host parameter. Updates preserve existing stores, controls, and unrelated instructions. Install separately in each project that needs project memory.
+更新会保留现有记忆库、控制设置和无关引导内容。需要在其他项目启用项目记忆时，在该项目中单独执行安装命令。
 
-## Help and references
+## 参考与问题反馈
 
-- [Installation, removal, and troubleshooting](docs/installation.md)
-- [Vector setup and recovery](skills/dev-memory/references/vectors.md)
-- [Architecture](docs/architecture.md) · [Protocol](skills/dev-memory/references/protocol.md)
-- [Verification](reports/verification.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+- [安装、卸载与排障](docs/installation.md)
+- [向量运行说明](skills/dev-memory/references/vectors.md)
+- [架构说明](docs/architecture.md) · [操作协议](skills/dev-memory/references/protocol.md)
+- [验证记录](reports/verification.md) · [安全](SECURITY.md) · [贡献](CONTRIBUTING.md)
 
-Report sanitized issues at [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues). Do not attach databases, credentials, or raw conversations.
+请通过 [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues) 提交脱敏问题，不要附上数据库、凭证或原始对话。
 
-## Uninstall
+## 卸载
 
-Run the installed Skill's CLI with the Python interpreter from its activation binding:
+使用安装绑定中的 Python 和 Skill 路径运行 CLI：
 
 ```sh
-<bound-python> <skill-directory>/scripts/dev_memory.py uninstall --agent codex
+<绑定中的 Python> <Skill目录>/scripts/dev_memory.py uninstall --agent codex
 ```
 
-Replace `codex` with the installed host. For a custom Skill location, add `--target <skill-directory>`. Uninstall removes the managed program and its Codex user-level guidance and hooks; project guidance and memory stores are preserved. To remove project guidance, delete only its `dev-memory:managed:start/end` block. To delete memory, use the CLI's preview-and-confirm `forget` flow. See [installation and removal](docs/installation.md#upgrade-and-uninstall) for details.
+将 `codex` 替换为实际宿主；自定义 Skill 目录还需添加 `--target <Skill目录>`。卸载会移除受管理的程序，以及 Codex 用户级引导和本 Skill 的 hooks；项目引导与记忆库会保留。如需移除项目引导，只删除其中 `dev-memory:managed:start/end` 管理块。删除记忆请使用 CLI 的 `forget` 预览与确认流程。详见[安装与卸载说明](docs/installation.md#升级与卸载)。
