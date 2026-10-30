@@ -203,3 +203,13 @@ Replace `codex` with your host parameter. Updates preserve existing stores, cont
 - [Verification](reports/verification.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
 Report sanitized issues at [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues). Do not attach databases, credentials, or raw conversations.
+
+## Uninstall
+
+Run the installed Skill's CLI with the Python interpreter from its activation binding:
+
+```sh
+<bound-python> <skill-directory>/scripts/dev_memory.py uninstall --agent codex
+```
+
+Replace `codex` with the installed host. For a custom Skill location, add `--target <skill-directory>`. Uninstall removes the managed program and its Codex user-level guidance and hooks; project guidance and memory stores are preserved. To remove project guidance, delete only its `dev-memory:managed:start/end` block. To delete memory, use the CLI's preview-and-confirm `forget` flow. See [installation and removal](docs/installation.md#upgrade-and-uninstall) for details.

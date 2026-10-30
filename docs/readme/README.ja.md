@@ -217,3 +217,13 @@ npx -y --prefer-online chrisstarr7/dev-memory update codex
 - [セキュリティ](../../SECURITY.md) · [貢献](../../CONTRIBUTING.md) · [MIT ライセンス](../../LICENSE)。
 
 [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues) には匿名化した情報だけを提出し、非公開 DB、認証情報、会話原文を添付しないでください。
+
+## アンインストール
+
+インストール時のバインディングに記録された Python と Skill のパスを使って CLI を実行します：
+
+```sh
+<バインディングのPython> <Skillディレクトリ>/scripts/dev_memory.py uninstall --agent codex
+```
+
+`codex` は実際のホストに置き換えてください。カスタム Skill パスの場合は `--target <Skillディレクトリ>` も指定します。アンインストールすると管理対象プログラムと Codex のユーザー向けガイダンス、この Skill の hooks が削除されます。プロジェクトのガイダンスと記憶データは保持されます。プロジェクトのガイダンスを削除する場合は、`dev-memory:managed:start/end` の管理ブロックだけを削除してください。記憶の削除には CLI の `forget` によるプレビューと確認を使います。詳しくは[インストールと削除](../installation.md)を参照してください。

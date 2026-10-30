@@ -203,3 +203,13 @@ npx -y --prefer-online chrisstarr7/dev-memory update codex
 - [验证记录](../../reports/verification.md) · [安全](../../SECURITY.md) · [贡献](../../CONTRIBUTING.md)
 
 请通过 [GitHub Issues](https://github.com/chrisstarr7/dev-memory/issues) 提交脱敏问题，不要附上数据库、凭证或原始对话。
+
+## 卸载
+
+使用安装绑定中的 Python 和 Skill 路径运行 CLI：
+
+```sh
+<绑定中的 Python> <Skill目录>/scripts/dev_memory.py uninstall --agent codex
+```
+
+将 `codex` 替换为实际宿主；自定义 Skill 目录还需添加 `--target <Skill目录>`。卸载会移除受管理的程序，以及 Codex 用户级引导和本 Skill 的 hooks；项目引导与记忆库会保留。如需移除项目引导，只删除其中 `dev-memory:managed:start/end` 管理块。删除记忆请使用 CLI 的 `forget` 预览与确认流程。详见[安装与卸载说明](../installation.md#升级与卸载)。
