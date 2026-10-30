@@ -306,13 +306,16 @@ class VectorSetupTests(unittest.TestCase):
         failure = setup._command_failure('No matching distribution found for onnxruntime', 1, True, command)
         with patch.object(setup, '_mac', return_value=False), \
              patch.object(setup.platform, 'system', return_value='Windows'), \
+             patch.object(setup.platform, 'machine', return_value='AMD64'), \
+             patch.object(setup.struct, 'calcsize', return_value=8), \
+             patch.object(setup.sysconfig, 'get_config_var', return_value=None), \
              patch.object(setup, '_run', side_effect=[{}, failure]):
             result = setup.setup(self.base)
         self.assertEqual(result['reason'], 'dependency_wheel_unavailable')
         self.assertEqual(result['phase'], 'dependencies')
         self.assertEqual(result['package_requirement'], 'onnxruntime==1.31.1')
         self.assertIn('CPython', result['message'])
-        self.assertIn('3.13', result['message'])
+        self.assertIn('.'.join(map(str, self.info['version'])), result['message'])
         self.assertIn('AMD64', result['message'])
         self.assertIn('DEV_MEMORY_PIP_INDEX_URL', result['remediation'])
         self.assertNotIn('改 Python 版本', result['remediation'])
