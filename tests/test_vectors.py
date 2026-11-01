@@ -17,6 +17,64 @@ import dev_memory_vectors as vectors
 
 
 class VectorTests(MemoryTestCase):
+    def test_index_error_after_sqlite_rollback_is_not_reported_saved(self):
+        mid = self.add_project_rule()
+        def rolled_back(conn, ids):
+            conn.rollback()
+            raise sqlite3.OperationalError('simulated automatic transaction rollback')
+        with patch.object(vectors, 'on_change', side_effect=rolled_back):
+            result = self.apply(scope='project', turn='rolled-back-index', operations=[{
+                'op':'REVISE', 'scope':'project', 'id':mid, 'expected_revision':1,
+                'record':self.record(title='不应提交的修订')}])
+        self.assertEqual(result['status'], 'failed', result)
+        self.assertEqual(store.show_record('project', mid, project_root=self.project_a)['record']['revision'], 1)
+
+    def test_unreadable_optional_index_does_not_roll_back_raw_revision(self):
+        mid = self.add_project_rule()
+        with self.connection() as conn:
+            conn.execute('CREATE TABLE vector_state(memory_id TEXT PRIMARY KEY)')
+        with patch.object(vectors, 'schedule', side_effect=AssertionError('broken metadata cannot schedule')):
+            result = self.apply(scope='project', turn='broken-index', operations=[{
+                'op':'REVISE', 'scope':'project', 'id':mid, 'expected_revision':1,
+                'record':self.record(title='原文修订不依赖派生索引', content='派生索引损坏时仍可保存原文修订。')}])
+        self.assertEqual(result['status'], 'saved', result)
+        self.assertEqual(result['stores'][0]['vectors']['reason'], 'index_metadata_unavailable')
+        current = store.show_record('project', mid, project_root=self.project_a)['record']
+        self.assertEqual(current['revision'], 2)
+        self.assertEqual(current['title'], '原文修订不依赖派生索引')
+        recalled = store.recall('原文修订', project_root=self.project_a,
+                                global_root=self.global_root, readonly=True)
+        self.assertIn(mid, [r['id'] for r in recalled['stores'][1]['records']])
+
+    def test_regular_apply_keeps_default_vector_scheduling(self):
+        with patch.object(vectors, 'schedule', return_value={'status':'deferred'}) as schedule:
+            self.add_project_rule()
+        schedule.assert_called_once_with('project', project_root=self.project_a, global_root=self.global_root)
+
+    def test_record_status_requires_current_eligible_source(self):
+        mid = self.add_project_rule()
+        config = self.runtime()
+        self.seed_vector(mid, config)
+        self.assertEqual(vectors.status('project', project_root=self.project_a,
+                         global_root=self.global_root, memory_id=mid)['record']['state'], 'ready')
+        for status, claim_type in (('candidate', 'desired'), ('archived', 'desired'), ('active', 'hypothesis')):
+            with self.connection() as conn:
+                conn.execute('UPDATE memories SET status=?,claim_type=? WHERE id=?', (status, claim_type, mid))
+            result = vectors.status('project', project_root=self.project_a,
+                                    global_root=self.global_root, memory_id=mid)
+            self.assertEqual(result['record']['state'], 'not_eligible')
+        with self.connection() as conn:
+            conn.execute("UPDATE memories SET status='active',claim_type='desired',revision=2 WHERE id=?", (mid,))
+        result = vectors.status('project', project_root=self.project_a,
+                                global_root=self.global_root, memory_id=mid)
+        self.assertEqual(result['record']['state'], 'pending')
+        with self.connection() as conn:
+            conn.execute("UPDATE memories SET status='candidate' WHERE id=?", (mid,))
+            conn.execute('DROP TABLE vector_state')
+        result = vectors.status('project', project_root=self.project_a,
+                                global_root=self.global_root, memory_id=mid)
+        self.assertEqual(result['record']['state'], 'not_eligible')
+
     def test_inspect_returns_complete_vector_without_recall_or_model_work(self):
         mid = self.add_project_rule()
         config = self.runtime()

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import secrets
 import sqlite3
@@ -11,6 +12,7 @@ import threading
 import uuid
 import webbrowser
 from datetime import datetime, timezone
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
@@ -34,6 +36,10 @@ SOURCE_LABELS = {"user_statement": "用户要求", "user_confirmation": "用户�
 
 def _h(value: object) -> str:
     return html.escape(str(value if value is not None else ""), quote=True)
+
+
+def _token_matches(value: str, expected: str) -> bool:
+    return value.isascii() and secrets.compare_digest(value, expected)
 
 
 def _local_time(value: str) -> str:
@@ -64,26 +70,52 @@ def projects(global_root: Path | None = None) -> list[dict[str, str]]:
     return rows
 
 
+@contextmanager
+def _catalog_write_lock(global_root: Path | None):
+    path = _catalog_path(global_root).with_suffix('.lock')
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if path.is_symlink():
+        raise store.MemoryError('path_escape', 'Dashboard catalog lock is not a regular file.')
+    with os.fdopen(os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0), 0o600), 'r+b') as lock:
+        if os.fstat(lock.fileno()).st_size == 0:
+            lock.write(b'0')
+            lock.flush()
+        lock.seek(0)
+        try:
+            if os.name == 'nt':
+                import msvcrt
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            raise store.MemoryError('catalog_busy', 'Project registration is busy; retry when it finishes.') from exc
+        # Closing releases the OS lock even after a crash. Never unlink a shared lock inode.
+        yield
+
+
 def register_project(project_root: Path, global_root: Path | None = None) -> dict[str, str]:
     root = store._reject_unsafe_project_root(project_root)
     _, _, config = store._config_for("project", root, global_root)
     row = {"path": str(root), "namespace_id": config["namespace_id"]}
     path = _catalog_path(global_root)
-    rows = [item for item in projects(global_root) if item["path"] != row["path"] and
-            item["namespace_id"] != row["namespace_id"]]
-    rows.append(row)
-    store.write_json_atomic(path, {"schema_version": store.SCHEMA_VERSION,
-                                   "projects": sorted(rows, key=lambda item: item["path"].casefold())})
+    with _catalog_write_lock(global_root):
+        rows = [item for item in projects(global_root) if item["path"] != row["path"] and
+                item["namespace_id"] != row["namespace_id"]]
+        rows.append(row)
+        store.write_json_atomic(path, {"schema_version": store.SCHEMA_VERSION,
+                                       "projects": sorted(rows, key=lambda item: item["path"].casefold())})
     return row
 
 
 def remove_project(namespace_id: str, global_root: Path | None = None) -> bool:
     path = _catalog_path(global_root)
-    rows = projects(global_root)
-    remaining = [row for row in rows if row["namespace_id"] != namespace_id]
-    if len(remaining) == len(rows):
-        return False
-    store.write_json_atomic(path, {"schema_version": store.SCHEMA_VERSION, "projects": remaining})
+    with _catalog_write_lock(global_root):
+        rows = projects(global_root)
+        remaining = [row for row in rows if row["namespace_id"] != namespace_id]
+        if len(remaining) == len(rows):
+            return False
+        store.write_json_atomic(path, {"schema_version": store.SCHEMA_VERSION, "projects": remaining})
     return True
 
 
@@ -145,7 +177,7 @@ class Dashboard:
                 "table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;border-bottom:1px solid #e6e9ee;padding:8px}"
                 "input,select,textarea,button{font:inherit;padding:9px 11px;margin:4px 5px 4px 0;max-width:100%;box-sizing:border-box;border:1px solid #cbd3df;border-radius:7px}"
                 "form.filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px}form.filters>*{margin:0}"
-                "form.filters input[name=q]{flex:1;min-width:220px}"
+                "form.filters input[name=q]{min-width:220px}"
                 "textarea{width:100%;min-height:90px}button{background:#2456a6;color:white;border:0;border-radius:7px;cursor:pointer}"
                 "button.danger{background:#ad2d2d}form.inline{display:inline}.record{white-space:pre-wrap;overflow-wrap:anywhere}"
                 ".link-button{background:transparent;color:#2563eb;padding:0;height:auto;border:0}details{margin:8px 0}code{overflow-wrap:anywhere}table{display:table}dialog{width:min(680px,calc(100% - 28px));max-height:85vh;border:1px solid #dce1e8;border-radius:12px;padding:22px;box-shadow:0 20px 60px #14223b33}dialog::backdrop{background:#14223b66}dialog label{display:block;margin:8px 0;color:#56657a}dialog textarea{min-height:70px}"
@@ -235,6 +267,9 @@ class Dashboard:
                 if not eligible:
                     item['state'] = 'not_eligible'
             return states
+        except (sqlite3.Error, OSError, ValueError):
+            # Optional index metadata must not hide authoritative memory records.
+            return {}
         finally:
             conn.close()
 
@@ -342,7 +377,10 @@ class Dashboard:
             indexable = row['status'] in {'active', 'conflicted'} and row['claim_type'] != 'hypothesis'
             state_label = ("不参与索引" if not indexable else "已就绪" if meta.get("current")
                            else labels.get(meta.get("state"), "待生成" if not meta else "待补齐"))
-            updated = datetime.fromtimestamp(meta["updated_at"], timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M") if meta.get("updated_at") else "—"
+            try:
+                updated = datetime.fromtimestamp(meta["updated_at"], timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M") if meta.get("updated_at") else "—"
+            except (ValueError, OverflowError, OSError, TypeError):
+                updated = '未知'
             vector_link = '/record?' + urlencode({"scope": key, "id": row["id"], "vector": "1"}) + '#vector'
             vector_action = f'<a href="{_h(vector_link)}">查看向量</a>' if meta.get("model_key") else ("待生成" if indexable else "—")
             version = f'v{meta["indexed_revision"]} / 当前 v{row["revision"]}' if meta else f'当前 v{row["revision"]}'
@@ -358,10 +396,15 @@ class Dashboard:
         if data.get("status") == "disabled":
             return self._shell("已禁用", '<section class=panel>该范围的记忆读取已禁用。</section>')
         record = data["record"]
+        state = self._status(key)
+        can_write = state.get("capture_enabled") and state.get("writable")
         import dev_memory_vectors as vectors
         vector_state = vectors.status(kind, project_root=root, global_root=self.global_root, memory_id=memory_id)
         body = f'<section class=panel><p><a href="/?scope={_h(key)}">← {_h(self._scope_name(key))}</a></p>'
-        body += f'<p class=muted>向量：{_h(vector_state.get("record", {}).get("state", vector_state["status"]))}</p>'
+        vector_status = vector_state.get("record", {}).get("state", vector_state["status"])
+        vector_label = {"ready":"已就绪", "pending":"待同步", "not_eligible":"不参与索引",
+                        "unavailable":"不可用", "disabled":"已禁用", "running":"运行中", "failed":"失败"}
+        body += f'<p class=muted>向量：{_h(vector_label.get(vector_status, vector_status))}</p>'
         stored_vector = (vectors.inspect_record(kind, memory_id, project_root=root, global_root=self.global_root)
                          if include_vector else {})
         body += '<details id=vector open><summary>查看实际存储的向量数据</summary>' if include_vector else '<details id=vector><summary>查看实际存储的向量数据</summary><p>完整向量只在你主动选择查看时读取。</p><a href="' + _h('/record?' + urlencode({"scope": key, "id": memory_id, "vector": "1"}) + '#vector') + '">加载实际向量</a>'
@@ -409,7 +452,7 @@ class Dashboard:
         for rev in data["revisions"]:
             body += f'<h3>修订 {_h(rev["revision"])} · {_h(rev["changed_at"])}</h3><pre class=record>{_h(rev["snapshot"])}</pre>'
         body += '</details></section>'
-        if record["status"] in {"active", "candidate", "conflicted", "stale"}:
+        if can_write and record["status"] in {"active", "candidate", "conflicted", "stale"}:
             body += f'<section class=panel id=edit><h2>管理这条记忆</h2><p class=muted>操作使用当前修订号；归档保留审计历史，遗忘将删除受影响记录。</p>'
             if (record["status"] == "active" and record["claim_type"] in {"desired", "preference"}
                     and record["kind"] != "summary"):
@@ -644,16 +687,19 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
             try:
                 cookie.load(self.headers.get("Cookie", ""))
                 item = cookie.get(f"dev_memory_session_{self.server.server_port}")
-                return bool(item and secrets.compare_digest(item.value, access))
+                return bool(item and _token_matches(item.value, access))
             except (CookieError, ValueError):
                 return False
 
         def do_GET(self) -> None:
             if not self._host_ok():
                 self._respond("Invalid host", 403); return
-            parsed = urlsplit(self.path)
-            params = {key: values[0] for key, values in parse_qs(parsed.query).items()}
-            if parsed.path == "/" and params.get("access") and secrets.compare_digest(params["access"], access):
+            try:
+                parsed = urlsplit(self.path)
+                params = {key: values[0] for key, values in parse_qs(parsed.query, keep_blank_values=True).items()}
+            except ValueError:
+                self._respond("Invalid request URL", 400); return
+            if parsed.path == "/" and params.get("access") and _token_matches(params["access"], access):
                 self._respond("", 303, "/", set_cookie=True); return
             if not self._authorized():
                 self._respond("Forbidden", 403); return
@@ -678,21 +724,26 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
                 self._respond("本机看板会话无效，请从看板启动链接重新打开页面。", 403); return
             origin = self.headers.get("Origin")
             if origin is not None:
-                parsed_origin = urlsplit(origin)
-                if (parsed_origin.scheme != "http" or parsed_origin.hostname != "127.0.0.1" or
+                try:
+                    parsed_origin = urlsplit(origin)
+                    valid_origin = not (parsed_origin.scheme != "http" or parsed_origin.hostname != "127.0.0.1" or
                         parsed_origin.port != self.server.server_port or parsed_origin.path not in ("", "/") or
-                        parsed_origin.username is not None or parsed_origin.password is not None):
+                        parsed_origin.username is not None or parsed_origin.password is not None or
+                        parsed_origin.query or parsed_origin.fragment)
+                except ValueError:
+                    valid_origin = False
+                if not valid_origin:
                     self._respond("请求来源与本机看板不一致，请从看板页面重新操作。", 403); return
-            route = urlsplit(self.path).path
-            if route not in {"/action", "/preview"}:
-                self._respond("Not found", 404); return
             try:
+                route = urlsplit(self.path).path
+                if route not in {"/action", "/preview"}:
+                    self._respond("Not found", 404); return
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= 1_000_000:
                     self._respond("Invalid request size", 413); return
                 raw = self.rfile.read(length).decode("utf-8")
                 form = {key: values[0] for key, values in parse_qs(raw, keep_blank_values=True).items()}
-                if not secrets.compare_digest(form.get("csrf", ""), app.csrf):
+                if not _token_matches(form.get("csrf", ""), app.csrf):
                     self._respond("页面安全令牌已失效，请刷新看板后重试。", 403); return
                 if route == "/preview":
                     self._respond(app.preview(form.get("scope", ""), form.get("q", ""), form.get("intent")))

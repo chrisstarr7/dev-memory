@@ -30,7 +30,7 @@ class EfficiencyTests(MemoryTestCase):
              patch.object(dev_memory, 'doctor', side_effect=AssertionError('No full diagnostics')), \
              patch.object(dev_memory.subprocess, 'run', side_effect=AssertionError('No child processes')), \
              contextlib.redirect_stdout(output):
-            self.assertEqual(dev_memory.main(['runtime-check']), 0)
+            self.assertEqual(dev_memory.main(['--global-root',str(self.global_root),'runtime-check']), 0)
         result = json.loads(output.getvalue())
         self.assertEqual(result['base_mode'], 'available')
         self.assertEqual(result['sqlite'], sqlite3.sqlite_version)

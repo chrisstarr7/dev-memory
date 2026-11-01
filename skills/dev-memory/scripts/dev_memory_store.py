@@ -1583,10 +1583,17 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
                     _queue_maintenance(conn, result['id'])
         status = "saved" if content_changed else ("checked_noop" if has_noop else "saved")
         draining = _refresh_maintenance_cycle(conn)
+        vector_invalidation_failed = False
         if content_changed:
             conn.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='data_revision'")
             import dev_memory_vectors as vectors
-            vectors.on_change(conn, changed_ids)
+            try:
+                vectors.on_change(conn, changed_ids)
+            except sqlite3.Error:
+                if not conn.in_transaction:
+                    raise  # SQLite may have rolled back the source transaction too.
+                # Revision/status checks exclude old vectors even if derived metadata is damaged.
+                vector_invalidation_failed = True
         # Keep usage identity/revision, not another copy of project prose in receipts.
         receipt_results = [{k:v for k,v in result.items() if k not in {'reason','action_ref'}}
                            if result.get('usage') == 'ai_reported_not_behavior_verified' else result for result in results]
@@ -1611,7 +1618,9 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         output = {"scope": target_scope, "status": status, "operations": results, "data_revision": committed_revision, "maintenance": maintenance}
         if changed_ids:
             output["view_status"] = "stale_until_export"
-            if schedule_vectors:
+            if vector_invalidation_failed:
+                output['vectors'] = {'status':'deferred', 'reason':'index_metadata_unavailable', 'raw_saved':True}
+            elif schedule_vectors:
                 try:
                     output['vectors'] = vectors.schedule(kind, project_root=root, global_root=global_root)
                 except (MemoryError, OSError, sqlite3.Error, ValueError):
@@ -2648,7 +2657,8 @@ def get_store_status(kind: str, *, project_root: Path | None = None, global_root
         view_revision = int(revisions["view_revision"]) if "view_revision" in revisions else None
         return {
             "scope": kind, "status": "available" if integrity in {"ok", "not_checked"} else "corrupt",
-            "database_exists": True, "readable": True, "writable": os.access(base, os.W_OK),
+            "database_exists": True, "readable": True,
+            "writable": os.access(base, os.W_OK) and os.access(db, os.W_OK),
             "capture_mode": config.get("capture_mode", "full-project") if kind == "project" else "global",
             "capture_enabled": config.get("capture_enabled", True) and config.get("excluded") is not True,
             "recall_enabled": config.get("recall_enabled", True) and config.get("excluded") is not True,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import http.cookiejar
+import http.client
 import queue
 import re
 import subprocess
@@ -15,11 +16,101 @@ from pathlib import Path
 
 from test_dev_memory import MemoryTestCase
 import dev_memory_dashboard as dashboard
+import dev_memory
 import dev_memory_store as store
 import dev_memory_setup as setup
 
 
 class DashboardTests(MemoryTestCase):
+    def test_catalog_lock_releases_after_process_exit_and_write_error(self):
+        dashboard.register_project(self.project_a, self.global_root)
+        lock = dashboard._catalog_path(self.global_root).with_suffix('.lock')
+        code = (f"import sys,time; from pathlib import Path; sys.path.insert(0,{str(Path(dashboard.__file__).parent)!r}); "
+                "import dev_memory_dashboard as d; "
+                f"lock=d._catalog_write_lock(Path({str(self.global_root)!r})); lock.__enter__(); "
+                "print('locked',flush=True); time.sleep(30)")
+        process = subprocess.Popen([sys.executable, '-u', '-c', code], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            ready = queue.Queue()
+            threading.Thread(target=lambda: ready.put(process.stdout.readline()), daemon=True).start()
+            self.assertEqual(ready.get(timeout=10).strip(), 'locked')
+            with self.assertRaises(store.MemoryError) as busy:
+                dashboard.register_project(self.project_b, self.global_root)
+            self.assertEqual(busy.exception.code, 'catalog_busy')
+        finally:
+            process.kill()
+            process.communicate(timeout=5)
+        dashboard.register_project(self.project_b, self.global_root)
+        self.assertTrue(lock.exists())
+        with patch.object(store, 'write_json_atomic', side_effect=OSError('simulated write failure')):
+            with self.assertRaises(OSError):
+                dashboard.remove_project(dashboard.projects(self.global_root)[0]['namespace_id'], self.global_root)
+        dashboard.register_project(self.project_b, self.global_root)
+        self.assertEqual(len(dashboard.projects(self.global_root)), 2)
+
+    def test_concurrent_catalog_writes_report_busy_instead_of_losing_projects(self):
+        entered = threading.Event()
+        release = threading.Event()
+        errors = []
+        original = store.write_json_atomic
+        def slow_first(path, value):
+            if path == dashboard._catalog_path(self.global_root) and value['projects'][0]['path'] == str(self.project_a.resolve()):
+                entered.set()
+                if not release.wait(timeout=5):
+                    raise AssertionError('catalog writer was not released')
+            return original(path, value)
+        def first():
+            try:
+                dashboard.register_project(self.project_a, self.global_root)
+            except Exception as exc:
+                errors.append(exc)
+        with patch.object(store, 'write_json_atomic', side_effect=slow_first):
+            thread = threading.Thread(target=first)
+            thread.start()
+            try:
+                self.assertTrue(entered.wait(timeout=5))
+                with self.assertRaises(store.MemoryError) as busy:
+                    dashboard.register_project(self.project_b, self.global_root)
+                self.assertEqual(busy.exception.code, 'catalog_busy')
+            finally:
+                release.set()
+                thread.join(timeout=5)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(errors, [])
+        dashboard.register_project(self.project_b, self.global_root)
+        self.assertEqual(len(dashboard.projects(self.global_root)), 2)
+
+    def test_runtime_fallback_interrupt_returns_cancel_without_traceback(self):
+        with patch.object(dev_memory.sqlite3, 'Connection', object), \
+             patch.dict(dev_memory.os.environ, {'DEV_MEMORY_VECTOR_REEXEC':''}), \
+             patch('dev_memory_vectors._settings', return_value={'python':str(self.home/'runtime-python')}), \
+             patch.object(dev_memory.subprocess, 'call', side_effect=KeyboardInterrupt):
+            self.assertEqual(dev_memory.main(['--global-root',str(self.global_root),
+                                             'dashboard','serve','--no-open']), 130)
+
+    def test_bad_optional_vector_metadata_keeps_raw_memory_readable(self):
+        import dev_memory_vectors as vectors
+        mid, _ = self._seed()
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        _, db, _ = store._config_for('project', self.project_a, self.global_root)
+        conn = store._connect(db)
+        with conn:
+            vectors._schema(conn)
+            conn.execute("INSERT INTO vector_state VALUES(?,1,'fixture','ready',?,'')", (mid, 1e100))
+        app = dashboard.Dashboard(self.global_root)
+        with self.subTest(metadata='invalid_timestamp'):
+            page = app.index({'scope':key})
+            self.assertIn('仅已送达订单可退款', page)
+            self.assertIn('未知', page)
+        with conn:
+            conn.execute('DROP TABLE vector_state')
+            conn.execute('CREATE TABLE vector_state(memory_id TEXT PRIMARY KEY)')
+        conn.close()
+        with self.subTest(metadata='unreadable_optional_schema'):
+            page = app.index({'scope':key})
+            self.assertIn('仅已送达订单可退款', page)
+            self.assertIn('不可用', page)
+
     def test_detail_shows_full_vector_and_escapes_stored_metadata(self):
         mid, _ = self._seed()
         key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
@@ -166,6 +257,28 @@ class DashboardTests(MemoryTestCase):
         with self.assertRaises(store.MemoryError) as missing:
             app.index({'scope': 'unregistered'})
         self.assertEqual(missing.exception.code, 'project_not_registered')
+
+    def test_detail_hides_changes_when_paused_or_readonly_and_rejects_paused_post(self):
+        mid, _ = self._seed()
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        app = dashboard.Dashboard(self.global_root)
+        store.set_capture('project', False, project_root=self.project_a)
+        page = app.detail(key, mid)
+        self.assertIn('仅已送达订单可退款', page)
+        self.assertNotIn('value=revise', page)
+        self.assertNotIn('value=archive', page)
+        with self.assertRaises(store.MemoryError):
+            app.action({'action':'revise', 'scope':key, 'id':mid, 'revision':'1',
+                        'title':'被暂停的修改', 'content':'不应保存', 'reason':'隔离测试'})
+        self.assertEqual(store.show_record('project', mid, project_root=self.project_a)['record']['revision'], 1)
+        store.set_capture('project', True, project_root=self.project_a)
+        _, database, _ = store._config_for('project', self.project_a, self.global_root)
+        with patch.object(store.os, 'access', side_effect=lambda path, _mode: Path(path) != database):
+            self.assertFalse(app._status(key)['writable'])
+            self.assertNotIn('<dialog id="edit-', app.index({'scope':key}))
+            page = app.detail(key, mid)
+        self.assertNotIn('value=revise', page)
+        self.assertNotIn('value=archive', page)
 
     def test_catalog_is_metadata_only_and_project_reads_keep_scope(self) -> None:
         project_id, global_id = self._seed()
@@ -423,6 +536,15 @@ class DashboardTests(MemoryTestCase):
             self.assertEqual(origin_rejected.exception.code, 403)
             self.assertIn("来源与本机看板不一致", origin_rejected.exception.read().decode())
             origin_rejected.exception.close()
+            for origin in ('null', 'http://127.0.0.1:notaport', 'http://[broken', clean_url + '?query', clean_url + '#fragment'):
+                with self.subTest(origin=origin):
+                    request = urllib.request.Request(clean_url + 'preview',
+                        data=urlencode({'csrf':csrf.group(1), 'scope':key, 'q':'退款'}).encode(),
+                        headers={'Origin':origin})
+                    with self.assertRaises(urllib.error.HTTPError) as rejected:
+                        opener.open(request, timeout=5)
+                    self.assertEqual(rejected.exception.code, 403)
+                    rejected.exception.close()
             month = datetime.now(timezone.utc).strftime("%Y-%m")
             self.assertEqual(store.recall_stats("project", month, project_root=self.project_a)["total_recalls"], 0)
             backup = urllib.request.Request(clean_url + "action",
@@ -448,6 +570,34 @@ class DashboardTests(MemoryTestCase):
                     rejected.exception.close()
                     unchanged = store.show_record("project", project_id, project_root=self.project_a)["record"]
                     self.assertEqual(unchanged, record)
+            with self.subTest(request='empty_scope'):
+                with self.assertRaises(urllib.error.HTTPError) as rejected:
+                    with opener.open(clean_url + '?scope=', timeout=5):
+                        pass
+                self.assertEqual(rejected.exception.code, 400)
+                rejected.exception.close()
+            with self.subTest(request='non_ascii_access_token'):
+                with self.assertRaises(urllib.error.HTTPError) as rejected:
+                    outsider.open(clean_url + '?' + urlencode({'access':'无效令牌'}), timeout=5)
+                self.assertEqual(rejected.exception.code, 403)
+                rejected.exception.close()
+            with self.subTest(request='non_ascii_csrf_token'):
+                request = urllib.request.Request(clean_url + 'action', data=urlencode({
+                    'csrf':'无效令牌', 'action':'backup', 'scope':key}).encode())
+                with self.assertRaises(urllib.error.HTTPError) as rejected:
+                    opener.open(request, timeout=5)
+                self.assertEqual(rejected.exception.code, 403)
+                rejected.exception.close()
+            with self.subTest(request='malformed_url'):
+                parsed = urlsplit(clean_url)
+                connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+                try:
+                    connection.request('GET', 'http://[broken', headers={'Host':parsed.netloc})
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, 400)
+                    response.read()
+                finally:
+                    connection.close()
         except Exception as exc:
             process.terminate()
             _, errors = process.communicate(timeout=5)
