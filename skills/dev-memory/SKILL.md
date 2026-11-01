@@ -17,6 +17,8 @@ The optional `dashboard` command is for a human to inspect and manage local stor
 
 Before affected development work, run one bounded `context --query "TASK TERMS" --intent INTENT --session-id SESSION --turn-id TURN` call. Add the active `--project-root PATH`; with only Codex user-level activation, use `--global-only`. An initialized project uses one combined global/project recall, not a second global-only call. Other hosts need project setup. Use opaque local session/turn IDs if the host exposes none, and reuse them for retries.
 
+On the first recall of a new conversation and after resume, compaction or context loss, add `--force` so current memory bodies are returned. In Codex, prefer the actual `CODEX_THREAD_ID` for the session ID when available; do not reuse a fixed label across conversations. The cache also separates exposed Codex thread IDs. A `cached` result contains no bodies: reuse it only when those bodies remain visible in this conversation; otherwise repeat once with `--force` before affected work. Map applicable recalled rules to the requested implementation and verify the resulting behavior; returning or reporting a rule is not proof of following it.
+
 Successful detail recall also increments a per-memory monthly counter in that store. Candidate indexes, cached results, read-only calls and capture-paused stores do not increment it. This measures content returned to the assistant, not proven use. For a requested report, use `recall-stats --scope global|project|both --month YYYY-MM [--project-root PATH]`; sum a range with `--from-month YYYY-MM --to-month YYYY-MM`. Periods use UTC. Do not run statistics during ordinary development.
 
 Choose intent using the reasoning already needed for the task; no separate classifier call:

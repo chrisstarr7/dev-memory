@@ -34,6 +34,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES), "bin/py
     "docs/readme/README.zh-CN.md", "docs/readme/README.ja.md", "docs/readme/README.ko.md",
     "tests/test_efficiency.py", "reports/optimization-0.8.0.md", "evals/check_efficiency.py", "reports/efficiency-program-0.8.0.json", "reports/efficiency-host-0.8.0.json",
     "reports/noedit-capture-0.8.8.md", "evals/check_noedit_capture.py", "tests/test_noedit_capture_eval.py",
+    "evals/check_cross_session.py", "tests/test_cross_session_eval.py",
     "reports/recall-performance-0.8.6.md", "evals/check_recall_performance.py",
     "reports/lifecycle-review-0.8.5.md", "tests/test_lifecycle_eval.py", "reports/maintenance-review-0.8.4.md", "reports/project-capture-review-0.8.3.md", "tests/test_capture_learning.py", "evals/check_capture.py", "reports/capture-review-0.8.2.md",
     "reports/capture-host-0.8.2.json", "reports/capture-program-0.8.2.json",
@@ -188,6 +189,10 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
     result = store.recall(query, project_root=project_root, global_root=global_root,
                           session_id=session_id, module=module, max_candidates=max_candidates,
                           max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, intent=intent)
+    if any(bucket['status'] == 'cached' for bucket in result['stores']):
+        result['cache_instruction'] = ('Cached scopes return no memory bodies. Reuse only bodies still available '
+                                       'in this conversation; otherwise repeat this context call with --force '
+                                       'before affected work. A cache hit is not proof of applying a rule.')
     for bucket in result['stores']:
         if readonly:
             bucket['maintenance'] = {'status': 'not_requested_readonly'}

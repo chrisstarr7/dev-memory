@@ -17,6 +17,45 @@ import codex_hook
 
 
 class EfficiencyTests(MemoryTestCase):
+    def test_reused_session_label_cannot_hide_memory_in_a_new_host_thread(self):
+        record = self.record(scope='global', kind='preference', claim_type='preference',
+                             title='Inspect existing code', content='Inspect existing code before adding another implementation.')
+        self.apply(scope='global', operations=[{'op':'ADD', 'scope':'global', 'record':record}])
+        def recall(force=False):
+            return dev_memory.context('existing code', global_root=self.global_root,
+                                      session_id='reused-label', force=force)
+        with patch.dict(os.environ, {'CODEX_THREAD_ID':'host-thread-a'}):
+            first = recall()
+            cached = recall()
+        self.assertEqual(len(first['stores'][0]['records']), 1)
+        self.assertEqual(cached['stores'][0]['status'], 'cached')
+        self.assertIn('--force', cached['cache_instruction'])
+        with patch.dict(os.environ, {'CODEX_THREAD_ID':'host-thread-b'}):
+            fresh = recall()
+            restored = recall(force=True)
+        self.assertEqual(len(fresh['stores'][0]['records']), 1)
+        self.assertEqual(len(restored['stores'][0]['records']), 1)
+        self.assertNotIn('cache_instruction', fresh)
+
+    def test_force_restores_bodies_without_a_host_thread_and_respects_disable(self):
+        record = self.record(scope='global', kind='preference', claim_type='preference',
+                             title='Existing code', content='Inspect existing code first.')
+        self.apply(scope='global', operations=[{'op':'ADD', 'scope':'global', 'record':record}])
+        with patch.dict(os.environ, {'CODEX_THREAD_ID':''}):
+            dev_memory.context('existing code', global_root=self.global_root, session_id='portable-label')
+            cached = dev_memory.context('existing code', global_root=self.global_root, session_id='portable-label')
+            fresh = dev_memory.context('existing code', global_root=self.global_root, session_id='portable-label', force=True)
+            readonly = dev_memory.context('existing code', global_root=self.global_root, session_id='portable-label', readonly=True)
+        self.assertEqual(cached['stores'][0]['status'], 'cached')
+        self.assertEqual(len(fresh['stores'][0]['records']), 1)
+        self.assertEqual(readonly['stores'][0]['recall_tracking'], 'skipped_readonly')
+        base, _, config = store._config_for('global', None, self.global_root)
+        config['recall_enabled'] = False
+        store.write_json_atomic(base/'config.json', config)
+        disabled = dev_memory.context('existing code', global_root=self.global_root, session_id='portable-label', force=True)
+        self.assertEqual(disabled['stores'][0]['status'], 'disabled')
+        self.assertEqual(disabled['stores'][0]['records'], [])
+
     def test_daily_store_import_does_not_load_dashboard(self):
         script = (f"import sys;sys.path.insert(0,{str(SCRIPTS)!r});"
                   "import dev_memory_store;"
@@ -340,6 +379,13 @@ class EfficiencyTests(MemoryTestCase):
         with patch.object(codex_hook,'_read_event',return_value={'event':'Stop'}),contextlib.redirect_stdout(output):
             codex_hook.main()
         self.assertEqual(output.getvalue(),'')
+        for source in ('startup', 'resume', 'compact'):
+            output = io.StringIO()
+            with patch.object(codex_hook, '_read_event', return_value={'event':'SessionStart', 'source':source}), \
+                 patch.object(store, 'locate_project_root', side_effect=AssertionError('No startup store scan')), \
+                 contextlib.redirect_stdout(output):
+                codex_hook.main()
+            self.assertIn('--force', json.loads(output.getvalue())['hookSpecificOutput']['additionalContext'])
 
     def test_global_only_opt_out_works_through_cli_outside_a_project(self):
         env = {**os.environ,'DEV_MEMORY_HOME':str(self.global_root)}

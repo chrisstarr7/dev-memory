@@ -123,6 +123,8 @@ class SetupTests(unittest.TestCase):
 
         self.assertIn('use dev-memory automatically', block)
         self.assertIn('one bounded `context`', block)
+        self.assertIn('Use `--force` for a new conversation', block)
+        self.assertIn('cached metadata contains no bodies', block)
         self.assertIn('material project/module/topic change', block)
         self.assertIn('Save supported durable information useful later, not only corrections', block)
         self.assertIn('Use active memory for task decisions and checks', block)
