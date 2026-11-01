@@ -13,6 +13,94 @@ import dev_memory_setup as setup
 
 
 class CaptureTests(MemoryTestCase):
+    def test_partial_correction_preserves_unmentioned_constraints_and_history(self):
+        memory_id = self.add_project_rule(source_refs=['policy.md#refunds'])
+        before = store.show_record('project', memory_id, project_root=self.project_a)['record']
+        result = self.apply(scope='project', turn='narrow-correction', operations=[{
+            'op':'REVISE', 'id':memory_id, 'expected_revision':1,
+            'record':{'kind':'business_rule', 'claim_type':'desired', 'title':'退款规则',
+                      'content':'退款需由人工审核。',
+                      'source':self.source('增加人工审核要求，其余退款条件保持不变。', 'user_feedback')}}])
+        self.assertEqual(result['status'], 'saved', result)
+        detail = store.show_record('project', memory_id, project_root=self.project_a)
+        for field in ('kind','claim_type','status','strength','title','conditions','exceptions',
+                      'do','dont','verification_steps','tags','source_refs'):
+            self.assertEqual(detail['record'][field], before[field], field)
+        self.assertEqual(detail['record']['content'], '退款需由人工审核。')
+        self.assertEqual(json.loads(detail['revisions'][0]['snapshot'])['content'], before['content'])
+        self.assertEqual(len(detail['evidence']), 2)
+        recalled = store.recall('退款', project_root=self.project_a, global_root=self.global_root,
+                                force=True, readonly=True)['stores'][1]['records'][0]
+        self.assertEqual(recalled['exceptions'], before['exceptions'])
+        self.assertEqual(recalled['content'], '退款需由人工审核。')
+
+    def test_explicit_constraint_removal_is_distinct_from_omission_and_stale_save(self):
+        memory_id = self.add_project_rule()
+        operation = {'op':'REVISE', 'id':memory_id, 'expected_revision':1,
+                     'record':{'exceptions':'', 'dont':'', 'source_refs':[],
+                               'source':self.source('明确取消礼品和最终销售商品的排除项。', 'user_feedback')}}
+        self.assertEqual(self.apply(scope='project', turn='remove-exclusions', operations=[operation])['status'], 'saved')
+        current = store.show_record('project', memory_id, project_root=self.project_a)['record']
+        self.assertEqual((current['exceptions'], current['dont'], current['source_refs']), ('','',[]))
+        stale = self.apply(scope='project', turn='stale-correction', operations=[operation])
+        self.assertEqual(stale['stores'][0]['error'], 'revision_conflict')
+        self.assertEqual(store.show_record('project', memory_id, project_root=self.project_a)['record']['revision'], 2)
+
+    def test_partial_revision_needs_fresh_source_and_does_not_inherit_verification(self):
+        memory_id = self.add_project_rule(
+            source=self.source('已执行合成检查。', 'tool_result'),
+            verification={'command':'python check.py', 'finished_at':'2026-11-01T00:00:00Z',
+                          'code_version':'fixture-v1', 'exit_code':0})
+        operation = {'op':'REVISE', 'id':memory_id, 'expected_revision':1,
+                     'record':{'content':'修正后的退款约束。'}}
+        rejected = self.apply(scope='project', turn='missing-authority', operations=[operation])
+        self.assertEqual(rejected['stores'][0]['error'], 'provenance_error')
+        operation['record']['source'] = self.source('要求修正退款约束，尚未执行新检查。', 'user_feedback')
+        result = self.apply(scope='project', turn='fresh-authority', operations=[operation])
+        self.assertEqual(result['status'], 'saved', result)
+        detail = store.show_record('project', memory_id, project_root=self.project_a)
+        self.assertEqual(detail['record']['verification'], {})
+        self.assertIsNone(detail['record']['last_verified_at'])
+        self.assertTrue(json.loads(detail['revisions'][0]['snapshot'])['verification'])
+
+    def test_editing_an_archived_rule_does_not_implicitly_reactivate_it(self):
+        memory_id = self.add_project_rule(status='archived')
+        result = self.apply(scope='project', turn='archived-edit', operations=[{
+            'op':'REVISE', 'id':memory_id, 'expected_revision':1,
+            'record':{'content':'修正历史记录的描述。', 'source':self.source('仅修正历史描述。')}}])
+        self.assertEqual(result['status'], 'saved', result)
+        self.assertEqual(store.show_record('project', memory_id, project_root=self.project_a)['record']['status'], 'archived')
+        recalled = store.recall('退款', project_root=self.project_a, global_root=self.global_root, force=True)
+        self.assertNotIn(memory_id, [r['id'] for r in recalled['stores'][1]['records']])
+
+    def test_partial_global_revision_keeps_controlled_independent_task_evidence(self):
+        first = self.signal('user_statement', 'task-one', 'first')['stores'][0]['operations'][0]
+        for task, turn, expected_status, signals in (
+                ('task-one','same-task','candidate',1), ('task-two','another-task','active',2)):
+            current = store.show_record('global', first['id'], global_root=self.global_root)['record']
+            result = self.apply(scope='global', task=task, turn=turn, operations=[{
+                'op':'REVISE', 'id':first['id'], 'expected_revision':current['revision'],
+                'record':{'title':'Reuse suitable code', 'scope':'project',
+                          'source':{'type':'user_statement','message_id':'caller-controlled',
+                                    'excerpt':'User chose the same reuse preference.'}}}])
+            self.assertEqual(result['status'], 'saved', result)
+            op = result['stores'][0]['operations'][0]
+            self.assertEqual((op['memory_status'],op['independent_task_signals']), (expected_status,signals))
+        evidence = store.show_record('global', first['id'], global_root=self.global_root)['evidence']
+        self.assertEqual(len(evidence), 2)
+        self.assertTrue(all(e['ingestion_id'].startswith('habit:') and e['message_id'] is None for e in evidence))
+
+    def test_partial_global_revision_requires_task_and_pins_idempotency_to_it(self):
+        first = self.signal('user_statement', 'task-one', 'first')['stores'][0]['operations'][0]
+        operation = {'op':'REVISE','id':first['id'],'expected_revision':first['revision'],
+                     'record':{'title':'Reuse suitable code', 'source':self.source('Same preference.')}}
+        rejected = self.apply(scope='global', turn='missing-task', operations=[operation])
+        self.assertEqual(rejected['stores'][0]['error'], 'provenance_error')
+        saved = self.apply(scope='global', task='task-one', turn='same-turn', operations=[operation])
+        self.assertEqual(saved['status'], 'saved', saved)
+        replay = self.apply(scope='global', task='task-two', turn='same-turn', operations=[operation])
+        self.assertEqual(replay['stores'][0]['error'], 'idempotency_conflict')
+
     def habit(self, source_type='user_statement'):
         return {'kind':'preference', 'claim_type':'preference', 'status':'candidate', 'strength':'soft',
                 'cross_project_confirmed':False, 'title':'Reuse suitable existing code',

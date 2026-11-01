@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "3dec4e2e189dd92fe8845fc39696529aeb26750e52f9e909331f47080ef41620"
+      "sha256": "176ed0e674376c0f19e90d596d6daa34884885278cabd3bedd6f3894d799a277"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -22,7 +22,7 @@
     },
     {
       "path": "skills/dev-memory/references/protocol.md",
-      "sha256": "62c51388c9d813f3995f55190acd7aff2087f5c2b49051b4429f790bd70d32ec"
+      "sha256": "f69c06d1aa7ecea307c0a05b6d20f28c2da933fc9491cd66f1651ca9d2f0577b"
     },
     {
       "path": "skills/dev-memory/references/codex-hooks.md",
@@ -30,7 +30,7 @@
     },
     {
       "path": "skills/dev-memory/references/verification.md",
-      "sha256": "9eb33942270885f961102806880b547d9699e4f89e1f9b58cbc93f837e9ecf4b"
+      "sha256": "518262a0658cdfbb96058edd590e92d680a6da8eddc5043143e06a9028c03eeb"
     },
     {
       "path": "skills/dev-memory/references/setup.md",
@@ -42,11 +42,11 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "c4c6187ad2f12b93525f2470a199ae7153e124feb21971d77537e7a0579e5111"
+      "sha256": "84b6891e232928c5ee6a5fe006b98532bd3a6da9159b0b2282b0776f7198f85c"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "b721348b6b98aaeed1cc9211055c330b0100bf79003be6f7ed960d3e6874a69d"
+      "sha256": "71df8c5a237ed1b552c3002f605214aaa64628790069f07a779018dd8a7c903e"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -78,7 +78,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "e96b6fe0dffbdcd717801eba6d5191ac3ddc99ba7a9f87133134d68acc859907"
+      "sha256": "3c207a613c43321eca522107100a53f89ccfcca2e092d7b88dd97de8100e9e2d"
     },
     {
       "path": "LICENSE",
@@ -173,6 +173,14 @@
       "sha256": "e3cee61c9cc42ba0870b2fc6513c67cdf6f7f40fc7de4fbf3670bae2e391a64c"
     },
     {
+      "path": "evals/check_memory_fidelity.py",
+      "sha256": "9c03fd015499d104e9bc79b6da38076961714e4da5ec472adc509b8ea68270f1"
+    },
+    {
+      "path": "tests/test_memory_fidelity_eval.py",
+      "sha256": "d960ef175ad58019361f08f6479f71bf070586a0b3f6903cb8db6132dc89d77c"
+    },
+    {
       "path": "reports/recall-performance-0.8.6.md",
       "sha256": "27bfce769c410cd5e8e6d1d516234532c69aec1cf8076ca0b73172877b73a6bd"
     },
@@ -198,7 +206,7 @@
     },
     {
       "path": "tests/test_capture_learning.py",
-      "sha256": "025395faed139eb944a65a5964a2d7d5e1db048a33d57cd632560b1483070aab"
+      "sha256": "ab63b2c56327819a8ae7ba1fd9cdc9688207105a4a22bc31ad4a824505153b77"
     },
     {
       "path": "evals/check_capture.py",
@@ -226,7 +234,7 @@
     },
     {
       "path": "tests/test_maintenance.py",
-      "sha256": "d4ac6311e7cec6166fb8a8b3765067ed8144e4ecd9031aa397e416e9b8861a7c"
+      "sha256": "8aad1b309c571b39aec947fd81d65370b08afb1538d9ef0360b5927d9675581e"
     },
     {
       "path": "tests/test_lifecycle.py",
@@ -397,7 +405,7 @@
       "sha256": "1219e690ce07062baa53f7059f546b19eebe6271bde0551e765f98368c431478"
     }
   ],
-  "version": "0.10.0",
+  "license_status": "MIT",
   "package": "dev-memory",
-  "license_status": "MIT"
+  "version": "0.10.0"
 }
