@@ -172,13 +172,19 @@ def status(kind, *, project_root=None, global_root=None, memory_id=None):
                 if job and job[0] == 'failed' and job[1] > time.time():
                     result.update(status='failed', reason='model_unavailable_or_timeout',
                                   retry_after_seconds=math.ceil(job[1]-time.time()))
-            if memory_id and _exists(conn, 'vector_state'):
-                row = conn.execute('''SELECT v.state,v.revision,v.error,v.model_key,m.revision
-                    FROM vector_state v JOIN memories m ON m.id=v.memory_id WHERE v.memory_id=?''', (memory_id,)).fetchone()
+            if memory_id:
+                source = conn.execute('SELECT revision,status,claim_type FROM memories WHERE id=? AND scope=?',
+                                      (memory_id, kind)).fetchone()
+                row = (conn.execute('SELECT state,revision,error,model_key FROM vector_state WHERE memory_id=?',
+                                    (memory_id,)).fetchone() if source and _exists(conn, 'vector_state') else None)
                 state = row[0] if row else 'pending'
-                if not settings:
+                if source is None:
+                    state = 'not_found'
+                elif source[1] not in ('active', 'conflicted') or source[2] == 'hypothesis':
+                    state = 'not_eligible'
+                elif not settings:
                     state = 'unavailable'
-                elif row and (row[1] != row[4] or row[3] != _model_key(settings)):
+                elif row and (row[1] != source[0] or row[3] != _model_key(settings)):
                     state = 'pending'
                 result['record'] = {'state': state, 'revision': row[1], 'error': row[2]} if row else {'state': state}
             return result

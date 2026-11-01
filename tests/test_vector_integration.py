@@ -71,19 +71,21 @@ class RealVectorIntegration(MemoryTestCase):
             memory_id = self.add_project_rule(
                 title='接口模型注解', content='请求和响应模型必须补齐接口文档注解。',
                 conditions='新增或修改 DTO 和 VO 时。', do='保持 Swagger 注解完整。',
-                dont='不能遗漏新增字段。')
-        # Intel macOS CI can need slightly longer for the first cold ONNX process.
-        # Keep the production worker bounded while giving this integration test a fair cold-start window.
-        with patch.object(vectors, 'WORK_SECONDS', 20):
-            started = vectors.schedule('project', project_root=self.project_a, global_root=runtime_root)
+                dont='不能遗漏新增字段。', exceptions='', verification_steps='核对接口文档字段。')
+        # Keep real platform checks on the production budget, including model startup.
+        index_started = time.monotonic()
+        started = vectors.schedule('project', project_root=self.project_a, global_root=runtime_root)
         self.assertIn(started['status'], ('running', 'scheduled', 'ready'), started)
-        until = time.monotonic() + 23
+        until = time.monotonic() + vectors.WORK_SECONDS + 3
         while time.monotonic() < until:
             indexed = vectors.status('project', project_root=self.project_a, global_root=runtime_root)
             if indexed.get('ready') == 1:
                 break
             time.sleep(.1)
         self.assertEqual(indexed.get('ready'), 1, indexed)
+        print(json.dumps({'platform':sys.platform, 'phase':'production_index',
+                          'budget_seconds':vectors.WORK_SECONDS,
+                          'elapsed_seconds':round(time.monotonic()-index_started, 3)}), flush=True)
         # Explicit long allowance here measures real inference, separate from the production 5s budget.
         settings = vectors._settings(runtime_root)
         real_query = vectors._encode(['request and response API documentation annotations'],
@@ -98,12 +100,18 @@ class RealVectorIntegration(MemoryTestCase):
                                 settings, timeout=20)
         self.assertGreater(max(abs(a-b) for a, b in zip(*tails)), .00001,
                            'An important tail beyond 128 tokens must change the embedding')
-        # Also exercise the actual uncached production query budget; fallback must stay bounded.
-        before = time.monotonic()
-        bounded = vectors.search('接口模型注解', 'project', project_root=self.project_a,
-                                 global_root=runtime_root)
-        self.assertLess(time.monotonic() - before, 8)
-        self.assertIn(bounded['status'], ('ok', 'deferred', 'unavailable'), bounded)
+        # Both languages must really hit under the normal query budget; no precomputed vector.
+        for query in ('request and response API documentation annotations', '接口模型注解'):
+            before = time.monotonic()
+            bounded = vectors.search(query, 'project', project_root=self.project_a,
+                                     global_root=runtime_root)
+            elapsed = time.monotonic() - before
+            self.assertLess(elapsed, vectors.QUERY_SECONDS + 1)
+            self.assertEqual(bounded['status'], 'ok', bounded)
+            self.assertIn(memory_id, [r['id'] for r in bounded['records']], bounded)
+            print(json.dumps({'platform':sys.platform, 'phase':'production_query',
+                              'query':query, 'budget_seconds':vectors.QUERY_SECONDS,
+                              'elapsed_seconds':round(elapsed, 3)}), flush=True)
         backup = store.backup_store('project', project_root=self.project_a, global_root=runtime_root)
         self.assertEqual(backup['status'], 'saved')
         current = store.show_record('project', memory_id, project_root=self.project_a,

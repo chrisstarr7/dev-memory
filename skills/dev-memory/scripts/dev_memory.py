@@ -694,9 +694,12 @@ def main(argv: list[str] | None = None) -> int:
             import dev_memory_vectors as vectors
             runtime = vectors._settings(global_root, cleanup=True)
             if runtime and Path(runtime['python']).resolve() != Path(sys.executable).resolve():
-                return subprocess.call([runtime['python'], '-B', str(Path(__file__).resolve()),
-                                        *(argv if argv is not None else sys.argv[1:])],
-                                       env={**os.environ, 'DEV_MEMORY_VECTOR_REEXEC':'1'})
+                try:
+                    return subprocess.call([runtime['python'], '-B', str(Path(__file__).resolve()),
+                                            *(argv if argv is not None else sys.argv[1:])],
+                                           env={**os.environ, 'DEV_MEMORY_VECTOR_REEXEC':'1'})
+                except KeyboardInterrupt:
+                    return 130
         if command == 'runtime-check':
             _json_out(runtime_check())
         elif command == "doctor":
