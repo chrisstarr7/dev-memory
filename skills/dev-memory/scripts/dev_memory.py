@@ -35,6 +35,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES), "bin/py
     "tests/test_efficiency.py", "reports/optimization-0.8.0.md", "evals/check_efficiency.py", "reports/efficiency-program-0.8.0.json", "reports/efficiency-host-0.8.0.json",
     "reports/noedit-capture-0.8.8.md", "evals/check_noedit_capture.py", "tests/test_noedit_capture_eval.py",
     "evals/check_cross_session.py", "tests/test_cross_session_eval.py",
+    "evals/check_memory_fidelity.py", "tests/test_memory_fidelity_eval.py",
     "reports/recall-performance-0.8.6.md", "evals/check_recall_performance.py",
     "reports/lifecycle-review-0.8.5.md", "tests/test_lifecycle_eval.py", "reports/maintenance-review-0.8.4.md", "reports/project-capture-review-0.8.3.md", "tests/test_capture_learning.py", "evals/check_capture.py", "reports/capture-review-0.8.2.md",
     "reports/capture-host-0.8.2.json", "reports/capture-program-0.8.2.json",

@@ -1,6 +1,8 @@
 """Private, per-namespace SQLite storage for dev-memory."""
 from __future__ import annotations
 
+from copy import deepcopy
+
 import hashlib
 import hmac
 import json
@@ -1403,9 +1405,18 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
     if action == "REVISE":
         if not isinstance(op.get("record"), dict):
             raise MemoryError("validation_error", "REVISE record must be a JSON object.")
-        data = dict(op["record"])
+        # A focused correction must not erase unmentioned constraints or reactivate history.
+        # Verification is evidence for a particular revision, never an inherited default.
+        data = {**deepcopy(current), **op["record"], "verification": op["record"].get("verification", {})}
         data.update({"id": memory_id, "revision": current["revision"] + 1, "created_at": current["created_at"]})
         data.setdefault("source", {})
+        if scope == 'global' and _is_inferred_habit({**data, 'scope':scope}):
+            if not top.get('_habit_ingestion'):
+                raise MemoryError('provenance_error', 'Inferred habit revisions require an opaque task ID.')
+            if isinstance(data['source'], dict):
+                data['source'] = {**data['source'], 'ingestion_id':top['_habit_ingestion'],
+                                  '_dev_memory_generated_ingestion':True}
+                data['source'].pop('message_id', None)
         if isinstance(data["source"], dict) and not data["source"].get("message_id") and not data["source"].get("ingestion_id"):
             data["source"] = {**data["source"], "ingestion_id": _turn_ingestion(top), "_dev_memory_generated_ingestion": True}
         keeps_old_verification = data.get("verification", {}) == current["verification"] and bool(current["verification"])
@@ -1496,7 +1507,7 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
                 if isinstance(container, dict) and isinstance(container.get('source'), dict):
                     container['source'] = dict(container['source'])
                     container['source'].pop('_dev_memory_generated_ingestion', None)
-            if (op.get("op") in {'ADD', 'REVISE', 'SUPERSEDE'} and isinstance(record, dict) and record.get("status") in ('candidate', 'active')
+            if (op.get("op") in {'ADD', 'SUPERSEDE'} and isinstance(record, dict) and record.get("status") in ('candidate', 'active')
                     and record.get("scope", "global") == "global" and record.get("kind") == "preference"
                     and record.get("claim_type") == "preference" and record.get("strength") == "soft"
                     and record.get("cross_project_confirmed") is False):
@@ -1545,7 +1556,7 @@ def _apply_store(kind: str, root: Path | None, global_root: Path | None, operati
         digest = hashlib.sha256(json_bytes({"operations": operations, "session_id": top.get("session_id"),
                                            "turn_id": top.get("turn_id"), "task_id": top.get("task_id"),
                                            **({'habit_ingestion': top['_habit_ingestion']} if top.get('_habit_ingestion')
-                                              and any(op['op'] == 'ADD_EVIDENCE' for op in operations) else {})})).hexdigest()
+                                              and any(op['op'] in {'ADD_EVIDENCE', 'REVISE'} for op in operations) else {})})).hexdigest()
         replay = conn.execute("SELECT status,result_json,payload_hash FROM receipts WHERE idempotency_key=?", (idem,)).fetchone()
         if replay:
             if not replay[2] or replay[2] != digest:
