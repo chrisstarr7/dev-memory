@@ -346,7 +346,9 @@ class Dashboard:
         body += f'第 {page} 页'
         if has_more:
             body += f'　<a href="/?{urlencode({"scope":key,"q":query,"status":status_filter,"month":month,"page":page+1})}">下一页</a>'
-        body += '</span></div></section>'
+        body += '</span></div>'
+        body += self._preview_form(key)
+        body += '</section>'
         ready = vector_state.get("ready", 0)
         pending = vector_state.get("pending", 0)
         eligible = ready + pending
@@ -479,22 +481,70 @@ class Dashboard:
         body += (f'<section class=panel><a class=bad href="{_h("/forget?" + urlencode({"scope":key,"id":memory_id}))}">预览永久遗忘的影响</a></section>')
         return self._shell(record["title"], body)
 
-    def preview(self, key: str, query: str, intent: str | None) -> str:
+    def _preview_form(self, key: str, query: str = '', intent: str | None = None, mode: str = 'default') -> str:
+        labels = {'planning':'方案设计', 'feature':'功能开发', 'bugfix':'问题修复', 'refactor':'重构',
+                  'review':'审查', 'verification':'测试核验', 'delivery':'交付'}
+        options = '<option value="">不指定</option>' + ''.join(
+            f'<option value="{value}" {"selected" if value == intent else ""}>{_h(label)}</option>'
+            for value, label in labels.items())
+        return (f'<details><summary>模拟日常召回</summary><p class="muted">项目范围同时包含全局习惯。'
+                '预览不保存查询、不增加召回次数；主动执行时可能使用本地向量模型。</p>'
+                f'<form method="post" action="/preview" class="filters">{self._form_token()}'
+                f'<input type="hidden" name="scope" value="{_h(key)}">'
+                f'<label class="query">任务关键词<input name="q" value="{_h(query)}" required maxlength="500"></label>'
+                f'<label>任务类型<select name="intent">{options}</select></label>'
+                '<label>预览额度<select name="mode">'
+                f'<option value="default" {"selected" if mode == "default" else ""}>日常默认：5 条／4000 字符</option>'
+                f'<option value="expanded" {"selected" if mode == "expanded" else ""}>扩大检索：20 条／20000 字符</option>'
+                '</select></label><button class="primary">执行预览</button></form></details>')
+
+    def preview(self, key: str, query: str, intent: str | None, mode: str = 'default') -> str:
         if not query.strip():
             raise store.MemoryError("validation_error", "Supply task terms for recall preview.")
+        if mode not in {'default', 'expanded'}:
+            raise store.MemoryError('validation_error', 'Unknown recall preview mode.')
         kind, root = self._target(key)
+        limits = {'max_candidates':50, 'max_details':20, 'max_chars':20000} if mode == 'expanded' else {}
         result = store.recall(query[:500], project_root=root if kind == "project" else None,
                               global_root=self.global_root, readonly=True, force=True,
                               intent=intent if intent in store.INTENTS else None,
-                              max_candidates=50, max_details=20, max_chars=20000)
-        body = '<section class=panel><p>只读预览：不会记录召回次数，也不证明 AI 将执行这些规则。</p>'
+                              explain=True, **limits)
+        body = '<section class=panel><h2>' + ('扩大检索' if limits else '模拟日常召回') + '</h2>'
+        body += '<p>只读预览：不会记录召回次数，也不证明 AI 将执行这些规则。模拟首次强制召回，不复用会话缓存；额度仍受各库配置限制。</p>'
+        if limits:
+            body += '<p class=warn>此处扩大了检索额度，结果不代表日常默认调用会返回相同内容。</p>'
+        body += self._preview_form(key, query[:500], intent, mode)
+        matches = {'keyword':'关键词匹配', 'intent':'任务类型匹配', 'semantic':'语义匹配', 'fallback':'兜底规则'}
+        reasons = {'selected':'正文已返回', 'detail_limit':'条数额度不足', 'character_limit':'字符额度不足',
+                   'candidate_limit':'候选额度不足'}
         for bucket in result.get("stores", []):
             body += f'<h2>{_h(bucket["scope"])} · {_h(bucket["status"])}</h2>'
-            for record in bucket.get("records", []):
+            budget = bucket.get('budget', {})
+            if budget:
+                body += (f'<p>正文返回 {budget["used_details"]} / {budget["max_details"]} 条；'
+                         f'记忆内容 {budget["used_chars"]} / {budget["max_chars"]} 字符（含规则字段）。</p>')
+            vector = bucket.get('vectors', {})
+            if vector:
+                message = '语义检索已参与' if vector.get('status') == 'ok' else '语义检索未参与，保留关键词与兜底检索'
+                body += f'<p class="muted">{message}：{_h(vector.get("status"))} {_h(vector.get("reason", ""))}</p>'
+            if bucket.get('reason'):
+                body += f'<p class="warn">当前范围未完成召回：{_h(bucket["reason"])}</p>'
+            rows = bucket.get('selection', [])
+            records = {r['id']:r for r in bucket.get('records', []) + bucket.get('unloaded_candidates', [])}
+            if rows:
+                body += '<div class="tablewrap"><table><thead><tr><th>排名</th><th>记忆 / 修订</th><th>入选依据</th><th>读取结果</th></tr></thead><tbody>'
+            for row in rows:
+                record = records.get(row['id'], {})
                 target = "global" if bucket["scope"] == "global" else key
-                body += f'<p><a href="{_h("/record?" + urlencode({"scope":target,"id":record["id"]}))}">{_h(record["title"])}</a></p>'
+                url = '/record?' + urlencode({'scope':target, 'id':row['id']})
+                match = '、'.join(matches.get(m, m) for m in row['matches'])
+                body += (f'<tr><td>{row["rank"]}</td><td><a href="{_h(url)}">{_h(record.get("title", row["id"]))}</a>'
+                         f' · v{row["revision"]}</td><td>{_h(match)}</td><td>{_h(reasons.get(row["reason"], row["reason"]))}</td></tr>')
+            body += '</tbody></table></div>' if rows else '<p>该范围没有可返回的结果；候选、归档及失效记录不作为普通规则返回。</p>'
             if bucket.get("context_incomplete"):
                 body += '<p class=warn>召回结果超出预算；未加载的记录不能视为已检查。</p>'
+            if bucket.get('candidate_limit_reached'):
+                body += '<p class=warn>候选检索已达到上限，可能仍有未列出的匹配；可缩小任务关键词后重试。</p>'
         body += '</section>'
         return self._shell("召回预览", body)
 
@@ -746,7 +796,7 @@ def serve(global_root: Path | None = None, *, project_root: Path | None = None,
                 if not _token_matches(form.get("csrf", ""), app.csrf):
                     self._respond("页面安全令牌已失效，请刷新看板后重试。", 403); return
                 if route == "/preview":
-                    self._respond(app.preview(form.get("scope", ""), form.get("q", ""), form.get("intent")))
+                    self._respond(app.preview(form.get("scope", ""), form.get("q", ""), form.get("intent"), form.get('mode', 'default')))
                     return
                 location = app.action(form)
                 self._respond("", 303, location)

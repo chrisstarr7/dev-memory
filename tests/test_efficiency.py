@@ -263,6 +263,66 @@ class EfficiencyTests(MemoryTestCase):
         result = store.recall('',project_root=self.project_a,global_root=self.global_root,force=True)
         self.assertEqual([len(s['records']) for s in result['stores']], [3,2])
 
+    def test_unused_global_capacity_is_lent_without_exceeding_joint_limits(self):
+        habit = self.habit()
+        habit.update(status='active', cross_project_confirmed=True, conditions='', do='', dont='')
+        self.apply(scope='global', operations=[{'op':'ADD', 'record':habit}])
+        for n in range(6):
+            self.add_project_rule(turn=f'capacity-{n}', title=f'Export field {n}', content=f'Export field {n}.',
+                                  conditions='', exceptions='', do='', dont='', verification_steps='', tags=[])
+        result = store.recall('Export', project_root=self.project_a, global_root=self.global_root, readonly=True)
+        self.assertEqual([len(b['records']) for b in result['stores']], [1,4])
+        self.assertLessEqual(sum(b['budget']['used_chars'] for b in result['stores']), 4000)
+        self.assertEqual(result['stores'][1]['budget']['max_details'], 4)
+        self.assertTrue(result['context_incomplete'])
+        self.assertFalse(result['stores'][1]['candidate_limit_reached'])
+        base, _, cfg = store._config_for('project', self.project_a, self.global_root)
+        cfg['limits']['max_details'] = 1
+        store.write_json_atomic(base/'config.json', cfg)
+        limited = store.recall('Export', project_root=self.project_a, global_root=self.global_root, readonly=True)
+        self.assertEqual([len(b['records']) for b in limited['stores']], [1,1])
+
+    def test_cached_usage_keeps_allocation_stable_without_model_or_body_reads(self):
+        habit = self.habit()
+        habit.update(status='active', cross_project_confirmed=True)
+        self.apply(scope='global', operations=[{'op':'ADD', 'record':habit}])
+        self.add_project_rule(conditions='', exceptions='', do='', dont='', verification_steps='')
+        options = dict(project_root=self.project_a, global_root=self.global_root, session_id='allocation')
+        first = store.recall('rule', **options)
+        with patch('dev_memory_vectors.search', side_effect=AssertionError('Cached recall must not run the model')), \
+             patch.object(store, '_select_record', side_effect=AssertionError('Cached recall must not re-read bodies')):
+            cached = store.recall('rule', **options)
+        self.assertEqual([b['status'] for b in cached['stores']], ['cached','cached'])
+        self.assertEqual([b['budget'] for b in first['stores']], [b['budget'] for b in cached['stores']])
+        self.assertTrue(all(not b['records'] for b in cached['stores']))
+
+    def test_explanations_do_not_change_selected_bodies_or_their_budget(self):
+        for n in range(4):
+            self.add_project_rule(turn=f'explain-{n}', title=f'Export {n}', content=f'Export requirement {n}',
+                                  conditions='', exceptions='', do='', dont='', verification_steps='', tags=[])
+        options = dict(project_root=self.project_a, global_root=self.global_root, readonly=True, max_details=2)
+        plain = store.recall('Export', **options)
+        explained = store.recall('Export', explain=True, **options)
+        for a,b in zip(plain['stores'], explained['stores']):
+            self.assertEqual(a['records'], b['records'])
+            self.assertEqual(a['budget'], b['budget'])
+        rows = explained['stores'][1]['selection']
+        self.assertEqual(sum(r['loaded'] for r in rows), 2)
+        self.assertTrue(any(r['reason'] == 'detail_limit' for r in rows))
+        self.assertTrue(all('keyword' in r['matches'] for r in rows))
+        for command in ('context', 'recall'):
+            completed = subprocess.run([sys.executable, '-B', str(SCRIPTS/'dev_memory.py'),
+                '--global-root', str(self.global_root), command, '--project-root', str(self.project_a),
+                '--query', 'Export', '--max-details', '2', '--readonly', '--force', '--explain'],
+                check=True, capture_output=True, text=True, encoding='utf-8')
+            actual = json.loads(completed.stdout)['stores'][1]
+            self.assertEqual(actual['records'], explained['stores'][1]['records'])
+            self.assertEqual(actual['selection'], rows)
+        short = store.recall('Export', explain=True, max_chars=100, project_root=self.project_a,
+                             global_root=self.global_root, readonly=True)
+        self.assertFalse(short['stores'][1]['records'])
+        self.assertTrue(all(r['reason'] == 'character_limit' for r in short['stores'][1]['selection']))
+
     def test_default_context_and_apply_do_not_load_maintenance_bodies(self):
         for n in range(5):
             memory_id = self.add_project_rule(turn=f'new-{n}',content=f'Rule {n}')

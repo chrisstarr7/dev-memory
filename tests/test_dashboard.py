@@ -326,6 +326,37 @@ class DashboardTests(MemoryTestCase):
         store.recall("退款 已送达", project_root=self.project_a, global_root=self.global_root, force=True)
         self.assertEqual(store.recall_stats("project", month, project_root=self.project_a)["total_recalls"], 1)
 
+    def test_default_preview_matches_daily_recall_and_expansion_is_explicit(self):
+        for n in range(6):
+            self.add_project_rule(turn=f'preview-{n}', title=f'Export {n}', content=f'Export requirement {n}',
+                                  conditions='', exceptions='', do='', dont='', verification_steps='', tags=[])
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        app = dashboard.Dashboard(self.global_root)
+        normal = store.recall('Export', project_root=self.project_a, global_root=self.global_root, readonly=True)
+        page = app.preview(key, 'Export', None)
+        self.assertEqual(page.count('正文已返回'), len(normal['stores'][1]['records']))
+        self.assertIn('日常默认：5 条／4000 字符', page)
+        self.assertIn('关键词匹配', page)
+        self.assertIn('条数额度不足', page)
+        self.assertIn('runtime_not_configured', page)
+        self.assertIn('v1', page)
+        expanded = app.preview(key, 'Export', None, 'expanded')
+        self.assertIn('结果不代表日常默认调用', expanded)
+        self.assertIn('name="mode"', app.index({'scope':key}))
+        with self.assertRaises(store.MemoryError):
+            app.preview(key, 'Export', None, 'anything')
+
+    def test_preview_escapes_diagnostics_and_exposes_degraded_vector_recall(self):
+        mid = self.add_project_rule(title='<script>Export</script>', content='Export requirement.')
+        key = dashboard.register_project(self.project_a, self.global_root)['namespace_id']
+        with patch('dev_memory_vectors.search', return_value={'status':'deferred','reason':'query_timeout','records':[]}):
+            page = dashboard.Dashboard(self.global_root).preview(key, 'Export', None)
+        self.assertNotIn('<script>Export</script>', page)
+        self.assertIn('&lt;script&gt;Export&lt;/script&gt;', page)
+        self.assertIn('query_timeout', page)
+        self.assertIn('语义检索未参与', page)
+        self.assertIn(mid, page)
+
     def test_page_through_more_than_existing_list_limit(self) -> None:
         self._seed()
         _, db, config = store._config_for("project", self.project_a, self.global_root)

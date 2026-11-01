@@ -199,8 +199,9 @@ class LifecycleTests(MemoryTestCase):
             scope='global',kind='preference',title='Reporting',content='Report outcomes before remaining gaps.')}])
         changed=dev_memory.context(**kwargs)
         self.assertEqual(len(changed['stores'][0]['records']),1)
-        self.assertLessEqual(len(changed['stores'][1]['records']),2)
-        self.assertTrue(changed['stores'][1]['context_incomplete'])
+        self.assertEqual(len(changed['stores'][1]['records']),3)
+        self.assertFalse(changed['stores'][1]['context_incomplete'])
+        self.assertLessEqual(sum(b['budget']['used_chars'] for b in changed['stores']),4000)
 
     def test_disabled_or_excluded_memory_cannot_be_read_through_inspection(self):
         ids={}
