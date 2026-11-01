@@ -101,6 +101,27 @@ class CaptureTests(MemoryTestCase):
         replay = self.apply(scope='global', task='task-two', turn='same-turn', operations=[operation])
         self.assertEqual(replay['stores'][0]['error'], 'idempotency_conflict')
 
+    def test_repinning_summary_sources_does_not_rewrite_the_prior_snapshot(self):
+        source_id = self.add_project_rule()
+        summary = {'kind':'summary','claim_type':'hypothesis','status':'candidate','title':'摘要候选',
+                   'content':'来源规则摘要。','derived_from':[source_id],
+                   'expected_source_revisions':{source_id:1},'source':{'type':'model_inference'}}
+        saved = self.apply(scope='project', turn='summary', operations=[{'op':'ADD','record':summary}])
+        summary_id = saved['stores'][0]['operations'][0]['id']
+        self.apply(scope='project', turn='revise-source', operations=[{
+            'op':'REVISE','id':source_id,'expected_revision':1,
+            'record':{'content':'修正后的原始规则。','source':self.source('修正原始规则。')}}])
+        before = store.show_record('project', summary_id, project_root=self.project_a)['record']
+        result = self.apply(scope='project', turn='repin-summary', operations=[{
+            'op':'REVISE','id':summary_id,'expected_revision':before['revision'],
+            'record':{'content':'修正后的摘要。','status':'candidate',
+                      'expected_source_revisions':{source_id:2},'source':{'type':'model_inference'}}}])
+        self.assertEqual(result['status'], 'saved', result)
+        detail = store.show_record('project', summary_id, project_root=self.project_a)
+        old = json.loads(detail['revisions'][0]['snapshot'])
+        self.assertEqual(old['source_refs'], before['source_refs'])
+        self.assertIn(f'dev-memory-source:{source_id}@2', detail['record']['source_refs'])
+
     def habit(self, source_type='user_statement'):
         return {'kind':'preference', 'claim_type':'preference', 'status':'candidate', 'strength':'soft',
                 'cross_project_confirmed':False, 'title':'Reuse suitable existing code',

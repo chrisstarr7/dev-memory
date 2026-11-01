@@ -1,6 +1,8 @@
 """Private, per-namespace SQLite storage for dev-memory."""
 from __future__ import annotations
 
+from copy import deepcopy
+
 import hashlib
 import hmac
 import json
@@ -1405,7 +1407,7 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
             raise MemoryError("validation_error", "REVISE record must be a JSON object.")
         # A focused correction must not erase unmentioned constraints or reactivate history.
         # Verification is evidence for a particular revision, never an inherited default.
-        data = {**current, **op["record"], "verification": op["record"].get("verification", {})}
+        data = {**deepcopy(current), **op["record"], "verification": op["record"].get("verification", {})}
         data.update({"id": memory_id, "revision": current["revision"] + 1, "created_at": current["created_at"]})
         data.setdefault("source", {})
         if scope == 'global' and _is_inferred_habit({**data, 'scope':scope}):

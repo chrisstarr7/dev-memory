@@ -46,7 +46,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "71df8c5a237ed1b552c3002f605214aaa64628790069f07a779018dd8a7c903e"
+      "sha256": "a0e5806e2682d5a726e9b02a877d200057f7f6f314db02600e443ab0061c2b9c"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -206,7 +206,7 @@
     },
     {
       "path": "tests/test_capture_learning.py",
-      "sha256": "ab63b2c56327819a8ae7ba1fd9cdc9688207105a4a22bc31ad4a824505153b77"
+      "sha256": "122287e45b6d6e6d41b3ee820d8196595005ccfa51b09aaec888bb94d2899d6a"
     },
     {
       "path": "evals/check_capture.py",
