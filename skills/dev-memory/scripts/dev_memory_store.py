@@ -1833,6 +1833,8 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         return {"scope": kind, "status": "unavailable", "reason": "storage_unavailable", "records": []}
     cache_value = {
         "retrieval_format": 7, "intent": intent,
+        # Model-generated session labels can repeat across fresh Codex conversations.
+        "host_thread": os.environ.get('CODEX_THREAD_ID') or None,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
         "revision": current_revision, "module": module,
         "query_terms": sorted(_token_terms(query[:10000]))[:128],

@@ -39,9 +39,9 @@ def source_hashes():
     return {n:hashlib.sha256((ROOT/'skills/dev-memory'/n).read_bytes()).hexdigest() for n in SKILL_FILES}
 
 
-def run_model(codex, model, reasoning, project, home, env, label, prompt, output, timeout):
+def run_model(codex, model, reasoning, project, home, env, label, prompt, output, timeout, *, network_access=True):
     argv=[codex,'exec','--json','--ephemeral','--ignore-user-config','--ignore-rules','--skip-git-repo-check',
-          '--sandbox','workspace-write','--config','sandbox_workspace_write.network_access=true',
+          '--sandbox','workspace-write','--config',f'sandbox_workspace_write.network_access={str(network_access).lower()}',
           '--model',model,'--config',f'model_reasoning_effort="{reasoning}"','--add-dir',str(home),prompt]
     print('Starting '+label,flush=True)
     started=time.monotonic();events=[];timed_out=False
@@ -59,6 +59,7 @@ def run_model(codex, model, reasoning, project, home, env, label, prompt, output
         if isinstance(event,dict):events.append(event)
     commands=[e['item'] for e in events if e.get('type')=='item.completed' and e.get('item',{}).get('type')=='command_execution']
     result={'label':label,'exit_code':process.returncode,'timed_out':timed_out,'seconds':elapsed,
+            'thread_ids':[e['thread_id'] for e in events if e.get('type')=='thread.started' and e.get('thread_id')],
             'first_tool_action_seconds':None,'timing_note':'Buffered logs do not measure first tool receipt time','command_calls':len(commands),
             'tool_calls':sum(e.get('type')=='item.started' and e.get('item',{}).get('type') in {'command_execution','mcp_tool_call','file_change'} for e in events),
             'usage':next((e['usage'] for e in reversed(events) if e.get('usage')),None),

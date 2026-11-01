@@ -12,7 +12,8 @@ import dev_memory_store as store
 
 PROTOCOL = (
     'dev-memory: Follow the loaded Skill and user controls. On a new development task or changed topic, '
-    'make one focused context call with task terms and optional --intent. Reuse valid context. '
+    'make one focused context call with task terms and optional --intent. Use --force for the first recall '
+    'of a new conversation or after resume/compaction; reuse only bodies still visible here, not cached metadata. '
     'Current instructions win. Assess user requirements and supported project knowledge in the primary assistant, '
     'including inspection/review turns needing no code edits; respect memory/all-write bans. Save important corrections '
     'before affected work and batch ordinary increments before final delivery. No increment needs no write '
