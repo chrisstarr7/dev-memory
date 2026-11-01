@@ -37,6 +37,8 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES), "bin/py
     "evals/check_cross_session.py", "tests/test_cross_session_eval.py",
     "evals/check_memory_fidelity.py", "tests/test_memory_fidelity_eval.py",
     "tests/test_correction.py",
+    "evals/check_one_sentence.py", "tests/test_one_sentence_eval.py",
+    "evals/check_host_delivery.py", "tests/test_host_delivery_eval.py", "reports/host-delivery-review.md",
     "reports/recall-performance-0.8.6.md", "evals/check_recall_performance.py",
     "reports/lifecycle-review-0.8.5.md", "tests/test_lifecycle_eval.py", "reports/maintenance-review-0.8.4.md", "reports/project-capture-review-0.8.3.md", "tests/test_capture_learning.py", "evals/check_capture.py", "reports/capture-review-0.8.2.md",
     "reports/capture-host-0.8.2.json", "reports/capture-program-0.8.2.json",
@@ -186,11 +188,12 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
             turn_id: str | None = None,
             max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
             force: bool = False, readonly: bool = False, intent: str | None = None,
-            with_maintenance: bool = False) -> dict[str, Any]:
+            with_maintenance: bool = False, explain: bool = False) -> dict[str, Any]:
     """One normal startup call: bounded recall and pending check, no host probes/init."""
     result = store.recall(query, project_root=project_root, global_root=global_root,
                           session_id=session_id, module=module, max_candidates=max_candidates,
-                          max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, intent=intent)
+                          max_details=max_details, max_chars=max_chars, force=force, readonly=readonly, intent=intent,
+                          explain=explain)
     if any(bucket['status'] == 'cached' for bucket in result['stores']):
         result['cache_instruction'] = ('Cached scopes return no memory bodies. Reuse only bodies still available '
                                        'in this conversation; otherwise repeat this context call with --force '
@@ -597,6 +600,7 @@ def _parser() -> argparse.ArgumentParser:
         p.add_argument("--max-chars", type=int, default=4000)
         p.add_argument("--force", action="store_true")
         p.add_argument("--readonly", action="store_true")
+        p.add_argument('--explain', action='store_true', help='Include selection reasons and omitted-result diagnostics')
     p = sub.add_parser("show")
     p.add_argument("--scope", required=True)
     p.add_argument("--project-root", type=Path)
@@ -765,6 +769,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.query, project_root=root, global_root=global_root,
                 session_id=args.session_id, module=args.module if args.module is not None else _module_label(root), max_candidates=args.max_candidates,
                 max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, intent=args.intent,
+                explain=args.explain,
                 **({'turn_id':args.turn_id, 'with_maintenance':args.with_maintenance} if command == 'context' else {}),
             ))
         elif command == "show":

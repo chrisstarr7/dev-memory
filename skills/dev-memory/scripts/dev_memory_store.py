@@ -1827,7 +1827,8 @@ def record_private_skip(scope: str, *, session_id: str, turn_id: str,
         status = "skipped_private"
     return {"status": status, "stores": results}
 
-def _claim_context(kind: str, db_path: Path, config: dict[str, Any], session_id: str | None, key: str, force: bool) -> bool:
+def _claim_context(kind: str, db_path: Path, config: dict[str, Any], session_id: str | None, key: str, force: bool,
+                   budget: dict[str, int] | None = None) -> bool:
     if not session_id:
         return True
     conn = _connect(db_path)
@@ -1837,9 +1838,12 @@ def _claim_context(kind: str, db_path: Path, config: dict[str, Any], session_id:
         if row and not force:
             conn.rollback()
             return False
+        # Disposable cache metadata only: keep allocation stable without re-reading bodies.
+        if 'budget_json' not in {r[1] for r in conn.execute('PRAGMA table_info(session_context)')}:
+            conn.execute("ALTER TABLE session_context ADD COLUMN budget_json TEXT NOT NULL DEFAULT '{}'")
         conn.execute(
-            "INSERT INTO session_context(session_id,context_key,updated_at) VALUES(?,?,?) ON CONFLICT(session_id,context_key) DO UPDATE SET updated_at=excluded.updated_at",
-            (session_id, key, utc_now()),
+            "INSERT INTO session_context(session_id,context_key,updated_at,budget_json) VALUES(?,?,?,?) ON CONFLICT(session_id,context_key) DO UPDATE SET updated_at=excluded.updated_at,budget_json=excluded.budget_json",
+            (session_id, key, utc_now(), json.dumps(budget or {})),
         )
         conn.execute("DELETE FROM session_context WHERE session_id=? AND context_key NOT IN (SELECT context_key FROM session_context WHERE session_id=? ORDER BY updated_at DESC LIMIT 32)",
                      (session_id, session_id))
@@ -1878,7 +1882,7 @@ def _verification_status(record: dict[str, Any], root: Path | None, current_head
 def _recall_store(kind: str, root: Path | None, global_root: Path | None, query: str, *,
                   session_id: str | None, module: str | None, max_candidates: int, max_details: int,
                   max_chars: int, force: bool, readonly: bool, intent: str | None = None,
-                  vector_query_cache: dict | None = None) -> dict[str, Any]:
+                  vector_query_cache: dict | None = None, explain: bool = False) -> dict[str, Any]:
     try:
         base, db_path, config = _config_for(kind, root, global_root)
     except MemoryError as exc:
@@ -1899,12 +1903,13 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
     max_candidates = max(1, min(int(max_candidates), 100))
     max_details = max(0, min(int(max_details), 20))
     max_chars = max(0, min(int(max_chars), 20000))
+    budget = {'max_details': max_details, 'max_chars': max_chars, 'used_details': 0, 'used_chars': 0}
     try:
         current_revision = data_revision(db_path)
     except (sqlite3.Error, OSError, MemoryError):
         return {"scope": kind, "status": "unavailable", "reason": "storage_unavailable", "records": []}
     cache_value = {
-        "retrieval_format": 7, "intent": intent,
+        "retrieval_format": 8, "intent": intent,
         # Model-generated session labels can repeat across fresh Codex conversations.
         "host_thread": os.environ.get('CODEX_THREAD_ID') or None,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
@@ -1936,13 +1941,23 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
     try:
         if session_id and not force and not readonly and can_cache:
             cache_conn = _connect(db_path, readonly=True)
-            previous = cache_conn.execute("SELECT 1 FROM session_context WHERE session_id=? AND context_key=?", (session_id, cache_key)).fetchone()
+            cache_conn.row_factory = sqlite3.Row
+            previous = cache_conn.execute("SELECT * FROM session_context WHERE session_id=? AND context_key=?", (session_id, cache_key)).fetchone()
             no_eligible_rules = (kind == 'global' and previous and cache_conn.execute(
                 "SELECT 1 FROM memories WHERE scope='global' AND status IN ('active','conflicted') AND claim_type!='hypothesis' LIMIT 1").fetchone() is None)
             cache_conn.close()
             if previous:
+                try:
+                    cached_budget = json.loads(previous['budget_json'])
+                    for key, ceiling in (('used_details', max_details), ('used_chars', max_chars)):
+                        value = cached_budget[key]
+                        if type(value) is not int or not 0 <= value <= ceiling:
+                            raise ValueError('Invalid cached usage')
+                        budget[key] = value
+                except (IndexError, KeyError, TypeError, ValueError):
+                    budget.update(used_details=max_details, used_chars=max_chars)
                 return {"scope": kind, "status": "cached", "records": [], "context_incomplete": False, "data_revision": current_revision,
-                        **({'no_eligible_rules':bool(no_eligible_rules)} if kind == 'global' else {}), **capture}
+                        'budget': budget, **({'no_eligible_rules':bool(no_eligible_rules)} if kind == 'global' else {}), **capture}
         conn = _connect(db_path, readonly=True)
         deadline = time.monotonic() + 0.5
         conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
@@ -1979,6 +1994,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             scores = {row["id"]: row["score"] for row in found}
             lexical_matches = {row['id'] for row in found if row['lexical_match']}
         selected_ids = set(scores)
+        indexed_matches = set(scores)
         conn.set_progress_handler(None, 0)
         vector_result = vectors.search(query, kind, project_root=root, global_root=global_root,
                                        query_cache=vector_query_cache, timeout=5)
@@ -2010,9 +2026,10 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 "SELECT 1 FROM memories WHERE scope='global' AND status IN ('active','conflicted') AND claim_type!='hypothesis' LIMIT 1").fetchone() is None)
             conn.close()
             if session_id and not readonly and can_cache:
-                _claim_context(kind, db_path, config, session_id, cache_key, True)
+                _claim_context(kind, db_path, config, session_id, cache_key, True, budget)
             return {"scope": kind, "status": "ok", "records": [], "context_incomplete": False,
                     "matched_count": 0, "data_revision": current_revision, "empty_store": empty_store,
+                    'budget': budget, 'vectors': {k:v for k,v in vector_result.items() if k != 'records'},
                     **({'no_eligible_rules':bool(no_eligible_rules)} if kind == 'global' else {}), **capture}
         records = []
         for memory_id in selected_ids:
@@ -2054,16 +2071,27 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         all_candidates = records
         records = records[:max_candidates]
         details: list[dict[str, Any]] = []
-        remaining: list[str] = overflow_ids
+        remaining: list[str] = list(overflow_ids)
         used = 0
-        for record in records:
+        selections = []
+        if explain:
+            selections = [{'id': r['id'], 'revision': r['revision'], 'rank': i + 1,
+                           'matches': (['keyword'] if r['_lexical'] else ['intent'] if r['id'] in indexed_matches else [])
+                                      + (['semantic'] if r['id'] in vector_distances else [])
+                                      or ['fallback'], 'loaded': False, 'reason': 'candidate_limit'}
+                          for i, r in enumerate(all_candidates)]
+        for index, record in enumerate(records):
             shaped = _context_record(record)
             size = len(json.dumps(shaped, ensure_ascii=False))
-            if len(details) >= max_details or used + size > max_chars:
+            reason = ('detail_limit' if len(details) >= max_details else
+                      'character_limit' if used + size > max_chars else None)
+            if reason:
                 remaining.append(record["id"])
             else:
                 details.append(shaped)
                 used += size
+            if explain:
+                selections[index].update(loaded=reason is None, reason=reason or 'selected')
         unloaded = []
         index_chars = 0
         for record in all_candidates:
@@ -2082,8 +2110,9 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             recall_tracking = "skipped_readonly" if readonly else (
                 "recorded" if _record_recall_counts(db_path, [record["id"] for record in details]) else "unavailable"
             )
+        budget.update(used_details=len(details), used_chars=used)
         if session_id and not readonly and not remaining and can_cache:
-            _claim_context(kind, db_path, config, session_id, cache_key, True)
+            _claim_context(kind, db_path, config, session_id, cache_key, True, budget)
         result = {
             "scope": kind, "status": "ok", "records": details, "matched_count": candidate_count, **capture,
             "context_incomplete": bool(remaining), "remaining_ids": remaining,
@@ -2091,7 +2120,10 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             "candidate_limit_reached": candidate_limit_reached or bool(overflow_ids),
             "vectors": {key: value for key, value in vector_result.items() if key != 'records'},
             "namespace_id": config["namespace_id"], "data_revision": current_revision,
+            'budget': budget,
         }
+        if explain:
+            result['selection'] = selections
         if recall_tracking is not None:
             result["recall_tracking"] = recall_tracking
         return result
@@ -2106,35 +2138,38 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
 def recall(query: str, *, project_root: Path | None = None, global_root: Path | None = None,
            session_id: str | None = None, module: str | None = None,
            max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
-           force: bool = False, readonly: bool = False, intent: str | None = None) -> dict[str, Any]:
+           force: bool = False, readonly: bool = False, intent: str | None = None,
+           explain: bool = False) -> dict[str, Any]:
     if intent is not None and (not isinstance(intent, str) or intent not in INTENTS):
         raise MemoryError('validation_error', 'Unknown task intent.')
+    max_details = max(0, min(int(max_details), 20))
+    max_chars = max(0, min(int(max_chars), 20000))
     vector_query_cache: dict = {}
     if project_root is None:
         limits = (max_candidates, max_details, max_chars)
         stores = [_recall_store("global", None, global_root, query, session_id=session_id,
                                 module=None, max_candidates=limits[0], max_details=limits[1], max_chars=limits[2],
-                                force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache)]
+                                force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache, explain=explain)]
     else:
         half_candidates = max(1, max_candidates // 2)
-        # Reserve both scopes; a provably inactive global side lends its unused budget.
-        # The same indexed eligibility check on cache hits keeps this allocation stable.
+        # Reserve both scopes, then lend unused global detail/character capacity to the project.
         global_details = min(max(0, max_details - 1), max(1, (max_details * 3) // 5))
         global_budget = max(0, (max_chars * 3) // 5)
         global_result = _recall_store(
             "global", None, global_root, query, session_id=session_id, module=None,
             max_candidates=half_candidates, max_details=global_details, max_chars=global_budget,
-            force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache,
+            force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache, explain=explain,
         )
-        if global_result.get('no_eligible_rules') is True or global_result['status'] == 'disabled':
-            global_details, global_budget = 0, 0
+        usage = global_result.get('budget', {})
+        global_details = usage.get('used_details', 0)
+        global_budget = usage.get('used_chars', 0)
         remaining_details = max(0, max_details - global_details)
         remaining_chars = max(0, max_chars - global_budget)
         project_result = _recall_store(
             "project", project_root, global_root, query, session_id=session_id, module=module,
             max_candidates=max_candidates - half_candidates, max_details=remaining_details,
             max_chars=remaining_chars, force=force, readonly=readonly, intent=intent,
-            vector_query_cache=vector_query_cache,
+            vector_query_cache=vector_query_cache, explain=explain,
         )
         stores = [global_result, project_result]
     return {
