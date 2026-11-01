@@ -33,6 +33,16 @@ Global explicit habits require a global kind, `cross_project_confirmed: true`, e
 
 ## Evidence and truth
 
+### Locate a correction target
+
+`match --query "OLD SUBJECT / WORDING" --scope global|project|both [--project-root PATH]` is read-only and requires no replacement record or source declaration. It searches indexed text across active, conflicted and candidate records in the requested stores, regardless of kind/claim. It excludes retired records; use explicit historical inspection for a user-requested historical edit. It does not compute vectors, initialize stores, add evidence, count recall, schedule maintenance or change status. Capture-paused stores remain readable; recall-disabled/excluded stores return no bodies. An invalid requested project never falls back to global.
+
+The combined result shares eight bodies/12000 characters, alternates scopes, exposes omitted IDs and flags query-budget failures as incomplete. Query text is limited to 10000 characters. Similarity, one hit and zero hits are not proofs of identity, uniqueness or absence. Inspect current fields/revision and clarify unresolved target/scope ambiguity before using the existing `apply` protocol; do not create a second rule merely because correction lookup missed. No free-text command automatically mutates a record. Legacy `match` JSON input remains unchanged and is mutually exclusive with `--query`; its scope stays inside that JSON.
+
+After a clear correction, use `REVISE` with only supported changed fields and a fresh user source, then `show --scope SCOPE --ids ID --current`. The prior body remains in history; `SUPERSEDE` is still required when changing an inferred candidate's meaning. Tell the user the scope and substantive change, not protocol details. If controls block persistence, follow the current request where applicable and report that memory was not changed. An ordinary temporary exception does not authorize a lasting rewrite.
+
+### Source support
+
 Source types: `user_statement`, `user_confirmation`, `user_feedback`, `code_observation`, `tool_result`, `external_reference`, `model_inference`. Store short source excerpts only when necessary and safe. AI repetition and recall are not independent user evidence. `verification` requires an actual successful `tool_result` with command, timestamp, code version, and exit code 0. The store binds it to the current commit and workspace signature when available. `show`/recall report unknown or stale version state; workspace edits or commit changes expire the verification. A semantic record revision clears the old verification. After source change, tool-verified status must not silently transfer to the new revision. A model must never fill this object from its own summary or intended test plan.
 
 Keep `desired` and `observed` separate. An unconfirmed `hypothesis` cannot be active; normal recall excludes legacy hypotheses without deleting their history. Preserve conditions, exceptions, negative constraints, prevention check, and verification method. Consolidation is a same-namespace proposal; never write a proposed summary until reviewed. Derived summaries carry source IDs and are invalidated by source change/deletion.

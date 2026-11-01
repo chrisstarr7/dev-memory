@@ -36,6 +36,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES), "bin/py
     "reports/noedit-capture-0.8.8.md", "evals/check_noedit_capture.py", "tests/test_noedit_capture_eval.py",
     "evals/check_cross_session.py", "tests/test_cross_session_eval.py",
     "evals/check_memory_fidelity.py", "tests/test_memory_fidelity_eval.py",
+    "tests/test_correction.py",
     "reports/recall-performance-0.8.6.md", "evals/check_recall_performance.py",
     "reports/lifecycle-review-0.8.5.md", "tests/test_lifecycle_eval.py", "reports/maintenance-review-0.8.4.md", "reports/project-capture-review-0.8.3.md", "tests/test_capture_learning.py", "evals/check_capture.py", "reports/capture-review-0.8.2.md",
     "reports/capture-host-0.8.2.json", "reports/capture-program-0.8.2.json",
@@ -625,13 +626,16 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('--scope', choices=('global', 'project', 'both'), default='both')
     p.add_argument('--project-root', type=Path)
     p.add_argument('--wait-seconds', type=float, default=3)
-    p = sub.add_parser("apply")
+    p = sub.add_parser("apply", help="Apply a JSON envelope; session/turn/task IDs belong in JSON, not CLI flags")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--module")
     p.add_argument("--input", type=Path, help="Read structured JSON from file; '-' or omitted uses stdin.")
-    p = sub.add_parser("match", help="Read-only duplicate candidates before adding a record")
+    p = sub.add_parser("match", help="Read-only duplicate comparison or plain-text correction target lookup")
     p.add_argument("--project-root", type=Path)
-    p.add_argument("--input", type=Path)
+    group = p.add_mutually_exclusive_group()
+    group.add_argument("--input", type=Path)
+    group.add_argument("--query", help="Find current correction targets without a proposed record")
+    p.add_argument("--scope", choices=("global", "project", "both"), help="Required with --query only")
     p = sub.add_parser("maintain", help="Bounded changed-record maintenance preparation")
     p.add_argument("--scope", choices=("global", "project", "both"), default="both")
     p.add_argument("--project-root", type=Path)
@@ -816,9 +820,13 @@ def main(argv: list[str] | None = None) -> int:
             _json_out(result)
             return 2 if result["status"] == "failed" else (3 if result["status"] == "partial_success" else 0)
         elif command == "match":
-            payload = _read_payload(args.input)
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
-            _json_out(store.match_payload(payload, project_root=root, global_root=global_root))
+            if args.query is not None:
+                _json_out(store.match_targets(args.query, args.scope, project_root=root, global_root=global_root))
+            else:
+                if args.scope is not None:
+                    raise store.MemoryError('validation_error', '--scope is used with --query; JSON input carries its own scope.')
+                _json_out(store.match_payload(_read_payload(args.input), project_root=root, global_root=global_root))
         elif command == "maintain":
             root = store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
             kinds = ["global", "project"] if args.scope == "both" else [args.scope]
