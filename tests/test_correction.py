@@ -4,6 +4,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+from contextlib import closing
 from unittest.mock import patch
 
 from test_dev_memory import MemoryTestCase, store, SCRIPTS
@@ -40,7 +41,7 @@ class CorrectionTests(MemoryTestCase):
         self.add_project_rule(title='导出格式', content='导出 XLSX。')
         _, db = store.project_paths(self.project_a)
         def snapshot():
-            with sqlite3.connect(db) as c:
+            with closing(sqlite3.connect(db)) as c:
                 return {t:c.execute('SELECT * FROM '+t).fetchall() for t in
                         ('memories','evidence','revisions','recall_counts','receipts','session_context','meta')}
         before = snapshot()
