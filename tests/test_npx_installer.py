@@ -64,6 +64,24 @@ class NpxTests(unittest.TestCase):
         self.assertEqual(set(bindings),set(dev_memory.AGENT_DIRS))
         self.assertNotIn('node_modules',json.dumps(bindings))
 
+    def test_update_defaults_to_current_bound_project_and_refreshes_only_managed_guidance(self):
+        first = self.run_cli('codex', '--json')
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        guide = self.project / 'AGENTS.md'
+        guide.write_text(setup.BEGIN + '\nOld managed guidance.\n' + setup.END + '\nKeep team rules.\n', encoding='utf-8')
+        config = self.project / '.dev-memory/config.json'
+        value = json.loads(config.read_text(encoding='utf-8'))
+        value.update(capture_enabled=False, recall_enabled=False)
+        config.write_text(json.dumps(value), encoding='utf-8')
+        before = config.read_bytes()
+        result = self.run_cli('update', 'codex', '--json')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['project_setup']['activation'], 'configured')
+        self.assertEqual(payload['project_setup']['project_root'], str(self.project))
+        self.assertEqual(guide.read_text(encoding='utf-8'), setup.BLOCK.rstrip('\n') + '\nKeep team rules.\n')
+        self.assertEqual(config.read_bytes(), before)
+
     def test_explicit_update_from_unbound_project_preserves_existing_user_binding(self):
         first = self.run_cli('codex', '--json')
         self.assertEqual(first.returncode, 0, first.stdout + first.stderr)

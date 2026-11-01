@@ -39,10 +39,10 @@ class HostDeliveryEvaluationTests(unittest.TestCase):
             project = Path(td)
             module = project/'receipt.py'
             env = {**os.environ,'PYTHONDONTWRITEBYTECODE':'1'}
-            for marker, suffix, expected in [('new','\n',True),('old','\n',False),('new','',False)]:
+            for marker, suffix, expected in [('new','\n',True),('old','\n',False),('new','',False),('new','\r\n',False)]:
                 module.write_text('from pathlib import Path\ndef write_receipt(text):\n'
                     '    Path("artifacts").mkdir(exist_ok=True)\n'
-                    f'    Path("artifacts/receipt.txt").write_text({marker!r}+"|"+text+{suffix!r},encoding="utf-8")\n',encoding='utf-8')
+                    f'    Path("artifacts/receipt.txt").write_bytes(({marker!r}+"|"+text+{suffix!r}).encode("utf-8"))\n',encoding='utf-8')
                 self.assertEqual(evaluation.artifact_matches(project,'new','中文',env),expected)
 
     def test_failed_host_turn_cannot_pass_acceptance(self):

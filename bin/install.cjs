@@ -72,7 +72,7 @@ async function main() {
     child.on('error', error => fail('dashboard_start_failed', '无法启动本地看板：' + error.message));
     child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 1)));
   } else {
-    if (!['update', 'uninstall'].includes(args[0]) && !args.some(arg => arg === '--project' || arg.startsWith('--project='))) {
+    if (args[0] !== 'uninstall' && !args.some(arg => arg === '--project' || arg.startsWith('--project='))) {
       args.push('--project', project);
     }
     const [command, ...prefix] = python;

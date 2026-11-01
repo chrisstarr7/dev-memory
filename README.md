@@ -222,7 +222,7 @@ npx -y --prefer-online chrisstarr7/dev-memory dashboard
 npx -y --prefer-online chrisstarr7/dev-memory update codex
 ```
 
-更新会保留现有记忆库、控制设置和无关引导内容。需要在其他项目启用项目记忆时，在该项目中单独执行安装命令。
+更新会刷新当前已绑定项目的引导，并保留现有记忆库、控制设置和无关引导内容；在未绑定目录运行更新不会初始化该目录。需要在其他项目启用项目记忆时，在该项目中单独执行安装命令。
 
 ## 参考与问题反馈
 

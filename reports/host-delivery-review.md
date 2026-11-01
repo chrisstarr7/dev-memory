@@ -39,6 +39,12 @@ The fix stays in the existing instruction-driven path. No extra runtime adapter,
 - Three independent correction conversations covered a synonym lookup miss followed by one query reformulation, materially ambiguous targets, and a one-turn exception. The correction retained the same project candidate, evidence/history, unaffected exceptions and correctness requirements. Ambiguity and temporary exceptions did not change stored rules. Primary-assistant source-by-source review passed.
 - Real local multilingual vector integration reused the existing runtime. Model/index failure remains a bounded fallback to raw/keyword memory; it does not turn a missing vector into a missing original record.
 
+## Installer follow-up
+
+An isolated execution of the real GitHub `npx` entry exposed a delivery gap: `update codex` updated the installed program and user guide but omitted the current project argument, leaving its managed guide stale. The launcher now supplies the current directory for update as well as installation; the Python updater still refreshes only an existing matching binding and does not initialize unbound directories. A regression checks refreshed managed guidance, preserved team text and unchanged control switches.
+
+Windows CI also caught a platform-dependent fixture in the new artifact acceptance test: text output translated LF to CRLF. The synthetic implementation now writes explicit UTF-8 bytes, and an explicit CRLF case must fail. The acceptance still requires exact LF bytes; no production check or platform is skipped.
+
 ## Reproduce
 
 From the source repository, with an existing authorized Codex login:

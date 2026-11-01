@@ -78,7 +78,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "01a562a196050a3f57e7e1939de8dfb34d3a46c8d0e24d3b9c7fb8a8f10d0a96"
+      "sha256": "6fba6e3331e9edba1c67d7acbcafb3ba25c6af6e19fa622c3a39b4cd65aabd9e"
     },
     {
       "path": "LICENSE",
@@ -98,7 +98,7 @@
     },
     {
       "path": "bin/install.cjs",
-      "sha256": "83999723af9dbbeea905475a7b7ebcfe7353409630a56f1ddd7d40d164c75b35"
+      "sha256": "aa1c50ddb1a6840712fe190e2313ea2cc23c01c06db00ee1a684fa11e5b9cc33"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -198,11 +198,11 @@
     },
     {
       "path": "tests/test_host_delivery_eval.py",
-      "sha256": "d8861feda943767ff566ccee4e3f3927e01d8227fbd8b7703d25b195e2ef2424"
+      "sha256": "386d97a95dd6d0b05f1f6a2bcda37dae1cf79bd31dcf26cb763cb286c75b331c"
     },
     {
       "path": "reports/host-delivery-review.md",
-      "sha256": "ec9d256af86b6ae05d8a3737665d092930895d30e167fc4f6c9e1daf391346c9"
+      "sha256": "109ab853842ce1300c2ebb9602b8647bc306bb6da9184b2cef2ebd52fd069cf4"
     },
     {
       "path": "reports/recall-performance-0.8.6.md",
@@ -282,7 +282,7 @@
     },
     {
       "path": "tests/test_npx_installer.py",
-      "sha256": "f4557f0fbad763971e246bd366d68fc988dfc8e531b1ec6430c9c6d757eb786f"
+      "sha256": "813b9ce4a3e079ad232f09074263c8e516e88a27d0767eccc0d30c56a0a6f437"
     },
     {
       "path": "tests/install_smoke.py",
