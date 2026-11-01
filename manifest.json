@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "176ed0e674376c0f19e90d596d6daa34884885278cabd3bedd6f3894d799a277"
+      "sha256": "0d3609196b2d27101e1f25541ebf474cffc4ebd078c1ae7e9e0ec58b053ddb10"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -22,7 +22,7 @@
     },
     {
       "path": "skills/dev-memory/references/protocol.md",
-      "sha256": "f69c06d1aa7ecea307c0a05b6d20f28c2da933fc9491cd66f1651ca9d2f0577b"
+      "sha256": "83ffdcbc577507e34e01ae4b9e7159d54d02d38205198f21dcd7b77799197b21"
     },
     {
       "path": "skills/dev-memory/references/codex-hooks.md",
@@ -42,11 +42,11 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "84b6891e232928c5ee6a5fe006b98532bd3a6da9159b0b2282b0776f7198f85c"
+      "sha256": "54eb10b10ab18b185f9ccbecd7ab38873c752b221a310337052e696411285d1b"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "a0e5806e2682d5a726e9b02a877d200057f7f6f314db02600e443ab0061c2b9c"
+      "sha256": "1226b7987876d0afa044a075573fab8d1473efc3618ccc0b6ef1cc2c4abd090f"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -78,7 +78,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "3c207a613c43321eca522107100a53f89ccfcca2e092d7b88dd97de8100e9e2d"
+      "sha256": "0085045e66654ddd971caed01effe0b30d15c8da7790d599271b24eebd6b73e9"
     },
     {
       "path": "LICENSE",
@@ -174,11 +174,15 @@
     },
     {
       "path": "evals/check_memory_fidelity.py",
-      "sha256": "dc8889e834ba5cd033ef9c70f423dbc4c600dc157d99c94ed6e4835c211416ef"
+      "sha256": "17785dd8851bf50d59cab6e92d6a67db519f1e381c9210a531af5e6bd09c4ec7"
     },
     {
       "path": "tests/test_memory_fidelity_eval.py",
       "sha256": "0e1ab8190b6cd7a83928090d4a8c5c976d88893a6de672c1bedbbeb78481fade"
+    },
+    {
+      "path": "tests/test_correction.py",
+      "sha256": "fd2557d47a76b81a307fc124e4e6bc2f2f4c736c6de339f6977570b8396c836f"
     },
     {
       "path": "reports/recall-performance-0.8.6.md",
