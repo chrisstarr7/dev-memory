@@ -174,11 +174,11 @@
     },
     {
       "path": "evals/check_memory_fidelity.py",
-      "sha256": "9c03fd015499d104e9bc79b6da38076961714e4da5ec472adc509b8ea68270f1"
+      "sha256": "dc8889e834ba5cd033ef9c70f423dbc4c600dc157d99c94ed6e4835c211416ef"
     },
     {
       "path": "tests/test_memory_fidelity_eval.py",
-      "sha256": "d960ef175ad58019361f08f6479f71bf070586a0b3f6903cb8db6132dc89d77c"
+      "sha256": "0e1ab8190b6cd7a83928090d4a8c5c976d88893a6de672c1bedbbeb78481fade"
     },
     {
       "path": "reports/recall-performance-0.8.6.md",

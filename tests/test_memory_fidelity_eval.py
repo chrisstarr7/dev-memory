@@ -26,7 +26,7 @@ def export_template(sheet_name=None):
     return target
 '''
             def exporter(expression):
-                (project/'exporter.py').write_text(code.replace('NAME_EXPRESSION', expression))
+                (project/'exporter.py').write_text(code.replace('NAME_EXPRESSION', expression), encoding='utf-8')
             exporter("sheet_name or '核验登记'")
             self.assertTrue(evaluation.export_matches(project, '核验登记'))
             self.assertTrue(evaluation.export_matches(project, '显式名称', '显式名称'))
@@ -35,5 +35,5 @@ def export_template(sheet_name=None):
             self.assertFalse(evaluation.export_matches(project, '显式名称', '显式名称'))
             exporter("sheet_name or '交付登记'")
             self.assertFalse(evaluation.export_matches(project, '核验登记'))
-            (project/'exporter.py').write_text('def export_template(sheet_name=None): return "success"\n')
+            (project/'exporter.py').write_text('def export_template(sheet_name=None): return "success"\n', encoding='utf-8')
             self.assertFalse(evaluation.export_matches(project, '核验登记'))

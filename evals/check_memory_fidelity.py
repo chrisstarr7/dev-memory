@@ -104,7 +104,7 @@ def main():
                                           'fidelity-'+label, prompt, output, 240, network_access=False)
                 row['memories'] = snapshot(project, global_root)
                 report['runs'].append(row)
-                output.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
+                output.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
                 assert row['exit_code'] == 0 and not row['timed_out'] and not row['host_errors'], row
                 assert (project/'AGENTS.md').read_bytes() == guide, 'Managed guide changed.'
                 if label != 'implement':
@@ -128,7 +128,7 @@ def main():
             report['status'] = 'behavior_checks_passed'
     except (AssertionError, OSError, ValueError) as exc:
         report.update(status='failed', error=str(exc))
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
+    output.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
     return 0 if report['status'] == 'behavior_checks_passed' else 1
 
 
