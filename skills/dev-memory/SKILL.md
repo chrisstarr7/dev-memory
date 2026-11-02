@@ -21,6 +21,8 @@ On the first recall of a new conversation and after resume, compaction or contex
 
 Successful detail recall also increments a per-memory monthly counter in that store. Candidate indexes, cached results, read-only calls and capture-paused stores do not increment it. This measures content returned to the assistant, not proven use. For a requested report, use `recall-stats --scope global|project|both --month YYYY-MM [--project-root PATH]`; sum a range with `--from-month YYYY-MM --to-month YYYY-MM`. Periods use UTC. Do not run statistics during ordinary development.
 
+For broad queries or long records, `--disclosure auto` returns lossless compact short bodies and navigation previews for long bodies. `--disclosure index` returns only previews. Previews are not instructions: batch-read only required IDs with `show --scope SCOPE --ids ID ... --current` before applying their conditions, exceptions and prohibitions. Short, targeted tasks can keep the default full-body call. Do not require a fixed three-call sequence or generate a summary with another model. These optional modes do not change status, scope, privacy or detail budgets.
+
 Choose intent using the reasoning already needed for the task; no separate classifier call:
 
 | Task | `--intent` | Query terms |
