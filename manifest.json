@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "38ce2733633fc31693d4958338b4e2b51e1601565bc4d4e544223f2024697a1f"
+      "sha256": "daba4afc7bce73552ae2a0114f27cace17613c1d09a3f302ae0fb9319695b8f5"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -26,11 +26,11 @@
     },
     {
       "path": "skills/dev-memory/references/codex-hooks.md",
-      "sha256": "d66044fae8ac48a66e7842023b14b8a45c97ff35ef1bf13f79feb18780faf23c"
+      "sha256": "1f9f58f0676a142cfdbd005a13bee7495a49d480ccb7fa28699ab78273ff6d25"
     },
     {
       "path": "skills/dev-memory/references/verification.md",
-      "sha256": "5358151d19378cd74315753a11ae23d151b5282d8717b9dda1c0714aa1a06f2b"
+      "sha256": "4e4794d55bb9035bd28a93fe54538ae183c23799d597460c11d640cce7765489"
     },
     {
       "path": "skills/dev-memory/references/setup.md",
@@ -42,11 +42,11 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "3fff9d8625b094271aabcf2129ce49f3e99b2536eb265961744dc3882ab076ca"
+      "sha256": "d222ad388db9b56a7b4ac5e141553b5b5886d0f6253f78b2779bb04e88144c79"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "fbab803e19f9364eafcc6ae3ecf06f46ba8052f2c4fd972019f7af16ea41ef65"
+      "sha256": "44a69a93dd641ee3a5b6e179537da019c1a14f82cf3d79977d85909012e78865"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -66,7 +66,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/codex_hook.py",
-      "sha256": "a592f79a3a257def84db5ea13c6904de9f130b658985a9a66fab45eec5225a15"
+      "sha256": "07628167479c067e00ccb4eca4ef78f2dc48244f268ea20733d5abae3a414104"
     },
     {
       "path": "skills/dev-memory/scripts/dev-memory",
@@ -78,7 +78,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "6fba6e3331e9edba1c67d7acbcafb3ba25c6af6e19fa622c3a39b4cd65aabd9e"
+      "sha256": "017c873641a4412652721a0540333da037cedd276a9ed2522356f0ab5a86c268"
     },
     {
       "path": "LICENSE",
@@ -203,6 +203,26 @@
     {
       "path": "reports/host-delivery-review.md",
       "sha256": "109ab853842ce1300c2ebb9602b8647bc306bb6da9184b2cef2ebd52fd069cf4"
+    },
+    {
+      "path": "evals/check_memory_quality.py",
+      "sha256": "e9498a556bb38fef89f9f9317cc160fae687998808d4acd16a57168153af2009"
+    },
+    {
+      "path": "tests/test_memory_quality_eval.py",
+      "sha256": "aa152f907a58e5aa23b859bdb4b1ec95b7ff928c1525824436da00e4afc75f16"
+    },
+    {
+      "path": "tests/test_capture_signals.py",
+      "sha256": "b6f1f7245b5f4de39eff5050049f140a7c13aae5aca32eb00716662b142323cc"
+    },
+    {
+      "path": "tests/test_progressive_recall.py",
+      "sha256": "d46248000618faf9eff7f3d5a5f683bd4bae7e37a87a64d5804b9a46af888607"
+    },
+    {
+      "path": "reports/memory-quality-baseline.md",
+      "sha256": "2929465940bae23753f28434849aed5d1d432a89e7edcdc10a32a1a105e44ecc"
     },
     {
       "path": "reports/recall-performance-0.8.6.md",

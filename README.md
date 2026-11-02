@@ -107,6 +107,8 @@ flowchart TD
 
 预算不足时，结果会明确标出未返回的相关记录，AI 只补取当前必需的内容。返回了一条记忆，不代表 AI 一定采用，也不证明其中引用的代码仍然保持原行为。
 
+可选 `context --disclosure auto` 会对短正文省略空字段，对超过 1000 个序列化字符的正文先给导航预览；`--disclosure index` 只返回索引预览。预览不作为有效规则使用，AI 需要时按范围批量执行 `show --scope project|global --ids ID ... --current` 读取完整条件、例外和禁止项。默认仍直接返回正文，不强制增加调用，也不调用另一个模型生成摘要。长正文的 1000 字符阈值与正文预算都是字符口径，不等于 Token。
+
 | 记录状态 | 普通召回 | 自动整理队列 |
 | --- | --- | --- |
 | `active`，非假设 | 按相关性和预算选取 | 发生变更的当前版本入队 |
@@ -129,6 +131,16 @@ flowchart TD
 | 其他宿主 | 引导适配与程序测试覆盖，本轮未进行真实模型会话验收 |
 
 特定宿主／模型通过一次验收，不代表所有后续会话都能强制执行规则。模型和版本、检查方法及限制见[宿主验收记录](reports/host-delivery-review.md)。
+
+可选 hooks 在收到带稳定会话／轮次 ID 的明确纠错、长期要求或已验证陈述时，会提醒主 AI 复核采集资格；它不会直接保存原始消息或自动认定结论已被工具验证。宿主支持、实际事件交付和正常信任审查缺一不可；不支持或未启用时继续使用 Skill。正式用户配置不会因安装自动信任 hooks，详见 [hooks 说明](skills/dev-memory/references/codex-hooks.md)。
+
+源码仓库提供记忆效果基线：
+
+```sh
+python3 evals/check_memory_quality.py --model EXACT_MODEL --reasoning high --output /仓库外绝对路径/result.json
+```
+
+命令会调用真实模型并消耗额度，默认对三个隔离任务各重复两次，比较有无记忆；报告正确正文召回率、规则落实、可观察的错误采用、Token 增量和完整任务耗时。`--runtime-ref COMMIT` 用于复现旧版本，`--disclosure auto` 验证分层读取，`--cases long` 补测长正文及末尾例外。失败、超时和缺失用量不会被排除，小样本结果不作为通用提速承诺。方法与本轮证据见[记忆效果基线](reports/memory-quality-baseline.md)。
 
 ## 自动整理
 

@@ -1882,7 +1882,8 @@ def _verification_status(record: dict[str, Any], root: Path | None, current_head
 def _recall_store(kind: str, root: Path | None, global_root: Path | None, query: str, *,
                   session_id: str | None, module: str | None, max_candidates: int, max_details: int,
                   max_chars: int, force: bool, readonly: bool, intent: str | None = None,
-                  vector_query_cache: dict | None = None, explain: bool = False) -> dict[str, Any]:
+                  vector_query_cache: dict | None = None, explain: bool = False,
+                  disclosure: str = 'full') -> dict[str, Any]:
     try:
         base, db_path, config = _config_for(kind, root, global_root)
     except MemoryError as exc:
@@ -1909,7 +1910,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
     except (sqlite3.Error, OSError, MemoryError):
         return {"scope": kind, "status": "unavailable", "reason": "storage_unavailable", "records": []}
     cache_value = {
-        "retrieval_format": 8, "intent": intent,
+        "retrieval_format": 9, "intent": intent, "disclosure": disclosure,
         # Model-generated session labels can repeat across fresh Codex conversations.
         "host_thread": os.environ.get('CODEX_THREAD_ID') or None,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
@@ -2082,8 +2083,13 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                           for i, r in enumerate(all_candidates)]
         for index, record in enumerate(records):
             shaped = _context_record(record)
+            if disclosure == 'auto':
+                # Lossless compact bodies: remove only empty fields, never summarize constraints.
+                shaped = {key:value for key,value in shaped.items() if value not in (None, '', [], {})}
             size = len(json.dumps(shaped, ensure_ascii=False))
-            reason = ('detail_limit' if len(details) >= max_details else
+            reason = ('index_only' if disclosure == 'index' else
+                      'long_body' if disclosure == 'auto' and size > 1000 else
+                      'detail_limit' if len(details) >= max_details else
                       'character_limit' if used + size > max_chars else None)
             if reason:
                 remaining.append(record["id"])
@@ -2100,6 +2106,9 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             descriptor = {key:record.get(key) for key in ('id','kind','claim_type','status','strength','revision')}
             descriptor.update(title=record['title'][:120], tags=record['tags'][:8],
                               query_match=record['_score'] > 0, content_loaded=False)
+            if disclosure != 'full':
+                descriptor.update(preview=record['content'][:160], requires_full_read=True,
+                                  preview_truncated=len(record['content']) > 160)
             size = len(json.dumps(descriptor, ensure_ascii=False))
             if len(unloaded) == 8 or index_chars + size > 2000:
                 break
@@ -2122,6 +2131,12 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
             "namespace_id": config["namespace_id"], "data_revision": current_revision,
             'budget': budget,
         }
+        if disclosure != 'full':
+            result['disclosure'] = disclosure
+        if disclosure != 'full' and remaining:
+            result['preview_instruction'] = ('Previews are navigation, not applicable rules. Read required current '
+                'bodies with show --ids ID ... --current in this scope before applying; preserve all conditions, '
+                'exceptions and prohibitions. No fixed number of calls is required.')
         if explain:
             result['selection'] = selections
         if recall_tracking is not None:
@@ -2139,7 +2154,9 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
            session_id: str | None = None, module: str | None = None,
            max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
            force: bool = False, readonly: bool = False, intent: str | None = None,
-           explain: bool = False) -> dict[str, Any]:
+           explain: bool = False, disclosure: str = 'full') -> dict[str, Any]:
+    if not isinstance(disclosure, str) or disclosure not in {'full', 'auto', 'index'}:
+        raise MemoryError('validation_error', 'Unknown disclosure mode; use full, auto or index.')
     if intent is not None and (not isinstance(intent, str) or intent not in INTENTS):
         raise MemoryError('validation_error', 'Unknown task intent.')
     max_details = max(0, min(int(max_details), 20))
@@ -2149,7 +2166,7 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
         limits = (max_candidates, max_details, max_chars)
         stores = [_recall_store("global", None, global_root, query, session_id=session_id,
                                 module=None, max_candidates=limits[0], max_details=limits[1], max_chars=limits[2],
-                                force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache, explain=explain)]
+                                force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache, explain=explain, disclosure=disclosure)]
     else:
         half_candidates = max(1, max_candidates // 2)
         # Reserve both scopes, then lend unused global detail/character capacity to the project.
@@ -2158,7 +2175,7 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
         global_result = _recall_store(
             "global", None, global_root, query, session_id=session_id, module=None,
             max_candidates=half_candidates, max_details=global_details, max_chars=global_budget,
-            force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache, explain=explain,
+            force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache, explain=explain, disclosure=disclosure,
         )
         usage = global_result.get('budget', {})
         global_details = usage.get('used_details', 0)
@@ -2169,7 +2186,7 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
             "project", project_root, global_root, query, session_id=session_id, module=module,
             max_candidates=max_candidates - half_candidates, max_details=remaining_details,
             max_chars=remaining_chars, force=force, readonly=readonly, intent=intent,
-            vector_query_cache=vector_query_cache, explain=explain,
+            vector_query_cache=vector_query_cache, explain=explain, disclosure=disclosure,
         )
         stores = [global_result, project_result]
     return {
