@@ -665,7 +665,8 @@ class Dashboard:
         if action == "archive":
             if record["status"] not in {"active", "candidate", "conflicted", "stale"}:
                 raise store.MemoryError("scope_error", "This record cannot be archived from the dashboard.")
-            operation = {"op": "ARCHIVE", "scope": kind, "id": memory_id, "expected_revision": expected}
+            operation = {"op": "ARCHIVE", "scope": kind, "id": memory_id, "expected_revision": expected,
+                         "archive_basis": "user_requested", "reason": "用户在本地看板确认归档。"}
         else:
             updated = dict(record)
             # A browser edit or confirmation is user evidence, never a fresh tool verification.

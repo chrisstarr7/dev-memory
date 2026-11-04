@@ -14,6 +14,40 @@ from test_dev_memory import MemoryTestCase, store
 
 
 class MaintenanceTests(MemoryTestCase):
+    def test_archive_requires_explicit_basis(self):
+        memory_id = self.add_project_rule(content='Keep this memory unless a valid archive basis is given.')
+        result = self.apply(scope='project', turn='archive-without-basis', operations=[{
+            'op':'ARCHIVE', 'id':memory_id, 'expected_revision':1,
+        }])
+        self.assertEqual(result['stores'][0]['error'], 'validation_error')
+        self.assertEqual(self.detail(memory_id)['record']['status'], 'active')
+
+    def test_expired_archive_requires_latest_active_replacement_and_records_link(self):
+        memory_id = self.add_project_rule(content='An explicitly expiring synthetic requirement.')
+        self.apply(scope='project', turn='revise-before-expiry', operations=[{
+            'op':'REVISE', 'id':memory_id, 'expected_revision':1,
+            'record':self.record(content='An explicitly expiring synthetic requirement.'),
+        }])
+        replacement_id = self.add_project_rule(turn='replacement-one', content='First current replacement.')
+        latest_id = self.add_project_rule(turn='replacement-two', title='Latest active replacement',
+            content='Latest current replacement.')
+        stale_replacement = self.apply(scope='project', turn='archive-expired-with-old-replacement', operations=[{
+            'op':'ARCHIVE', 'id':memory_id, 'expected_revision':2, 'archive_basis':'expired',
+            'reason':'The recorded expiry has passed.', 'replacement_id':replacement_id,
+        }])
+        self.assertEqual(stale_replacement['stores'][0]['error'], 'provenance_error')
+        self.assertEqual(self.detail(memory_id)['record']['status'], 'active')
+        archived = self.apply(scope='project', turn='archive-expired-with-latest-replacement', operations=[{
+            'op':'ARCHIVE', 'id':memory_id, 'expected_revision':2, 'archive_basis':'expired',
+            'reason':'The recorded expiry has passed.', 'replacement_id':latest_id,
+        }])
+        self.assertEqual(archived['status'], 'saved', archived)
+        record = self.detail(memory_id)['record']
+        self.assertEqual(record['status'], 'archived')
+        self.assertIn(latest_id, record['rationale'])
+        self.assertIn('Latest active replacement', record['rationale'])
+        self.assertEqual(json.loads(self.detail(memory_id)['revisions'][0]['snapshot'])['rationale'], '')
+
     def test_recalling_reviewed_memory_does_not_requeue_maintenance(self):
         memory_id = self.add_project_rule(title='Stable source requirement', content='Keep the explicit eligibility restriction.')
         reviewed = self.maintain('MAINTENANCE_REVIEW', [memory_id], turn='review-before-recall')
@@ -45,7 +79,8 @@ class MaintenanceTests(MemoryTestCase):
         self.assertEqual(queued, {ids[('active', 'desired')], ids[('candidate', 'desired')]})
         for n, status in enumerate(('candidate', 'active')):
             result = self.apply(scope='project', turn=f'archive-status-{n}', operations=[{
-                'op':'ARCHIVE', 'id':ids[(status, 'desired')], 'expected_revision':1}])
+                'op':'ARCHIVE', 'id':ids[(status, 'desired')], 'expected_revision':1,
+                'archive_basis':'user_requested'}])
             self.assertEqual(result['status'], 'saved', result)
             pack = store.maintenance_prepare('project', project_root=self.project_a, force=True)
             if n == 0:
@@ -80,7 +115,8 @@ class MaintenanceTests(MemoryTestCase):
         self.assertEqual(rejected['stores'][0]['error'], 'provenance_error')
         self.assertEqual(self.detail(memory_id)['record']['status'], 'active')
         archived = self.apply(scope='project', turn='archive-legacy', operations=[{
-            'op':'ARCHIVE','id':memory_id,'expected_revision':1}])
+            'op':'ARCHIVE','id':memory_id,'expected_revision':1,
+            'archive_basis':'confirmed_incorrect','reason':'Synthetic evidence confirms this legacy claim is false.'}])
         self.assertEqual(archived['status'], 'saved', archived)
         self.assertEqual(self.detail(memory_id)['record']['status'], 'archived')
 
@@ -458,12 +494,19 @@ class MaintenanceTests(MemoryTestCase):
         self.assertEqual(current['record']['status'], 'active')
         self.assertEqual(current['record']['content'], revised['content'])
         self.assertEqual(json.loads(current['revisions'][0]['snapshot'])['content'], 'Synthetic rule before correction.')
+        replacement_id = self.add_project_rule(turn='newer-replacement',
+            content='Current replacement for the expired synthetic rule.')
         archived = self.apply(scope='project', turn='retire-obsolete', operations=[{
-            'op':'ARCHIVE', 'id':memory_id, 'expected_revision':2, 'reason':'Explicitly expired in the synthetic test fixture.',
+            'op':'ARCHIVE', 'id':memory_id, 'expected_revision':2,
+            'archive_basis':'expired', 'reason':'Explicitly expired in the synthetic test fixture.',
+            'replacement_id':replacement_id,
         }])
         self.assertEqual(archived['status'], 'saved', archived)
-        self.assertEqual(self.detail(memory_id)['record']['status'], 'archived')
-        self.assertEqual(store.list_records('project', project_root=self.project_a)['records'], [])
+        archived_record = self.detail(memory_id)['record']
+        self.assertEqual(archived_record['status'], 'archived')
+        self.assertIn(replacement_id, archived_record['rationale'])
+        remaining = store.list_records('project', project_root=self.project_a)['records']
+        self.assertEqual([record['id'] for record in remaining], [replacement_id])
 
     def test_protocol_upgrade_requeues_existing_active_records_for_bounded_review(self):
         for n in range(5):

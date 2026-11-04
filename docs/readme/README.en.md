@@ -101,13 +101,13 @@ If relevant bodies are omitted because of the budget, the response identifies th
 | `candidate` + `hypothesis` | Excluded | Excluded; remains unconfirmed |
 | `conflicted` | May be returned as conflict context; resolve before relying on it | Excluded from routine review; needs explicit conflict resolution |
 | `stale`, `archived`, `superseded` | Excluded | Excluded |
-| Legacy `active` + `hypothesis` | Excluded | Included as an anomaly requiring source-backed revision or archival |
+| Legacy `active` + `hypothesis` | Excluded | Included as an anomaly; revise valid rules from sources and archive only when the archive criteria are met |
 
 Monthly recall counts measure full record details returned to the AI, not proven adoption. Cached and read-only retrieval and capture-paused stores do not increment the counter. Counts are independent of the review queue: repeated recall alone does not schedule organization, and a new record can need review before it has ever been recalled.
 
 ## Automatic organization
 
-Organization reviews changed knowledge for future usefulness, source authority, currentness and duplication. It can retain a correct record, improve its wording or tags, merge genuinely equivalent records, or revise/archive a claim when authoritative evidence justifies it. It does not automatically turn similar text into one rule, promote a candidate, or discard an old record because of its age.
+Organization reviews changed knowledge for future usefulness, source authority, currentness and duplication. It can retain a correct record, improve wording or tags, merge genuinely equivalent records, or revise a claim. Archive only on explicit user request, when reliable evidence proves it false, or after explicit expiry with a latest active replacement in the same scope; the archived rationale records that replacement. Age, non-use, a hypothesis label, or similarity alone never justifies archiving.
 
 Each store maintains its own queue of current record revisions. Review becomes due when **any** of these conditions holds:
 
