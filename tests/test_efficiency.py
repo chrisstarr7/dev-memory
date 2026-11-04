@@ -361,7 +361,8 @@ class EfficiencyTests(MemoryTestCase):
 
     def test_storage_reclaims_only_disposable_rows_and_validated_backup_copies(self):
         memory_id = self.add_project_rule(content='Redundant historical words. '*200)
-        self.apply(scope='project',turn='archive',operations=[{'op':'ARCHIVE','id':memory_id,'expected_revision':1}])
+        self.apply(scope='project',turn='archive',operations=[{'op':'ARCHIVE','id':memory_id,'expected_revision':1,
+            'archive_basis':'user_requested'}])
         store.record_private_skip('project',session_id='private',turn_id='private',project_root=self.project_a)
         db = store.project_paths(self.project_a)[1]
         with contextlib.closing(sqlite3.connect(db)) as conn:

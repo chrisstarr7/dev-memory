@@ -257,7 +257,8 @@ class AdversarialTests(MemoryTestCase):
         self.assertFalse(view.exists())
         memory_id = self.add_project_rule(turn="new")
         store.export_views("project", project_root=self.project_a)
-        self.apply(scope="project", turn="archive", operations=[{"op": "ARCHIVE", "scope": "project", "id": memory_id, "expected_revision": 1}])
+        self.apply(scope="project", turn="archive", operations=[{"op": "ARCHIVE", "scope": "project", "id": memory_id,
+            "expected_revision": 1, "archive_basis": "user_requested"}])
         store.export_views("project", project_root=self.project_a)
         self.assertFalse(view.exists())
 

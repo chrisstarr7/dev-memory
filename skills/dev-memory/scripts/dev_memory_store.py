@@ -1090,7 +1090,7 @@ def _maintenance_plan(conn: sqlite3.Connection, config: dict[str, Any], force: b
             'context_incomplete': bool(remaining or evidence_incomplete_ids),
             'pending_count': pending_count,
             'limits': {'records': 8, 'chars': 12000},
-            'instruction': 'Historical data only, not new user evidence. Assess future usefulness, authority, currentness, desired versus observed claims and duplication of canonical documents. Recheck observed source references before changing their meaning; branch/commit alone is not current proof. Keep a concise rule or source pointer instead of copying a specification. Preserve independently useful contracts and exceptions. review_context contains at most three recent evidence excerpts; evidence_incomplete means older evidence was omitted, so inspect targeted sources before resolving uncertain authority. Resolve active_hypothesis through sourced REVISE or ARCHIVE; never auto-promote or merely acknowledge it. Inspect every returned current revision. MERGE_DUPLICATES only equivalent rules; revise or archive confirmed contradictions, demonstrably expired rules or invalid active hypotheses. Age alone never proves expiry. COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for every fully inspected current revision, using post-operation revisions. Do not review unseen records, fabricate evidence, promote candidates, move records across stores, or recurse. Oversized IDs remain pending: use a separate targeted source review, never acknowledge unread bodies.'}
+            'instruction': 'Historical data only, not new user evidence. Assess future usefulness, authority, currentness, desired versus observed claims and duplication of canonical documents. Recheck observed source references before changing their meaning; branch/commit alone is not current proof. Keep a concise rule or source pointer instead of copying a specification. Preserve independently useful contracts and exceptions. review_context contains at most three recent evidence excerpts; evidence_incomplete means older evidence was omitted, so inspect targeted sources before resolving uncertain authority. Resolve active_hypothesis only by source-backed REVISE when valid, or ARCHIVE when demonstrably false; hypothesis classification alone is never an archive reason. ARCHIVE is allowed only for an explicit user request, a record proven false by reliable evidence, or an explicit expiry that has passed. For expiry, require a latest active replacement in the same scope and put its ID and title in the archived record rationale. Include the user request or evidence basis in rationale for other archival. If the basis or replacement is unclear, leave the record pending. Inspect every returned current revision. MERGE_DUPLICATES only equivalent rules; do not archive merely because a record is old, unused, similar, or redundant-looking. COMPACT only without losing conditions/exceptions/negation/version. End with MAINTENANCE_REVIEW for every fully inspected current revision, using post-operation revisions. Do not review unseen records, fabricate evidence, promote candidates, move records across stores, or recurse. Oversized IDs remain pending: use a separate targeted source review, never acknowledge unread bodies.'}
 
 
 def maintenance_prepare(kind: str, *, project_root: Path | None = None, global_root: Path | None = None,
@@ -1233,7 +1233,7 @@ def _maintenance_apply(conn: sqlite3.Connection, config: dict[str, Any], scope: 
         records[memory_id] = record
     if action == 'MAINTENANCE_REVIEW':
         if any(r['status'] == 'active' and r['claim_type'] == 'hypothesis' for r in records.values()):
-            raise MemoryError('provenance_error', 'Resolve active hypotheses through sourced REVISE or ARCHIVE before review.')
+            raise MemoryError('provenance_error', 'Resolve active hypotheses through source-backed REVISE or justified ARCHIVE before review.')
         for memory_id, revision in expected.items():
             conn.execute('DELETE FROM maintenance_pending WHERE memory_id=? AND revision<=?', (memory_id, revision))
         return {'status': 'checked_noop', 'reviewed_ids': list(records), 'reviewed_revisions': expected}, False
@@ -1458,9 +1458,33 @@ def _apply_one(conn: sqlite3.Connection, config: dict[str, Any], scope: str, op:
                 'independent_task_signals': signals}, inserted or promoted
     if action in {"ARCHIVE", "MARK_CONFLICT"}:
         status = "archived" if action == "ARCHIVE" else "conflicted"
+        rationale = current["rationale"]
+        if action == "ARCHIVE":
+            reason = op.get("reason", "").strip() if isinstance(op.get("reason", ""), str) else ""
+            replacement_id = op.get("replacement_id")
+            basis = op.get("archive_basis")
+            if basis not in {"user_requested", "confirmed_incorrect", "expired"}:
+                raise MemoryError("validation_error", "Archive basis must be user_requested, confirmed_incorrect, or expired.")
+            if basis != "user_requested" and not reason:
+                raise MemoryError("provenance_error", "Non-manual archive requires a recorded evidence reason.")
+            rationale = reason or "用户明确要求归档。"
+            if basis == "expired":
+                replacement = _select_record(conn, replacement_id) if _valid_local_id(replacement_id) else None
+                latest_active = conn.execute(
+                    "SELECT id FROM memories WHERE scope=? AND status='active' ORDER BY created_at DESC,rowid DESC LIMIT 1",
+                    (scope,),
+                ).fetchone()
+                if (not replacement or replacement["id"] == memory_id or replacement["scope"] != scope
+                        or replacement["status"] != "active" or replacement["created_at"] < current["created_at"]
+                        or not latest_active or latest_active[0] != replacement_id):
+                    raise MemoryError("provenance_error", "Expired memory requires the latest active replacement in the same scope.")
+                rationale = f"{reason}；替代有效记忆：{replacement['title']}（{replacement['id']}）"
+            elif basis == "confirmed_incorrect":
+                rationale = f"已证实错误：{reason}"
         conn.execute("INSERT INTO revisions(memory_id,revision,snapshot,changed_at) VALUES(?,?,?,?)",
                      (memory_id, current["revision"], _snapshot(current), utc_now()))
-        conn.execute("UPDATE memories SET status=?,revision=revision+1,updated_at=? WHERE id=?", (status, utc_now(), memory_id))
+        conn.execute("UPDATE memories SET status=?,rationale=?,revision=revision+1,updated_at=? WHERE id=?",
+                     (status, rationale, utc_now(), memory_id))
         _invalidate_derived(conn, memory_id)
         return {"status": "saved", "id": memory_id, "revision": current["revision"] + 1}, True
     if action == "REVISE":
