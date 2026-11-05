@@ -1,0 +1,2 @@
+# Keep release-manifest bytes identical across Git checkouts and source ZIPs.
+* text=auto eol=lf
