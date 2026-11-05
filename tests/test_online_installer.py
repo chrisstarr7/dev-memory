@@ -88,6 +88,17 @@ class OnlineTests(unittest.TestCase):
             code = install.online_main([*args, '--json'])
         return code, json.loads(stdout.getvalue())
 
+    def test_repository_snapshot_installs_with_committed_manifest(self):
+        # Do not regenerate hashes here: GitHub source ZIPs use the committed manifest.
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for name in (*dev_memory.RELEASE_FILES, 'manifest.json'):
+                archive.writestr('dev-memory-main/' + name, (ROOT / name).read_bytes())
+        code, result = self.run_online('codex', data=data.getvalue())
+        self.assertEqual(code, 0, result)
+        self.assertEqual(result['runtime_check']['status'], 'passed')
+        self.assertEqual(result['online']['verified_files'], len(dev_memory.RELEASE_FILES))
+
     def test_all_hosts_initialize_original_project_not_staging(self):
         data = snapshot()
         for agent in ('codex', 'claude', 'cursor', 'gemini', 'copilot', 'opencode', 'deepseek'):

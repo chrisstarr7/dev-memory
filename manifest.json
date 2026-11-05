@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "daba4afc7bce73552ae2a0114f27cace17613c1d09a3f302ae0fb9319695b8f5"
+      "sha256": "36e4ba41ba4bf912d1dec0b4517078ca7f66fdfa545e364b48a0e43dedcabdb7"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -22,7 +22,7 @@
     },
     {
       "path": "skills/dev-memory/references/protocol.md",
-      "sha256": "87e424edf8f2274a6f6583f70941737b316f360c89a1f5cc883a26056b64ffab"
+      "sha256": "bc23f77b171772fdcd83c549146367c6e7ccbd26cfe0a28be87d6a3dd0ed5f23"
     },
     {
       "path": "skills/dev-memory/references/codex-hooks.md",
@@ -46,7 +46,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "44a69a93dd641ee3a5b6e179537da019c1a14f82cf3d79977d85909012e78865"
+      "sha256": "26481e67a25556958b13f961e432a9b60370d6f873b58bc364e3297af5f6e887"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -54,7 +54,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_dashboard.py",
-      "sha256": "338f503eba7b41ae92059b00b1eddc4192be64f0abc23a91f1fb5ef51a16e6f5"
+      "sha256": "258aa0db4de3ef849a30eafff967ceebf65d1ae45a825599306bc43a778d9e21"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_vectors.py",
@@ -78,7 +78,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "017c873641a4412652721a0540333da037cedd276a9ed2522356f0ab5a86c268"
+      "sha256": "aefcec9a55f4d4d804e9db6d9e6d2be4528d73ca2f75fe489ee5a682d5f67c77"
     },
     {
       "path": "LICENSE",
@@ -134,7 +134,7 @@
     },
     {
       "path": "tests/test_efficiency.py",
-      "sha256": "4d38d8024b18d52c4718a776ef71abe3f5a100673fa8f3a1b634b678d12dbe28"
+      "sha256": "0b80c76b712410c33c45d50f3b3f7c4c92cb2a68200a9dc594a7bd55912c2f07"
     },
     {
       "path": "reports/optimization-0.8.0.md",
@@ -194,11 +194,11 @@
     },
     {
       "path": "evals/check_host_delivery.py",
-      "sha256": "d2f6e95efff4c6636d034af7bc4c6f57ab241c8412f62cc93ed62a7cbf8d18be"
+      "sha256": "eb22d55844fa08446f6fe893ccfc6fc149d3459c3ae2592ebbef945a4071d49a"
     },
     {
       "path": "tests/test_host_delivery_eval.py",
-      "sha256": "386d97a95dd6d0b05f1f6a2bcda37dae1cf79bd31dcf26cb763cb286c75b331c"
+      "sha256": "d1f0306f344e89d19cd830719ca39343a092aab1d92999b485be444e47a13e64"
     },
     {
       "path": "reports/host-delivery-review.md",
@@ -278,7 +278,7 @@
     },
     {
       "path": "tests/test_maintenance.py",
-      "sha256": "8aad1b309c571b39aec947fd81d65370b08afb1538d9ef0360b5927d9675581e"
+      "sha256": "d5233469b368114af208b013fafc67ec88cb2087436597a3cb4f44e31151d917"
     },
     {
       "path": "tests/test_lifecycle.py",
@@ -286,7 +286,7 @@
     },
     {
       "path": "tests/test_adversarial.py",
-      "sha256": "e1b3abe050975bfa6fbd1d5fc7f955cee02992342b8adf8ea57e3cf5bf24bba1"
+      "sha256": "8e37599d92828c5ba43603a6fd296734de8a35473abd5045d486aafb3badb366"
     },
     {
       "path": "tests/test_installer.py",
@@ -298,7 +298,7 @@
     },
     {
       "path": "tests/test_online_installer.py",
-      "sha256": "67b89f1ebc29e09b020f1445d77a93b7b8acd3046e9a616180b7c2dd9782bf5b"
+      "sha256": "d08330c257e25687a4053bea4dd5bd7b014ed65f19eefbe7bf5a2757116176ef"
     },
     {
       "path": "tests/test_npx_installer.py",
