@@ -34,6 +34,15 @@ class HostDeliveryEvaluationTests(unittest.TestCase):
         self.assertIn('rule',records)
         self.assertFalse(forced)
 
+    def test_activation_resolved_cli_path_counts_as_context_delivery(self):
+        body = {'stores':[{'records':[{'id':'rule','revision':3}]}]}
+        command = ('$a = Get-Content .dev-memory/activation.json | ConvertFrom-Json; '
+                   '& $a.bindings.codex.cli --global-root $a.bindings.codex.global_root '
+                   'context --project-root $a.project_root --force')
+        records, forced = evaluation.context_bodies([self.event(body,command=command)])
+        self.assertEqual(records['rule']['revision'],3)
+        self.assertEqual(forced,{'rule'})
+
     def test_real_artifact_must_have_current_marker_utf8_and_exact_newline(self):
         with tempfile.TemporaryDirectory() as td:
             project = Path(td)

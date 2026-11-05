@@ -117,7 +117,9 @@ def context_bodies(events):
         command = item.get('command', '')
         if item.get('type') != 'commandExecution' or item.get('exitCode') != 0:
             continue
-        if 'dev_memory.py' not in command or ' context ' not in command+' ':
+        normalized = command.lower().replace('\\', '/')
+        resolved_cli = '.dev-memory/activation.json' in normalized and 'bindings.codex.cli' in normalized
+        if ('dev_memory.py' not in normalized and not resolved_cli) or ' context ' not in ' '+normalized+' ':
             continue
         for line in (item.get('aggregatedOutput') or '').splitlines():
             try:
