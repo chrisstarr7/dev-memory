@@ -29,6 +29,9 @@ class MemoryTestCase(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
         self.global_root = self.home / "global data"
+        storage_env = patch.dict(os.environ, {"DEV_MEMORY_HOME": str(self.global_root)})
+        storage_env.start()
+        self.addCleanup(storage_env.stop)
         self.project_a = self.home / "项目 A"
         self.project_b = self.home / "project B"
         self.project_a.mkdir()
@@ -72,6 +75,9 @@ class MemoryTestCase(unittest.TestCase):
 
 
 class StoreTests(MemoryTestCase):
+    def test_implicit_global_storage_is_inside_test_fixture(self) -> None:
+        self.assertEqual(store.global_paths(), store.global_paths(self.global_root))
+
     def test_explicit_global_developer_habit_is_recalled_in_two_projects(self) -> None:
         habit = self.record(scope="global", kind="preference", title="Reuse existing code",
                             content="Before adding an implementation, inspect and reuse a suitable existing path.")
