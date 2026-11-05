@@ -49,7 +49,9 @@ class VectorRoutingTests(MemoryTestCase):
 class RealVectorIntegration(MemoryTestCase):
     def test_real_multilingual_offline_index_lifecycle(self):
         runtime_root = Path(os.environ.get('DEV_MEMORY_VECTOR_ROOT', str(self.global_root)))
-        prepared = setup.setup(runtime_root, timeout_seconds=600)
+        # Model setup uses the explicit shared runtime; memory defaults stay isolated.
+        with patch.dict(os.environ, {'DEV_MEMORY_HOME': str(runtime_root)}):
+            prepared = setup.setup(runtime_root, timeout_seconds=600)
         self.assertEqual(prepared['status'], 'ready', prepared)
         if not hasattr(sqlite3.Connection, 'enable_load_extension'):
             config = setup.read_config(runtime_root)
