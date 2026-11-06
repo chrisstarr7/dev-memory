@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "36e4ba41ba4bf912d1dec0b4517078ca7f66fdfa545e364b48a0e43dedcabdb7"
+      "sha256": "9688544853a539dcd84e2bcca31898ca7ac7276311bb7a6bc28fef4172d9eea5"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -30,7 +30,7 @@
     },
     {
       "path": "skills/dev-memory/references/verification.md",
-      "sha256": "4e4794d55bb9035bd28a93fe54538ae183c23799d597460c11d640cce7765489"
+      "sha256": "87fd2ef1839f3b85a9c06b07a16ab9960b2795d12ef202e181d359a59305277b"
     },
     {
       "path": "skills/dev-memory/references/setup.md",
@@ -41,8 +41,12 @@
       "sha256": "1b4d4a4889ba1e882fccaf559725ffb7777894a0fecf70842538d8df5efa34eb"
     },
     {
+      "path": "skills/dev-memory/references/delegated-assessment.md",
+      "sha256": "aa76e940104b8d703a8b92173b24a42d0ebb18f11786805f19c1f85cf1cf0d26"
+    },
+    {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "d222ad388db9b56a7b4ac5e141553b5b5886d0f6253f78b2779bb04e88144c79"
+      "sha256": "10f8e4b148085865bde93ffbbf135e6f6de5f41d0211b891e2c364c254fb63cb"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
@@ -50,7 +54,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
-      "sha256": "0e6895cc026e90f6ea76bc357162fd75ae852413a75e674888eb4678d055c627"
+      "sha256": "1e70c505e34a8f56c575172381d0827df722b435a4e0a3c6225ea5d3976a3277"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_dashboard.py",
@@ -78,7 +82,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "aefcec9a55f4d4d804e9db6d9e6d2be4528d73ca2f75fe489ee5a682d5f67c77"
+      "sha256": "0172fd4aa0fab7aecef0189c14c2b5c5fc82ee813b91a44cb9733ac76e846538"
     },
     {
       "path": "LICENSE",
@@ -94,7 +98,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "c4416f259126805067ee438f46ed79fc94b2d04422e04c3a705420ccd9cb85c4"
+      "sha256": "50af41b65cd39f6bca52c0087b1b37da6db3fb4518e5bbd3b48a41abbc018161"
     },
     {
       "path": "bin/install.cjs",
@@ -122,7 +126,7 @@
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "c436c0d08d470dfed4ea0eb0ef43eb005c1b1ed7bdf3ee6c8a8950fbe3dca054"
+      "sha256": "fcad5a5b354ae6403b791cdf75489803c2dc9e283404836c10a84a0dd47e3766"
     },
     {
       "path": "docs/readme/README.ja.md",
@@ -194,11 +198,11 @@
     },
     {
       "path": "evals/check_host_delivery.py",
-      "sha256": "eb22d55844fa08446f6fe893ccfc6fc149d3459c3ae2592ebbef945a4071d49a"
+      "sha256": "e78bc8273e7f83826b67e6c3f7c599f506c96fb95fb1ed6ab14891ac95231df8"
     },
     {
       "path": "tests/test_host_delivery_eval.py",
-      "sha256": "d1f0306f344e89d19cd830719ca39343a092aab1d92999b485be444e47a13e64"
+      "sha256": "2d55079a18c3b3be3bc8e53aa2e7ad871b06d0ffa85a5833ac5fbde8cf4c4afd"
     },
     {
       "path": "reports/host-delivery-review.md",
@@ -310,7 +314,7 @@
     },
     {
       "path": "evals/scenarios.json",
-      "sha256": "d7caa527dd3416656f2dd7670105062e6bab61f01607ce756889cd2cbefe15db"
+      "sha256": "45a551199c268636681106fb40cefd5f77128be4f93341c70df18933c9c9a3c8"
     },
     {
       "path": "evals/bench_compare.py",

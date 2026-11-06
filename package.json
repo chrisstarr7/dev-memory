@@ -35,6 +35,7 @@
     "skills/dev-memory/scripts/dev-memory",
     "skills/dev-memory/scripts/dev_memory_vectors.py",
     "skills/dev-memory/scripts/dev_memory_vector_setup.py",
-    "skills/dev-memory/references/vectors.md"
+    "skills/dev-memory/references/vectors.md",
+    "skills/dev-memory/references/delegated-assessment.md"
   ]
 }
