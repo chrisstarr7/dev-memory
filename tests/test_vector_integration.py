@@ -47,12 +47,23 @@ class VectorRoutingTests(MemoryTestCase):
 @unittest.skipUnless(os.environ.get('DEV_MEMORY_VECTOR_INTEGRATION') == '1',
                      'Real model integration is opt-in; setup downloads dependencies and model')
 class RealVectorIntegration(MemoryTestCase):
+    @unittest.skipUnless(os.environ.get('DEV_MEMORY_VECTOR_TIMINGS') == '1',
+                         'Cold-start timing diagnostic is separately opt-in')
+    def test_cold_start_stage_timings_preserve_embeddings(self):
+        import vector_startup
+        runtime_root = Path(os.environ.get('DEV_MEMORY_VECTOR_ROOT', str(self.global_root)))
+        result = vector_startup.measure(runtime_root)
+        self.assertEqual(result['max_embedding_delta'], 0)
+        self.assertEqual(result['query_budget_seconds'], 5)
+        print(json.dumps(result), flush=True)
+
     def test_real_multilingual_offline_index_lifecycle(self):
         runtime_root = Path(os.environ.get('DEV_MEMORY_VECTOR_ROOT', str(self.global_root)))
-        # Model setup uses the explicit shared runtime; memory defaults stay isolated.
-        with patch.dict(os.environ, {'DEV_MEMORY_HOME': str(runtime_root)}):
-            prepared = setup.setup(runtime_root, timeout_seconds=600)
-        self.assertEqual(prepared['status'], 'ready', prepared)
+        # 已配置的共享环境只读复用；缺失时才由显式集成检查安装。
+        if not vectors.enabled(runtime_root):
+            with patch.dict(os.environ, {'DEV_MEMORY_HOME': str(runtime_root)}):
+                prepared = setup.setup(runtime_root, timeout_seconds=600)
+            self.assertEqual(prepared['status'], 'ready', prepared)
         if not hasattr(sqlite3.Connection, 'enable_load_extension'):
             config = setup.read_config(runtime_root)
             self.assertNotEqual(Path(config['python']).resolve(), Path(sys.executable).resolve())

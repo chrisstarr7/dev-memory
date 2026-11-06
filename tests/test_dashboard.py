@@ -327,6 +327,9 @@ class DashboardTests(MemoryTestCase):
         self.assertEqual(store.recall_stats("project", month, project_root=self.project_a)["total_recalls"], 1)
 
     def test_default_preview_matches_daily_recall_and_expansion_is_explicit(self):
+        self.apply(scope='global', operations=[{'op':'ADD', 'record':self.record(
+            scope='global', kind='preference', claim_type='preference', strength='soft',
+            title='Terminal palette', content='Prefer muted terminal colors.')}])
         for n in range(6):
             self.add_project_rule(turn=f'preview-{n}', title=f'Export {n}', content=f'Export requirement {n}',
                                   conditions='', exceptions='', do='', dont='', verification_steps='', tags=[])
@@ -338,6 +341,7 @@ class DashboardTests(MemoryTestCase):
         self.assertIn('日常默认：5 条／4000 字符', page)
         self.assertIn('关键词匹配', page)
         self.assertIn('条数额度不足', page)
+        self.assertIn('优先返回相关项目正文', page)
         self.assertIn('runtime_not_configured', page)
         self.assertIn('v1', page)
         expanded = app.preview(key, 'Export', None, 'expanded')

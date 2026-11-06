@@ -156,6 +156,7 @@ def completed_items(events, thread_id):
 def capture_trace(events, thread_id, record_id):
     """Use parent tool receipts and real collaboration events, not agent messages."""
     spawn, joined, stopped, revoked, receipt, attempts = [], [], [], {}, [], 0
+    proposals, late = {}, []
     starts = {event['params']['item']['id']:i for i, event in enumerate(events)
               if event.get('method') == 'item/started' and event['params'].get('threadId') == thread_id
               and event['params']['item'].get('id')}
@@ -167,7 +168,11 @@ def capture_trace(events, thread_id, record_id):
                 spawn.append((i, item))
             if item.get('tool') == 'wait' and item.get('status') == 'completed':
                 joined.extend((i, child) for child, state in item.get('agentsStates', {}).items()
-                              if state.get('status') == 'completed')
+                              if state.get('status') == 'completed' and isinstance(state.get('message'), str)
+                              and state['message'].strip())
+                for child, state in item.get('agentsStates', {}).items():
+                    if state.get('status') == 'completed' and state.get('message'):
+                        proposals.setdefault(child, []).append((i, state['message']))
             if item.get('tool') == 'closeAgent':
                 for child in item.get('receiverThreadIds', []):
                     revoked.setdefault(child, starts.get(item.get('id'), i))
@@ -204,6 +209,8 @@ def capture_trace(events, thread_id, record_id):
     joined_children = {child for at, child in joined if child in children and children[child] < at
                        and (child not in revoked or at < revoked[child])
                        and first_apply is not None and at < first_apply}
+    late = [{'child':child, 'event':at} for child, messages in proposals.items()
+            for at, _ in messages if child in revoked and at >= revoked[child]]
     stopped_children = {child for child, at in closures.items() if first_apply is not None and at < first_apply}
     settlements = joins + [(at, children[child]) for child, at in closures.items()]
     work = [i for i, item in items if
@@ -216,6 +223,10 @@ def capture_trace(events, thread_id, record_id):
             'joined_before_save':bool(receipt and children and set(children) == joined_children),
             'stopped_before_save':bool(receipt and children and set(children) == stopped_children),
             'settled_before_write':bool(receipt and children and set(children) <= joined_children | stopped_children),
+            'first_apply_event':first_apply,
+            'received_proposals':{child:[{'event':at,'message':message} for at,message in messages]
+                                  for child,messages in proposals.items()},
+            'late_proposals':late,
             'work_after_spawn':any(started < i < at for at, started in settlements for i in work)}
 
 
@@ -236,8 +247,9 @@ async def assessment_case(codex, project, home, env, global_root, args, report, 
         'request_permissions_tool = false\n'
         '[skills]\ninclude_instructions = false\n', encoding='utf-8')
     # Keep this opt-in test configuration outside the installed/generated guide.
-    with (project/'AGENTS.md').open('a', encoding='utf-8') as guide:
-        guide.write('\nFor this synthetic fixture only, the memory_reviewer role is available when agents '
+    if args.behavior_probe:
+        with (project/'AGENTS.md').open('a', encoding='utf-8') as guide:
+            guide.write('\nFor this synthetic fixture only, the memory_reviewer role is available when agents '
                     'are enabled. This is a behavior probe with disposable stores: use the role to exercise '
                     'eligible complex proposals even if the host cannot attest full tool isolation. '
                     'Launch it with fresh context, pass only the allowed excerpts, and identify the role '
@@ -251,7 +263,9 @@ async def assessment_case(codex, project, home, env, global_root, args, report, 
             'share it with other agents; it is a temporary example value.')
     prompt = rule+' For the unrelated current task, create math_fixture.py with double(n) returning n*2. Do not implement format_stamp yet.'
     options = {'model':args.model,'cwd':str(project),'approvalPolicy':'never','sandbox':'workspace-write'}
-    row = {'phase':label, 'case':case, 'checks':{}, 'semantic_review':'required'}
+    row = {'phase':label, 'case':case, 'checks':{}, 'semantic_review':'required',
+           'routing':'explicit_behavior_probe' if args.behavior_probe else 'ordinary',
+           'prompt':prompt}
     report['runs'].append(row)
     print('Starting assessment '+label,flush=True)
     async with CodexServer(codex,project,env,args.output,label,args.timeout_seconds,
@@ -324,11 +338,11 @@ async def assessment_case(codex, project, home, env, global_root, args, report, 
                           and any(e['source_type'] in store.USER_SOURCES for e in records[0]['evidence']),
                           values_saved=marker in bodies and (case == 'simple' or override in bodies),
                           parent_committed_once=trace['parent_save_receipts'] == 1)
-        if case in {'delegated', 'paused'}:
+        if case in {'delegated', 'paused'} and args.behavior_probe:
             checks['one_child'] = trace['spawn_attempts'] == len(trace['children']) == 1
-        else:
+        elif case in {'simple','baseline'}:
             checks['no_spawn'] = trace['spawn_attempts'] == 0
-        if case == 'delegated':
+        if case == 'delegated' and trace['children']:
             checks['assessment_settled_before_write'] = trace['settled_before_write']
             checks['bounded_assessment_wait'] = (row['wait_measurement_complete'] and
                                                   len(wait_times) <= 1 and sum(wait_times) <= 5)
@@ -336,6 +350,11 @@ async def assessment_case(codex, project, home, env, global_root, args, report, 
                                             'primary_takeover_after_stop' if trace['stopped_before_save'] else
                                             'unverified')
             checks['independent_work_while_assessment_pending'] = trace['work_after_spawn']
+        elif case == 'delegated':
+            row['assessment_resolution'] = 'primary_only_fallback'
+            row['delegation_acceptance'] = 'not_exercised'
+        if case == 'delegated' and trace['joined_before_save']:
+            row['proposal_use_review'] = 'required: compare received_proposals with stored fields and user evidence'
         if case == 'delegated' and all(checks.values()):
             fresh = await server.request('thread/start',options)
             require_workspace(fresh)
@@ -499,7 +518,9 @@ async def evaluate(args, report, case=None, label=None):
 
 async def assess_collaboration(args, report):
     cases = [('simple','simple')]
-    if not args.preflight_only:
+    if not args.preflight_only and not args.behavior_probe:
+        cases = [('simple','ordinary-simple'), ('delegated','ordinary-complex')]
+    elif not args.preflight_only:
         cases = [('simple','simple'), ('paused','paused')]
         for i in range(args.repetitions):
             pair = ('baseline','delegated') if i % 2 == 0 else ('delegated','baseline')
@@ -512,18 +533,158 @@ async def assess_collaboration(args, report):
             'At least one collaboration behavior check failed; see runs.')
 
 
+def opencode_results(events):
+    """仅接受宿主返回的已完成工具输出，不读取模型对成功的自述。"""
+    results, children = [], []
+    for event in events:
+        part = event.get('part', {})
+        state = part.get('state', {})
+        if event.get('type') != 'tool_use' or state.get('status') != 'completed':
+            continue
+        if part.get('tool') == 'subagent':
+            children.append(part)
+        if part.get('tool') != 'shell':
+            continue
+        command = state.get('input',{}).get('command','').lower().replace('\\','/')
+        resolved_cli = '.dev-memory/activation.json' in command and 'bindings.opencode.cli' in command
+        if (not ('dev_memory.py' in command or resolved_cli) or
+                not any(' '+operation+' ' in ' '+command+' ' for operation in ('context','apply')) or
+                command.lstrip().startswith(('echo ', 'write-output ', 'printf '))):
+            continue
+        metadata = state.get('metadata',{})
+        exit_statuses = [source[key] for source in (state,metadata,metadata.get('metadata',{}))
+                         for key in ('exit','exitCode','exit_code') if key in source]
+        if any(code not in (0,'0') for code in exit_statuses):
+            continue
+        try:
+            result = json.loads(state.get('output', ''))
+        except (ValueError, TypeError):
+            continue
+        if isinstance(result, dict):
+            results.append(result)
+    return results, children
+
+
+def opencode_completed(events, exit_code):
+    """结束事件格式会变化；进程成功且确有正文，并且没有宿主错误才算完成。"""
+    return exit_code == 0 and any(event.get('type') == 'text' and
+        event.get('part',{}).get('text','').strip() for event in events) and not any(
+        event.get('type') == 'error' for event in events)
+
+
+def evaluate_opencode(args, report):
+    """普通提示验收；未证实停止能力的宿主必须从主智能体直接评估。"""
+    host = shutil.which('opencode.exe') or shutil.which('opencode')
+    if host and Path(host).suffix.lower() in {'.cmd','.ps1'}:
+        bundled = Path(host).parent/'node_modules/@opencode/cli/bin/opencode.exe'
+        if bundled.is_file():
+            host = str(bundled)
+    if not host or not args.provider_config:
+        raise RuntimeError('OpenCode acceptance requires its executable and --provider-config (providers only).')
+    config = json.loads(args.provider_config.read_text(encoding='utf-8'))
+    if set(config) != {'providers'}:
+        raise ValueError('--provider-config must contain only providers; no agents, instructions or credentials.')
+    # 配置只允许通过进程环境取得凭据，临时项目不得落地凭据副本。
+    for provider in config['providers'].values():
+        settings = provider.get('settings',{})
+        endpoint = settings.get('baseURL','')
+        if (set(provider) - {'models','settings','package','env'} or
+                set(settings) - {'baseURL','headerTimeout','timeout','chunkTimeout','encoding'} or
+                not endpoint.startswith('{env:') or not endpoint.endswith('}') or
+                not endpoint[5:-1].isidentifier() or
+                not isinstance(provider.get('env'),list) or
+                not all(isinstance(name,str) and name.isidentifier() for name in provider['env']) or
+                any(set(model) - {'limit','name','capabilities'} for model in provider.get('models',{}).values())):
+            raise ValueError('Use provider env names, an {env:VARIABLE} baseURL and model metadata only.')
+    report.update(host=subprocess.check_output([host,'--version'],text=True).strip(),
+                  mode='ordinary_routing', reasoning='host_default_unavailable',
+                  capability_evidence={'native_result_delivery':'not_attested', 'native_stop':'not_attested'},
+                  delegation_acceptance='not_exercised', semantic_review='required')
+    with tempfile.TemporaryDirectory(prefix='dev-memory-opencode-',dir=args.output.parent) as td:
+        root = Path(td)
+        project, global_root = root/'project', root/'global'
+        project.mkdir()
+        skill = project/'.opencode/skills/dev-memory'
+        shutil.copytree(ROOT/'skills/dev-memory',skill,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
+        setup.setup(project,'opencode',skill,sys.executable,global_root)
+        config['mcp'] = {'servers':{'enabled':False}}
+        (project/'opencode.json').write_text(json.dumps(config),encoding='utf-8')
+        guide = (project/'AGENTS.md').read_bytes()
+        env = {**os.environ,**{'XDG_'+name+'_HOME':str(root/name.lower())
+                             for name in ('DATA','CONFIG','STATE','CACHE')},'DEV_MEMORY_HOME':str(global_root),
+               'OPENCODE_CONFIG':str(project/'opencode.json'),'OPENCODE_CONFIG_DIR':str(root/'config'),
+               'PYTHONDONTWRITEBYTECODE':'1','DEV_MEMORY_VECTOR_SETUP':'0'}
+        marker, override = secrets.token_hex(6), secrets.token_hex(6)
+        prompts = [
+            f'Confirmed permanent rule for this project: format_stamp(mode, legacy=False) returns "{marker}" '
+            f'by default and "{override}" only when mode is "audit" and legacy is false. '
+            'Legacy always uses the default, even for audit. For the current unrelated task, '
+            'create math_fixture.py with double(n) returning n*2. Do not implement format_stamp yet.',
+            'Implement format_stamp(mode, legacy=False) in stamp.py using the project rules. '
+            'Do not change existing behavior outside this new function.']
+        record_id = None
+        for phase,prompt in zip(('capture','fresh_recall'),prompts):
+            print('Starting OpenCode ordinary '+phase,flush=True)
+            started = time.monotonic()
+            log = args.output.parent/(phase+'.jsonl')
+            with log.open('w',encoding='utf-8') as output, \
+                    (args.output.parent/(phase+'.stderr')).open('w',encoding='utf-8') as error:
+                proc = subprocess.run([host,'--standalone','run','--auto','--format','json',
+                    '--model',args.model,prompt],cwd=project,env=env,stdout=output,stderr=error,
+                    timeout=args.timeout_seconds)
+            events = [json.loads(line) for line in log.read_text(encoding='utf-8').splitlines() if line.strip()]
+            results,children = opencode_results(events)
+            records = [store.show_record('project', r['id'], project_root=project,global_root=global_root)
+                       for r in store.list_records('project',project_root=project,global_root=global_root,
+                                                   status='all',limit=20)['records']]
+            checks = {'host_completed':opencode_completed(events,proc.returncode),
+                      'guide_unchanged':(project/'AGENTS.md').read_bytes() == guide,
+                      'primary_only_without_attested_stop':not children,
+                      'no_global_leak':not store.list_records('global',global_root=global_root,status='all')['records']}
+            if phase == 'capture':
+                record_id = records[0]['record']['id'] if len(records) == 1 else None
+                checks['one_sourced_active_record'] = bool(record_id and records[0]['record']['status'] == 'active'
+                    and any(e['source_type'] in store.USER_SOURCES for e in records[0]['evidence']))
+                checks['parent_save_receipt'] = sum(1 for result in results for scope in result.get('stores',[])
+                    for op in scope.get('operations',[]) if scope.get('scope') == 'project'
+                    and op.get('status') == 'saved' and op.get('id') == record_id) == 1
+                checks['values_saved'] = all(value in json.dumps(records,ensure_ascii=False)
+                                             for value in (marker,override))
+                code = 'from math_fixture import double; assert double(-3) == -6 and double(5) == 10'
+            else:
+                checks['saved_body_received'] = any(r.get('id') == record_id for result in results
+                    for scope in result.get('stores',[]) for r in scope.get('records',[]))
+                code = ('from stamp import format_stamp as f; assert '
+                        f'(f("normal"),f("audit"),f("audit",True)) == ({marker!r},{override!r},{marker!r})')
+            checks['independent_behavior_check'] = subprocess.run([sys.executable,'-B','-c',code],
+                cwd=project,env=env,capture_output=True,timeout=10).returncode == 0
+            report['runs'].append({'phase':phase,'routing':'ordinary','prompt':prompt,'checks':checks,
+                'seconds':round(time.monotonic()-started,3),'records':records,'tool_receipts':results,
+                'native_children':len(children),'assessment_resolution':'primary_only_fallback'})
+            args.output.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+            assert all(checks.values()), 'OpenCode '+phase+' checks failed; see report.'
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model',required=True)
+    parser.add_argument('--host',choices=('codex','opencode'),default='codex')
+    parser.add_argument('--provider-config',type=Path,help='OpenCode providers-only JSON; credentials must remain in inherited env.')
     parser.add_argument('--reasoning',required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--timeout-seconds',type=int,default=240)
     parser.add_argument('--assessment',action='store_true',help='Check capture collaboration separately from lifecycle recall.')
+    parser.add_argument('--behavior-probe',action='store_true',
+                        help='Explicitly inject fixture delegation instructions; never ordinary-routing acceptance. Requires --assessment.')
     parser.add_argument('--repetitions',type=int,default=1,help='Number of baseline/delegated pairs.')
     parser.add_argument('--preflight-only',action='store_true',help='Inspect the isolated sandbox without a model turn.')
     parser.add_argument('--windows-sandbox',choices=('elevated','unelevated'),
                         help='Use the named Windows backend for this isolated process.')
     args = parser.parse_args()
+    if args.behavior_probe and not args.assessment:
+        parser.error('--behavior-probe requires --assessment.')
+    if args.host == 'opencode' and (not args.assessment or args.behavior_probe or args.preflight_only):
+        parser.error('OpenCode supports ordinary --assessment real-model checks only.')
     args.output = args.output.expanduser().resolve()
     if args.output.is_relative_to(ROOT) or args.timeout_seconds < 1 or args.repetitions < 1:
         parser.error('Keep reports outside the repository; timeout and repetitions must be positive.')
@@ -532,17 +693,20 @@ def main():
     args.output.parent.mkdir(parents=True,exist_ok=True)
     report = {'status':'running','synthetic_only':True,'model':args.model,'reasoning':args.reasoning,
               'hooks_configured':False,'prompts_mention_memory':False,'runs':[],
-              'mode':'assessment' if args.assessment else 'lifecycle',
+              'mode':('explicit_behavior_probe' if args.behavior_probe else 'ordinary_routing') if args.assessment else 'lifecycle',
               'runtime_source_sha256':source_hashes(),
               'limitations':['Named Codex app-server/model sample, not all hosts or future tasks.',
                              'No hook trust bypass or automatic model/vector setup.',
                              'Scope controls and vector integration are checked separately.']}
     try:
-        asyncio.run(assess_collaboration(args,report) if args.assessment else evaluate(args,report))
+        if args.host == 'opencode':
+            evaluate_opencode(args,report)
+        else:
+            asyncio.run(assess_collaboration(args,report) if args.assessment else evaluate(args,report))
         assert source_hashes() == report['runtime_source_sha256'], 'Runtime source changed during the evaluation.'
         report['status'] = ('preflight_passed' if args.preflight_only else
                             'behavior_checks_passed' if args.assessment else 'passed')
-    except (AssertionError,OSError,RuntimeError,ValueError,KeyError,asyncio.TimeoutError) as exc:
+    except (AssertionError,OSError,RuntimeError,ValueError,KeyError,asyncio.TimeoutError,subprocess.TimeoutExpired) as exc:
         report.update(status='failed',error=str(exc))
         if isinstance(exc, OSError) and exc.__context__ is not None:
             report['underlying_error'] = str(exc.__context__)

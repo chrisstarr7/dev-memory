@@ -265,7 +265,8 @@ class EfficiencyTests(MemoryTestCase):
 
     def test_unused_global_capacity_is_lent_without_exceeding_joint_limits(self):
         habit = self.habit()
-        habit.update(status='active', cross_project_confirmed=True, conditions='', do='', dont='')
+        habit.update(status='active', cross_project_confirmed=True, title='Export style',
+                     content='Prefer consistent Export formatting.', conditions='', do='', dont='')
         self.apply(scope='global', operations=[{'op':'ADD', 'record':habit}])
         for n in range(6):
             self.add_project_rule(turn=f'capacity-{n}', title=f'Export field {n}', content=f'Export field {n}.',
@@ -281,6 +282,72 @@ class EfficiencyTests(MemoryTestCase):
         store.write_json_atomic(base/'config.json', cfg)
         limited = store.recall('Export', project_root=self.project_a, global_root=self.global_root, readonly=True)
         self.assertEqual([len(b['records']) for b in limited['stores']], [1,1])
+
+    def test_project_topic_pressure_defers_only_unmatched_soft_global_bodies(self):
+        deferred = []
+        for n in range(3):
+            habit = self.habit()
+            habit.update(status='active', cross_project_confirmed=True, title=f'Terminal palette {n}',
+                         content=f'Prefer muted terminal colors {n}.', conditions='', do='', dont='', tags=[])
+            deferred.append(self.apply(scope='global', turn=f'palette-{n}', operations=[{'op':'ADD','record':habit}])
+                            ['stores'][0]['operations'][0]['id'])
+        hard = self.habit()
+        hard.update(status='active', cross_project_confirmed=True, strength='hard', title='UTF-8 text',
+                    content='Use UTF-8 for text.', conditions='', do='', dont='', tags=[])
+        hard_id = self.apply(scope='global', turn='encoding', operations=[{'op':'ADD','record':hard}])['stores'][0]['operations'][0]['id']
+        for n in range(5):
+            self.add_project_rule(turn=f'export-{n}', title=f'Export field {n}', content=f'Export field {n}.',
+                                  conditions='', exceptions='', do='', dont='', verification_steps='', tags=[])
+        result = store.recall('Export', project_root=self.project_a, global_root=self.global_root,
+                              force=True, readonly=True, explain=True)
+        glob, project = result['stores']
+        self.assertEqual([r['id'] for r in glob['records']], [hard_id])
+        self.assertEqual(len(project['records']), 4)
+        self.assertTrue(set(deferred) <= set(glob['remaining_ids']))
+        self.assertTrue(set(deferred) <= {r['id'] for r in glob['unloaded_candidates']})
+        self.assertTrue(all(r['reason'] == 'project_priority' for r in glob['selection'] if r['id'] in deferred))
+        self.assertTrue(result['context_incomplete'])
+        self.assertLessEqual(sum(s['budget']['used_chars'] for s in result['stores']), 4000)
+        global_only = store.recall('Export', global_root=self.global_root, force=True, readonly=True)
+        self.assertEqual(len(global_only['stores'][0]['records']), 4)
+        other_project = store.recall('Export', project_root=self.project_b, global_root=self.global_root,
+                                    force=True, readonly=True)
+        self.assertEqual(len(other_project['stores'][0]['records']), 3)
+        with patch.object(store, '_record_recall_counts', wraps=store._record_recall_counts) as counted:
+            store.recall('Export', project_root=self.project_a, global_root=self.global_root, force=True)
+        counted_ids = {mid for call in counted.call_args_list for mid in call.args[1]}
+        self.assertTrue(counted_ids.isdisjoint(deferred))
+        self.assertIn(hard_id, counted_ids)
+        base, _, config = store._config_for('project', self.project_a, self.global_root)
+        for field in ('recall_enabled', 'max_details', 'max_candidates', 'max_context_chars'):
+            limited = json.loads(json.dumps(config))
+            if field == 'recall_enabled':
+                limited[field] = False
+            else:
+                limited['limits'][field] = 0 if field == 'max_context_chars' else 1
+            store.write_json_atomic(base/'config.json', limited)
+            result = store.recall('Export', project_root=self.project_a, global_root=self.global_root, readonly=True)
+            self.assertEqual(len(result['stores'][0]['records']), 3, field)
+        limited['limits']['max_context_chars'] = 'invalid'
+        store.write_json_atomic(base/'config.json', limited)
+        result = store.recall('Export', project_root=self.project_a, global_root=self.global_root, readonly=True)
+        self.assertEqual(len(result['stores'][0]['records']), 3)
+        self.assertEqual(result['stores'][1]['reason'], 'config_invalid')
+
+    def test_semantic_global_match_is_not_deferred_under_project_pressure(self):
+        habit = self.habit()
+        habit.update(status='active', cross_project_confirmed=True, title='Table layout',
+                     content='Prefer readable column headings.', conditions='', do='', dont='', tags=[])
+        memory_id = self.apply(scope='global', operations=[{'op':'ADD','record':habit}])['stores'][0]['operations'][0]['id']
+        for n in range(4):
+            self.add_project_rule(turn=f'sheet-{n}', title=f'Export column {n}', content=f'Export column {n}.',
+                                  conditions='', exceptions='', do='', dont='', verification_steps='', tags=[])
+        def search(query, kind, **kwargs):
+            return {'status':'ok','records':[{'id':memory_id,'distance':.1}] if kind == 'global' else []}
+        with patch('dev_memory_vectors.search', side_effect=search):
+            result = store.recall('Export', project_root=self.project_a, global_root=self.global_root, readonly=True)
+        self.assertEqual([r['id'] for r in result['stores'][0]['records']], [memory_id])
+        self.assertEqual(len(result['stores'][1]['records']), 4)
 
     def test_cached_usage_keeps_allocation_stable_without_model_or_body_reads(self):
         habit = self.habit()

@@ -39,6 +39,7 @@ RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES), "bin/py
     "tests/test_correction.py",
     "evals/check_one_sentence.py", "tests/test_one_sentence_eval.py",
     "evals/check_host_delivery.py", "tests/test_host_delivery_eval.py", "reports/host-delivery-review.md",
+    "evals/vector_startup.py", "reports/recall-host-vector-2026-11-06.md",
     "evals/check_memory_quality.py", "tests/test_memory_quality_eval.py", "tests/test_capture_signals.py", "tests/test_progressive_recall.py",
     "reports/memory-quality-baseline.md",
     "reports/recall-performance-0.8.6.md", "evals/check_recall_performance.py",

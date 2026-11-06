@@ -8,7 +8,7 @@ import sqlite3
 import subprocess
 import sys
 import time
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from unittest.mock import patch
 
 from test_dev_memory import MemoryTestCase
@@ -257,6 +257,36 @@ class VectorTests(MemoryTestCase):
             stale = vectors.search('不同表达', 'project', project_root=self.project_a, global_root=self.global_root, query_cache=cache)
             self.assertEqual(stale['records'], [])
             encode.assert_called_once()
+
+    def test_combined_scopes_share_one_encoding_and_failure_budget(self):
+        project_id = self.add_project_rule()
+        config = self.runtime()
+        self.seed_vector(project_id, config)
+        with patch.object(vectors, 'schedule', return_value={'status': 'deferred'}):
+            added = self.apply(scope='global', turn='global-vector', operations=[{
+                'op': 'ADD', 'scope': 'global', 'record': self.record(scope='global', kind='preference')}])
+        global_id = added['stores'][0]['operations'][0]['id']
+        _, database, _ = store._config_for('global', None, self.global_root)
+        with closing(store._connect(database)) as conn, conn:
+            vectors._schema(conn)
+            vectors._load(conn, config)
+            vectors._vector_schema(conn)
+            conn.execute('INSERT INTO memory_vectors VALUES(?,?)', (global_id, json.dumps([1.] + [0.] * 383)))
+            conn.execute("INSERT INTO vector_state VALUES(?,?,?,'ready',0,'')",
+                         (global_id, 1, vectors._model_key(config)))
+        for failed in (False, True):
+            with self.subTest(failed=failed), patch.object(vectors, '_encode') as encode:
+                if failed:
+                    encode.side_effect = subprocess.TimeoutExpired('fixture', vectors.QUERY_SECONDS)
+                else:
+                    encode.return_value = [[1.] + [0.] * 383]
+                cache = {}
+                for kind, memory_id in (('global', global_id), ('project', project_id)):
+                    result = vectors.search('shared query', kind, project_root=self.project_a,
+                                            global_root=self.global_root, query_cache=cache)
+                    self.assertEqual(result['status'], 'deferred' if failed else 'ok')
+                    self.assertEqual([r['id'] for r in result['records']], [] if failed else [memory_id])
+                encode.assert_called_once()
 
     def test_forget_is_transactional_and_refuses_unavailable_extension(self):
         mid = self.add_project_rule()
