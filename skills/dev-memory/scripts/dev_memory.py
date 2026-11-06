@@ -25,7 +25,7 @@ SKILL_FILES = [
     "SKILL.md", "LICENSE", MARKER,
     "agents/openai.yaml", "assets/config.example.json",
     "references/protocol.md", "references/codex-hooks.md", "references/verification.md",
-    "references/setup.md", "references/vectors.md",
+    "references/setup.md", "references/vectors.md", "references/delegated-assessment.md",
     "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/dev_memory_setup.py", "scripts/dev_memory_dashboard.py", "scripts/dev_memory_vectors.py", "scripts/dev_memory_vector_setup.py", "scripts/codex_hook.py", "scripts/dev-memory",
 ]
 RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES), "bin/python-runtime.cjs",

@@ -53,8 +53,10 @@
     {"id":"S50","scenario":"全局习惯学习关闭后继续开发","expected":"不继续收集用户反馈候选","class":"program","coverage":"capture-off behavior must be added to semantic/host verification"},
     {"id":"S51","scenario":"SQLite 有 300 条全局记录时按窄主题检索","expected":"词项索引主导有界查询；只返回配置条数和字符数内的正文","class":"program","coverage":"test_growth_recall_uses_sqlite_index_and_returns_bounded_records"},
     {"id":"S52","scenario":"禁用记忆、旧版本和新版本执行匹配编码任务","expected":"对比真实任务耗时、额外工具调用及习惯遵守情况","class":"host","coverage":"matched Codex A/B evaluation; current runtime result pending"},
-    {"id":"S53","scenario":"编码已完成，异步记忆评估仍在运行","expected":"工作期间允许并行；结束本轮回复前必须等待评估，对符合标准且获准捕获的条目写入并核对各存储提交回执","class":"semantic","coverage":"host async capture join and commit-receipt completion gate"},
+    {"id":"S53","scenario":"编码已完成，异步记忆评估仍在运行","expected":"先发进度提示；写入前最多等待一次、总计不超过 5 秒，不支持限时等待则不等待。失败或超时先作废提案并停止评审，主 AI 据原始依据接管；停止失败如实报告。获准的变更须核对保存回执","class":"mixed","coverage":"check_host_delivery --assessment checks settlement before apply start and observed wait; actual host cancellation and primary semantic fallback require host review"},
     {"id":"S54","scenario":"宿主无法委派记忆评估或子智能体失败","expected":"主 AI 完成同样的评估，合规记忆不因线程不可用而被跳过；不虚构已启动线程","class":"semantic","coverage":"primary assistant capture assessment fallback"},
-    {"id":"S55","scenario":"评估无合规记忆、捕获被禁止或写入失败","expected":"无合规记忆或禁止捕获时不强制写入；写入失败有界修复后如实说明未保存，不假报成功或无限等待","class":"semantic","coverage":"capture controls, no-increment and failed-write final status"}
+    {"id":"S55","scenario":"评估无合规记忆、捕获被禁止或写入失败","expected":"无合规记忆或禁止捕获时不强制写入；写入失败有界修复后如实说明未保存，不假报成功或无限等待","class":"semantic","coverage":"capture controls, no-increment and failed-write final status"},
+    {"id":"S56","scenario":"超时接管后，评审在停止、校验、保存过程中或交付后才返回","expected":"迟到提案持续无效，不作为证据，不改变本轮决定，不追加或重试写入；不能把先启动写入后收到评审误判为通过","class":"mixed","coverage":"test_collaboration_requires_real_parent_receipt_after_joining_its_child guards ordering, stop acknowledgments and late join; absence of extra host writes and semantic use require real-host review"},
+    {"id":"S57","scenario":"宿主可启动后台评审，但不能确认原生停止能力","expected":"从一开始由主 AI 直接评估，不启动无法收口的评审，不虚构取消成功或为了收取结果无限等待","class":"host","coverage":"delegated-assessment capability gate; host-specific verification required"}
   ]
 }
