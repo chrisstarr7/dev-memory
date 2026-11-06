@@ -17,6 +17,20 @@ class HostDeliveryEvaluationTests(unittest.TestCase):
         return {'method':'item/completed','params':{'item':{'type':'commandExecution','command':command,
             'exitCode':exit_code,'aggregatedOutput':json.dumps(result)}}}
 
+    def test_assessment_defaults_to_ordinary_routing_and_probe_requires_explicit_flag(self):
+        with tempfile.TemporaryDirectory() as td:
+            for extra,expected in (([],False),(['--behavior-probe'],True)):
+                output = Path(td)/'result.json'
+                argv = ['acceptance','--model','synthetic-model','--reasoning','high','--assessment',
+                        '--output',str(output),*extra]
+                run = AsyncMock()
+                with patch.object(sys,'argv',argv), patch.object(evaluation,'assess_collaboration',run), \
+                     patch.object(evaluation,'source_hashes',return_value={}):
+                    self.assertEqual(evaluation.main(),0)
+                self.assertEqual(run.call_args.args[0].behavior_probe,expected)
+                self.assertEqual(json.loads(output.read_text(encoding='utf-8'))['mode'],
+                                 'explicit_behavior_probe' if expected else 'ordinary_routing')
+
     def test_cached_failed_or_claimed_delivery_is_not_a_body_receipt(self):
         body = {'stores':[{'scope':'project','records':[{'id':'rule','revision':3}]}]}
         cached = {'stores':[{'status':'cached','records':[]}]}
@@ -27,6 +41,50 @@ class HostDeliveryEvaluationTests(unittest.TestCase):
         records, forced = evaluation.context_bodies([self.event(body)])
         self.assertEqual(records['rule']['revision'],3)
         self.assertEqual(forced,{'rule'})
+
+    def test_opencode_receipts_reject_claims_failed_tools_and_unparsed_output(self):
+        def tool(name, output, status='completed', command='python dev_memory.py apply', metadata=None):
+            return {'type':'tool_use','part':{'tool':name,'state':{'status':status,'output':output,
+                'input':{'command':command},'metadata':metadata or {}}}}
+        receipt = {'status':'saved','stores':[{'scope':'project'}]}
+        events = [tool('shell',json.dumps(receipt)),tool('shell',json.dumps(receipt),'error'),
+                  tool('shell','saved'),tool('subagent','{"title":"proposal"}'),
+                  tool('shell',json.dumps(receipt),command='echo '+json.dumps(receipt)),
+                  tool('shell',json.dumps(receipt),command='echo "python dev_memory.py apply"'),
+                  tool('shell',json.dumps(receipt),command='python unrelated.py apply'),
+                  tool('shell',json.dumps(receipt),metadata={'metadata':{'exit':1}}),
+                  tool('shell',json.dumps(receipt),metadata={'exitCode':2}),
+                  {'type':'text','part':{'text':json.dumps(receipt)}}]
+        results,children = evaluation.opencode_results(events)
+        self.assertEqual(results,[receipt])
+        self.assertEqual(len(children),1)
+        binding = ('$a = Get-Content .dev-memory/activation.json | ConvertFrom-Json; '
+                   '& $a.bindings.opencode.python $a.bindings.opencode.cli context --force')
+        results,_ = evaluation.opencode_results([tool('shell',json.dumps(receipt),command=binding,
+                                                    metadata={'metadata':{'exit':0}})])
+        self.assertEqual(results,[receipt])
+
+    def test_opencode_completion_accepts_trailing_stop_but_rejects_errors_and_empty_text(self):
+        text = {'type':'text','part':{'text':'Completed task.'}}
+        stop = {'type':'step_finish','part':{'reason':'stop'}}
+        for events in ([text],[text,stop]):
+            self.assertTrue(evaluation.opencode_completed(events,0))
+        for events,code in (([text,stop],1),([text,{'type':'error'}],0),([stop],0),
+                            ([{'type':'text','part':{'text':'  '}}],0)):
+            self.assertFalse(evaluation.opencode_completed(events,code))
+
+    def test_opencode_rejects_fixture_routing_and_embedded_credentials_before_host_start(self):
+        from argparse import Namespace
+        with tempfile.TemporaryDirectory() as td:
+            config = Path(td)/'providers.json'
+            args = Namespace(provider_config=config)
+            for body in ({'providers':{},'agents':{}}, {'providers':{'fixture':{'settings':{'apiKey':'synthetic'}}}}):
+                config.write_text(json.dumps(body),encoding='utf-8')
+                with patch.object(evaluation.shutil,'which',return_value='opencode.exe'), \
+                     patch.object(evaluation.subprocess,'check_output') as started:
+                    with self.assertRaises(ValueError):
+                        evaluation.evaluate_opencode(args,{})
+                    started.assert_not_called()
 
     def test_readonly_host_fails_before_model_work(self):
         with self.assertRaisesRegex(RuntimeError, 'readOnly'):
@@ -47,7 +105,7 @@ class HostDeliveryEvaluationTests(unittest.TestCase):
         def collab(tool, child='child', state='completed', status='completed'):
             return completed({'type':'collabAgentToolCall','tool':tool,'status':status,
                               'senderThreadId':'parent','receiverThreadIds':[child],
-                              'agentsStates':{child:{'status':state}}})
+                              'agentsStates':{child:{'status':state,'message':'{"title":"Scoped rule"}'}}})
 
         receipt = {'stores':[{'scope':'project','status':'saved','operations':[{'id':'rule','status':'saved'}]}]}
         command = self.event(receipt,command='python dev_memory.py apply')
@@ -81,12 +139,18 @@ class HostDeliveryEvaluationTests(unittest.TestCase):
                 trace = evaluation.capture_trace(events,'parent','rule')
                 self.assertFalse(trace['joined_before_save'])
                 self.assertFalse(trace['settled_before_write'])
+        empty_delivery = collab('wait')
+        empty_delivery['params']['item']['agentsStates']['child'].pop('message')
+        trace = evaluation.capture_trace([spawn,work,empty_delivery,write_start,command],'parent','rule')
+        self.assertFalse(trace['joined_before_save'])
+        self.assertFalse(trace['settled_before_write'])
         stopped = collab('closeAgent',state='shutdown')
         for tail in ([], [join]):
             trace = evaluation.capture_trace([spawn,work,stopped,*tail,write_start,command],'parent','rule')
             self.assertTrue(trace['stopped_before_save'])
             self.assertTrue(trace['settled_before_write'])
             self.assertFalse(trace['joined_before_save'])  # 迟到结果不能把接管路径伪装成评审通过。
+            self.assertEqual(len(trace['late_proposals']),len(tail))
         trace = evaluation.capture_trace([spawn,work,join,stopped,write_start,command],'parent','rule')
         self.assertTrue(trace['joined_before_save'])  # 已收到结果后的正常关闭不撤销评审。
         stopping = collab('closeAgent',state='shutdown')

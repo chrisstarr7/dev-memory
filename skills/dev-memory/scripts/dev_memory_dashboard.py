@@ -516,7 +516,7 @@ class Dashboard:
         body += self._preview_form(key, query[:500], intent, mode)
         matches = {'keyword':'关键词匹配', 'intent':'任务类型匹配', 'semantic':'语义匹配', 'fallback':'兜底规则'}
         reasons = {'selected':'正文已返回', 'detail_limit':'条数额度不足', 'character_limit':'字符额度不足',
-                   'candidate_limit':'候选额度不足'}
+                   'candidate_limit':'候选额度不足', 'project_priority':'优先返回相关项目正文；全局软偏好保留导航'}
         for bucket in result.get("stores", []):
             body += f'<h2>{_h(bucket["scope"])} · {_h(bucket["status"])}</h2>'
             budget = bucket.get('budget', {})
@@ -542,7 +542,7 @@ class Dashboard:
                          f' · v{row["revision"]}</td><td>{_h(match)}</td><td>{_h(reasons.get(row["reason"], row["reason"]))}</td></tr>')
             body += '</tbody></table></div>' if rows else '<p>该范围没有可返回的结果；候选、归档及失效记录不作为普通规则返回。</p>'
             if bucket.get("context_incomplete"):
-                body += '<p class=warn>召回结果超出预算；未加载的记录不能视为已检查。</p>'
+                body += '<p class=warn>召回结果不完整；部分正文因预算或项目相关性优先而未加载，不能视为已检查。</p>'
             if bucket.get('candidate_limit_reached'):
                 body += '<p class=warn>候选检索已达到上限，可能仍有未列出的匹配；可缩小任务关键词后重试。</p>'
         body += '</section>'

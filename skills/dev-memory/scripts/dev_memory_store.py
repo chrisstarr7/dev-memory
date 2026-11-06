@@ -1907,7 +1907,7 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                   session_id: str | None, module: str | None, max_candidates: int, max_details: int,
                   max_chars: int, force: bool, readonly: bool, intent: str | None = None,
                   vector_query_cache: dict | None = None, explain: bool = False,
-                  disclosure: str = 'full') -> dict[str, Any]:
+                  disclosure: str = 'full', defer_soft_defaults: bool = False) -> dict[str, Any]:
     try:
         base, db_path, config = _config_for(kind, root, global_root)
     except MemoryError as exc:
@@ -1934,7 +1934,8 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
     except (sqlite3.Error, OSError, MemoryError):
         return {"scope": kind, "status": "unavailable", "reason": "storage_unavailable", "records": []}
     cache_value = {
-        "retrieval_format": 9, "intent": intent, "disclosure": disclosure,
+        "retrieval_format": 10, "intent": intent, "disclosure": disclosure,
+        "defer_soft_defaults": defer_soft_defaults,
         # Model-generated session labels can repeat across fresh Codex conversations.
         "host_thread": os.environ.get('CODEX_THREAD_ID') or None,
         "namespace": config["namespace_id"], "workspace": config.get("workspace_id"),
@@ -2112,6 +2113,8 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
                 shaped = {key:value for key,value in shaped.items() if value not in (None, '', [], {})}
             size = len(json.dumps(shaped, ensure_ascii=False))
             reason = ('index_only' if disclosure == 'index' else
+                      'project_priority' if defer_soft_defaults and kind == 'global'
+                      and record['strength'] != 'hard' and record['_score'] == 0 else
                       'long_body' if disclosure == 'auto' and size > 1000 else
                       'detail_limit' if len(details) >= max_details else
                       'character_limit' if used + size > max_chars else None)
@@ -2174,6 +2177,35 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         if conn is not None:
             conn.close()
 
+def _project_topic_pressure(root: Path, global_root: Path | None, query: str,
+                            reserved: int, max_candidates: int) -> bool:
+    """仅在有界词项查询确认项目额度不足时，推迟无匹配的全局软偏好正文。"""
+    terms = sorted(_token_terms(query[:10000]))[:128]
+    if not terms:
+        return False
+    try:
+        _, database, config = _config_for('project', root, global_root)
+        limits = config.get('limits', {})
+        if (not config.get('recall_enabled', True) or config.get('excluded')
+                or not isinstance(limits, dict)
+                or any(type(limits.get(key, default)) is not int for key, default in
+                       (('max_details', 5), ('max_candidates', 20), ('max_context_chars', 4000)))
+                or limits.get('max_context_chars', 4000) <= 0
+                or min(limits.get('max_details', 5), limits.get('max_candidates', 20), max_candidates) <= reserved):
+            return False
+        with closing(_connect(database, readonly=True)) as conn:
+            deadline = time.monotonic() + .5
+            conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
+            rows = conn.execute(f"""SELECT DISTINCT m.id FROM search_terms st INDEXED BY search_term_term
+                CROSS JOIN memories m ON m.id=st.memory_id
+                WHERE st.term IN ({','.join('?' for _ in terms)}) AND m.scope='project'
+                AND m.status IN ('active','conflicted') AND m.claim_type!='hypothesis' LIMIT ?""",
+                (*terms, reserved + 1)).fetchall()
+            return len(rows) > reserved
+    except (MemoryError, sqlite3.Error, OSError):
+        return False
+
+
 def recall(query: str, *, project_root: Path | None = None, global_root: Path | None = None,
            session_id: str | None = None, module: str | None = None,
            max_candidates: int = 20, max_details: int = 5, max_chars: int = 4000,
@@ -2196,10 +2228,13 @@ def recall(query: str, *, project_root: Path | None = None, global_root: Path | 
         # Reserve both scopes, then lend unused global detail/character capacity to the project.
         global_details = min(max(0, max_details - 1), max(1, (max_details * 3) // 5))
         global_budget = max(0, (max_chars * 3) // 5)
+        defer_defaults = global_details > 0 and max_chars > 0 and _project_topic_pressure(
+            project_root, global_root, query, max_details - global_details, max_candidates - half_candidates)
         global_result = _recall_store(
             "global", None, global_root, query, session_id=session_id, module=None,
             max_candidates=half_candidates, max_details=global_details, max_chars=global_budget,
             force=force, readonly=readonly, intent=intent, vector_query_cache=vector_query_cache, explain=explain, disclosure=disclosure,
+            defer_soft_defaults=defer_defaults,
         )
         usage = global_result.get('budget', {})
         global_details = usage.get('used_details', 0)

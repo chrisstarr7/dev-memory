@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "9688544853a539dcd84e2bcca31898ca7ac7276311bb7a6bc28fef4172d9eea5"
+      "sha256": "d3a29abfdaaf5fbb2068d3df30f30c873f4fe3b9ddeb4667534117670865e002"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -30,7 +30,7 @@
     },
     {
       "path": "skills/dev-memory/references/verification.md",
-      "sha256": "87fd2ef1839f3b85a9c06b07a16ab9960b2795d12ef202e181d359a59305277b"
+      "sha256": "e1fe2c5f3958446071dccdc400b0f8ef426154d672d0afe945ab5e1982ea0bfb"
     },
     {
       "path": "skills/dev-memory/references/setup.md",
@@ -46,11 +46,11 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "10f8e4b148085865bde93ffbbf135e6f6de5f41d0211b891e2c364c254fb63cb"
+      "sha256": "0e1e82411a66b47fa7350a1cd40214e1268607c7a53faff7ba4fe8b0ce53643e"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "26481e67a25556958b13f961e432a9b60370d6f873b58bc364e3297af5f6e887"
+      "sha256": "4aaa90c7429680fdddade808404a9e1e3ba39ff6fedf7a00aed7d3aebc9be0ff"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -58,7 +58,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_dashboard.py",
-      "sha256": "258aa0db4de3ef849a30eafff967ceebf65d1ae45a825599306bc43a778d9e21"
+      "sha256": "603d22ac1eb219c063d0ef284c010b0593c68fef2232587c09d21c4066ecd2b7"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_vectors.py",
@@ -82,7 +82,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "0172fd4aa0fab7aecef0189c14c2b5c5fc82ee813b91a44cb9733ac76e846538"
+      "sha256": "808990552e111d456539426065e0a09693784b1a596851165851f175dc853f3c"
     },
     {
       "path": "LICENSE",
@@ -122,11 +122,11 @@
     },
     {
       "path": "docs/architecture.md",
-      "sha256": "32496e69dde589c0fbc654b054fe81d71dd86e5bbd3247f27c2646eceb44f768"
+      "sha256": "68be6a51da376f177b791834af04e7ada8d2d8eab61a179c0e0673c814215bf8"
     },
     {
       "path": "docs/readme/README.zh-CN.md",
-      "sha256": "fcad5a5b354ae6403b791cdf75489803c2dc9e283404836c10a84a0dd47e3766"
+      "sha256": "d18b6df46a844567db43de63f794c539b1f7c11f97182c9490e0a99ded2d84a9"
     },
     {
       "path": "docs/readme/README.ja.md",
@@ -138,7 +138,7 @@
     },
     {
       "path": "tests/test_efficiency.py",
-      "sha256": "0b80c76b712410c33c45d50f3b3f7c4c92cb2a68200a9dc594a7bd55912c2f07"
+      "sha256": "7dd9573a176329c4f04e524c71cf8a3e42636475593a39d9d1fae0300011140a"
     },
     {
       "path": "reports/optimization-0.8.0.md",
@@ -198,15 +198,23 @@
     },
     {
       "path": "evals/check_host_delivery.py",
-      "sha256": "e78bc8273e7f83826b67e6c3f7c599f506c96fb95fb1ed6ab14891ac95231df8"
+      "sha256": "6a321e5a092874f9ce2b74da4d14401f09bcc730475a84ae8379731a1990be8e"
     },
     {
       "path": "tests/test_host_delivery_eval.py",
-      "sha256": "2d55079a18c3b3be3bc8e53aa2e7ad871b06d0ffa85a5833ac5fbde8cf4c4afd"
+      "sha256": "e2ee11661cd405b08d41bd0139fa26723e9171db1e0927f6508b246163b472cc"
     },
     {
       "path": "reports/host-delivery-review.md",
       "sha256": "109ab853842ce1300c2ebb9602b8647bc306bb6da9184b2cef2ebd52fd069cf4"
+    },
+    {
+      "path": "evals/vector_startup.py",
+      "sha256": "63893811d12d526951b332f3bc4133d063e409a974299048234380bf5c9df0cc"
+    },
+    {
+      "path": "reports/recall-host-vector-2026-11-06.md",
+      "sha256": "e9cfecb1ab91933196f64048a079c853264b3d95a9ec55c4b1ae267a7ffbfa86"
     },
     {
       "path": "evals/check_memory_quality.py",
@@ -278,7 +286,7 @@
     },
     {
       "path": "tests/test_dashboard.py",
-      "sha256": "d219021c43df9915b87417d6c6d07efcfcefcda0d1a5213099a4685fbcc7c0fb"
+      "sha256": "1f10dc4fd6cc2a96f04ccf0a18b07530a9a0fbf4e1423a2b71c182f83b53a1c7"
     },
     {
       "path": "tests/test_maintenance.py",
@@ -430,7 +438,7 @@
     },
     {
       "path": "tests/test_vectors.py",
-      "sha256": "896f64cae313669789ca25310c4a61ce91e363b340faf7b47f76bc8661de8b8b"
+      "sha256": "1ef48dc90b790f80f640dd359c2c530e813301dded299a8ff99972eb9770a7f8"
     },
     {
       "path": "tests/test_vector_setup.py",
@@ -438,7 +446,7 @@
     },
     {
       "path": "tests/test_vector_integration.py",
-      "sha256": "32b66e0e79fc93a4960863c63a224c0f4197a91bf0fe30f635eb87a656686241"
+      "sha256": "a1694870608d17d5cffa3013c9bf7c3c1a12408cdefb1b4a6fbcabc9d9398d39"
     },
     {
       "path": "tests/test_python_runtime.py",
