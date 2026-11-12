@@ -6,7 +6,7 @@
 
 | 宿主/入口 | 官方架构与安装方式 | 本工具采用 |
 | --- | --- | --- |
-| [Codex](https://developers.openai.com/codex/skills) | `.agents/skills`；可由内置 Skill Installer 下载 GitHub Skill；`agents/openai.yaml` 可选 | 标准基础 Skill，UI 元数据独立 |
+| [Codex](https://developers.openai.com/codex/skills) | `.agents/skills`；可由内置 Skill Installer 下载 GitHub Skill | 标准基础 Skill |
 | [OpenAI Plugins](https://developers.openai.com/plugins/build/plugins) | 根 `plugin.json`、`skills/`；可选 MCP/资产/扩展 | 最小可选 manifest；没有 MCP/自动 hooks 扩展，插件 E2E 未验证 |
 | [Claude Code](https://code.claude.com/docs/en/skills) | `.claude/skills`、`~/.claude/skills` 或插件包装；有宿主扩展字段 | 标准字段，避免专有子代理/工具授权 |
 | [Cursor](https://cursor.com/docs/skills) | `.agents/skills`、`.cursor/skills` 及用户目录 | 本地安装；远程/云端不自动取得本机私有库 |

@@ -35,7 +35,7 @@ Use the current host binding’s absolute `python` and `cli` paths from the proj
 <python> <cli> vectors setup
 <python> <cli> vectors status --scope both --project-root .
 <python> <cli> vectors sync --scope both --project-root .
-<python> <cli> vectors finish --scope both --project-root . --wait-seconds 3
+<python> <cli> vectors finish --scope both --project-root . --wait-seconds 2
 ```
 
 Replace the interpreter and Skill paths for another host. `status` inspects state; `sync` requests a bounded batch; `finish` checks the result and waits within its limit. None of them initializes a missing memory store or changes capture mode. Scope `both` means the global store and specified current project, never every registered project.
@@ -46,7 +46,7 @@ Replace the interpreter and Skill paths for another host. `status` inspects stat
 2. The raw transaction saves the record and invalidates any old vector. The original-save receipt is authoritative even if inference fails.
 3. A local process calculates vectors outside a write transaction. One batch has a 10-second execution budget, including model loading.
 4. Before vector commit, recheck record identity/revision, model fingerprint, eligibility and capture controls. A changed or deleted record rejects a late result.
-5. Once the requested work and its authorized checks are complete, send one visible progress message before the finish check, for example: “修复和本轮检查已完成，可以先查看或自行提交代码；我正在确认记忆向量化结果。” Use the actual task and known indexing state, not an assumption that a previously running job is still running. Then perform one finish check before the final reply. Additional waiting is at most 3 seconds within the remaining batch budget, not 3 seconds per record. Report pending vectors accurately; on timeout say the original was saved and vectors await completion. This notice does not authorize an automatic commit.
+5. Once the requested work and its authorized checks are complete, send one visible progress message before the finish check, for example: “修复和本轮检查已完成，可以先查看或自行提交代码；我正在确认记忆向量化结果。” Use the actual task and known indexing state, not an assumption that a previously running job is still running. Then perform one finish check before the final reply. Additional waiting is at most 2 seconds within the remaining batch budget, not 2 seconds per record. Report pending vectors accurately; on timeout say the original was saved and vectors await completion. This notice does not authorize an automatic commit.
 6. Recall generates a query vector within a 5-second combined-call budget, fuses candidates with keyword results and rechecks authoritative records. When exact keyword matches already fill the store's detail budget, the query vector is skipped and reported as `skipped/lexical_sufficient`. Timeout/unavailability returns lexical results with a degradation reason. The existing context limits and global/project isolation still apply. Ordinary recall never schedules background indexing; only the save path and an explicit `vectors sync` do.
 7. Only full details actually delivered increment ordinary recall counts. Candidate indexes, cached results and read-only previews do not. Vector and keyword duplicates count once.
 

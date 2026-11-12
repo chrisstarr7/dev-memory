@@ -128,7 +128,7 @@ Use the configured global root if it is not the default. Restart the dashboard a
 2. 在原项目根目录运行本页在线命令，选择实际宿主，并在末尾加 `--json`。Windows x64 与 macOS Intel/Apple Silicon 的 npx 入口会准备专用 Python，无需预检或升级系统 Python；Linux 和直接 Python 入口才需预先准备 Python 3.10+ 与 sqlite3。其他目录使用显式 `--project <原项目绝对路径>`；自定义宿主目录用 `--target`。
 3. 检查退出码为 0、`status: installed`、`runtime_check.status: passed`、`project_setup.status: initialized`、`activation: configured`，以及两个 `stores` 的实际结果。只复制文件不算初始化成功。
 4. 报告项目、程序路径和引导文件。用户新建该项目会话后正常开发即可，不需要启用、保存、召回或继续的 Skill 口令。
-5. 重复执行在线命令更新受管理安装和项目绑定。未知文件、非受管理目录、符号链接或损坏的标记会拒绝覆盖；保留无关配置。外部管理器安装应继续使用原管理器更新，从实际副本运行 `setup`。
+5. 重复执行在线命令更新受管理安装和项目绑定。升级会把未知文件整体移入同级 `.unmanaged` 目录并保留原内容，不覆盖、不删除；非受管理目录、符号链接或损坏的标记仍会拒绝覆盖。保留无关配置。外部管理器安装应继续使用原管理器更新，从实际副本运行 `setup`。
 
 不配置默认 hooks、不授予宿主信任，也不启动后台进程。Codex 的推荐 npx 安装会按其功能同时更新用户级全局引导和当前项目引导；其他宿主仅更新当前项目引导。管理块外内容保持原样。失败最多一次针对明确原因的重试，如实说明已安装/已初始化的部分。
 
@@ -144,7 +144,7 @@ Use the configured global root if it is not the default. Restart the dashboard a
 npx -y --prefer-online chrisstarr7/dev-memory#main codex
 ```
 
-无需清空整个 npm 缓存、删除公共 Skill 或使用管理员终端。缓存相关选项见 [npm 官方说明](https://docs.npmjs.com/cli/v11/commands/npm-exec/#a-note-on-caching)。未知文件或非受管理目录仍会拒绝覆盖；它们需要检查，不能作为重复安装自动删除。多个安装/卸载同时操作同一目录时返回 `installation_busy`，结束后重试一次；进程中断留下的锁须确认没有活动进程再删除该锁文件。
+无需清空整个 npm 缓存、删除公共 Skill 或使用管理员终端。缓存相关选项见 [npm 官方说明](https://docs.npmjs.com/cli/v11/commands/npm-exec/#a-note-on-caching)。升级遇到未知文件会将其移入同级 `.unmanaged` 目录保留；卸载遇到未知文件仍会拒绝执行，它们需要检查，不能自动删除。非受管理目录仍会拒绝覆盖。多个安装/卸载同时操作同一目录时返回 `installation_busy`，结束后重试一次；进程中断留下的锁须确认没有活动进程再删除该锁文件。
 
 已有安装且不方便联网时，可直接使用本地副本（Codex 默认路径）：
 

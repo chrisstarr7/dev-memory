@@ -298,9 +298,9 @@ def schedule(kind, *, project_root=None, global_root=None):
     return {'status': 'running', 'budget_seconds': WORK_SECONDS, 'raw_saved': True}
 
 
-def finish(kind, *, project_root=None, global_root=None, wait_seconds=3):
+def finish(kind, *, project_root=None, global_root=None, wait_seconds=2):
     import dev_memory_store as store
-    deadline = time.monotonic()+max(0, min(float(wait_seconds), 3))
+    deadline = time.monotonic()+max(0, min(float(wait_seconds), 2))
     while True:
         result = status(kind, project_root=project_root, global_root=global_root)
         if result['status'] != 'running':

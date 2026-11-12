@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/storage-local%20SQLite-4493F8" alt="本地 SQLite 存储" />
 </p>
 
-<p align="center"><strong>简体中文</strong> · <a href="docs/readme/README.en.md">English</a> · <a href="docs/readme/README.ja.md">日本語</a> · <a href="docs/readme/README.ko.md">한국어</a></p>
+<p align="center"><strong>简体中文</strong> · <a href="docs/readme/README.en.md">English</a></p>
 
 Dev Memory 是用于 AI 辅助开发的 Skill 和本地 Python 程序。它帮助 AI 召回相关研发习惯与项目规则，并根据真实要求或证据保存长期知识。AI 判断含义，程序负责校验并将记录存入 SQLite。
 
@@ -129,7 +129,7 @@ flowchart TD
 | 接入范围 | 已有证据 |
 | --- | --- |
 | 本机 Codex CLI／app-server | 新会话、恢复、压缩后的正文送达与产物行为均已实测 |
-| OpenCode 2.2.1 | 普通提示采集、新会话召回及实际产物已实测；采用主智能体回退路径，未认证原生取消能力 |
+| OpenCode（最近实测 2.2.1） | 普通提示采集、新会话召回及实际产物已实测；采用主智能体回退路径，未认证原生取消能力 |
 | 可选 Codex hooks | 配置与程序测试覆盖，真实信任执行单独验收 |
 | 其他宿主 | 引导适配与程序测试覆盖，本轮未进行真实模型会话验收 |
 
@@ -216,7 +216,7 @@ npx -y --prefer-online chrisstarr7/dev-memory dashboard
 
 在记忆列表下展开“模拟日常召回”，输入任务关键词，可选任务类型，再点击“执行预览”。默认使用日常首次召回的 5 条／4000 字符联合额度，显示各范围实际用量、记忆修订、关键词／语义／任务类型／兜底匹配，以及因条数、字符或候选额度未加载的结果。向量不可用时会显示降级原因，原文检索仍可使用。选择“扩大检索”可提高请求额度，但结果不代表日常默认调用；两种模式都受各库配置约束。
 
-预览不保存查询、不增加召回次数，也不证明 AI 已执行规则。打开页面不启动检索；主动执行预览时可能使用本地向量模型。CLI 可在 `context` 或 `recall` 后添加 `--explain` 获取同样的选择依据，配合 `--readonly --force` 可检查首次召回而不写入统计或缓存。
+预览不保存查询、不增加召回次数，也不证明 AI 已执行规则。打开页面不启动检索；主动执行预览时可能使用本地向量模型。CLI 可在 `context` 后添加 `--explain` 获取同样的选择依据，配合 `--readonly --force` 可检查首次召回而不写入统计或缓存。
 
 若 Windows 页面提示项目列表权限错误，看板仍可显示全局记忆。按[Windows 看板权限修复](docs/installation.md#windows-dashboard-permissions)修复后重启看板。
 

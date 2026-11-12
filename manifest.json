@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "37b418fc46d75620cb25ecea0a5f61887458619f801ddae91108d51e4af4f689"
+      "sha256": "6f0731b1468fc3743593ac096eb3f24a55ab631ba6603d2783c5bbf5c4f1ff3b"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -11,10 +11,6 @@
     {
       "path": "skills/dev-memory/.dev-memory-skill-install",
       "sha256": "746f3fa0fe42a57384b3f394acccd08bf3c2d07421184fb6a8980b23e7a7282f"
-    },
-    {
-      "path": "skills/dev-memory/agents/openai.yaml",
-      "sha256": "b693aaa71814cd9799dcb965f08edcb276fcd1d5d82b78007d1dfc3d1d652a30"
     },
     {
       "path": "skills/dev-memory/assets/config.example.json",
@@ -38,7 +34,7 @@
     },
     {
       "path": "skills/dev-memory/references/vectors.md",
-      "sha256": "05323e2feb0aaea628773c50e6d26e8ed1f2f98482c7c00b11a2f75083c560fe"
+      "sha256": "90091748070c3f201128b815b495308cba72c023f2d358b437a1cd300ff025f1"
     },
     {
       "path": "skills/dev-memory/references/delegated-assessment.md",
@@ -46,11 +42,11 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "5338e2795fcf3eec6235d162b662d402f137fb4e4a4ff5b394ad703522de4697"
+      "sha256": "840dae03f1971f6b656e210e49be1b90379e29b3c98c9d83593a99b1d9b8a2ad"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "e0f0ad53623d981b2a6be6e76c25d965cf58e119f31b850bba46a2ac377e1211"
+      "sha256": "f5e7e8d38ed3fc1913578039584d105882ad786efbe36aa0049b5866e25f7132"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -62,7 +58,7 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_vectors.py",
-      "sha256": "0feb57f36a7cdeb838fd4d6c2239f030996d2f61a76d1f28469b23a4fcc9af42"
+      "sha256": "e68d92615340b4c195879fc8ce22220ad605e55d2afae5168c8b7fa05ca7d1fa"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_vector_setup.py",
@@ -82,7 +78,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "c5edd08698cf867a5bcb5c0db0fd960fcd65e375c75c8ec2cd75d88b84b77f17"
+      "sha256": "355f774e4bae42226a469fc3be225fe654e54e36a67697e3bc3e042d8802e897"
     },
     {
       "path": "LICENSE",
@@ -98,7 +94,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "8b648cd581cabfa7f2d7fe4123534926c539aa497a7c5ad94ce4207dd491e21c"
+      "sha256": "079dc9c2a39cf60f753ab6a2bdbaf48aaa640cefff74da02df1a27bafb4f8f78"
     },
     {
       "path": "bin/install.cjs",
@@ -114,31 +110,23 @@
     },
     {
       "path": "docs/installation.md",
-      "sha256": "5eb3fbcdbb5a46b366ea1c247e90208f9cc70ed1164252da3f25722f484abc51"
+      "sha256": "2a119145db82348142f121f53629fdf87de28d3d27eb57ea0aabdc985dd19054"
     },
     {
       "path": "docs/ecosystem.md",
-      "sha256": "e8252653390bc22d517d6684c90ecdc788d3b109ed5541970ceb6035966b9aad"
+      "sha256": "47ac5b9f3d28dfc1baf2b9eda627c091d9bef591be31db2a7f582417ccc93949"
     },
     {
       "path": "docs/architecture.md",
-      "sha256": "68be6a51da376f177b791834af04e7ada8d2d8eab61a179c0e0673c814215bf8"
+      "sha256": "521225e8cad90bd02428ef3983e43f80eabeb3c1aad8414b3136c637ae478670"
     },
     {
-      "path": "docs/readme/README.zh-CN.md",
-      "sha256": "d18b6df46a844567db43de63f794c539b1f7c11f97182c9490e0a99ded2d84a9"
-    },
-    {
-      "path": "docs/readme/README.ja.md",
-      "sha256": "6fb39e95ec2a0134cc38ecfb6ec56510248c8d1d21a975e7eead3f22e127ce71"
-    },
-    {
-      "path": "docs/readme/README.ko.md",
-      "sha256": "662f17696be5c3fdd8951f2fcf43fdc286ccdfb138f518fc33004f071880443b"
+      "path": "docs/readme/README.en.md",
+      "sha256": "ff605cdb7c62482fecce883aa135169c02548a3f0c10d7e65156c03fb99c8962"
     },
     {
       "path": "tests/test_efficiency.py",
-      "sha256": "7dd9573a176329c4f04e524c71cf8a3e42636475593a39d9d1fae0300011140a"
+      "sha256": "b170893566d8ea12a542fb763dece6eabb3fdfa2f459e750b152e2717551414c"
     },
     {
       "path": "reports/optimization-0.8.0.md",
@@ -298,11 +286,11 @@
     },
     {
       "path": "tests/test_adversarial.py",
-      "sha256": "8e37599d92828c5ba43603a6fd296734de8a35473abd5045d486aafb3badb366"
+      "sha256": "31f749964c5e9e1e0ffe10f62d6de7d60337a5c701db01c7e7d85bd05505033a"
     },
     {
       "path": "tests/test_installer.py",
-      "sha256": "fb8ea99694f78a053c3b947ea874fd0dbe8fa8fc768a902529d6c45a3cea3e85"
+      "sha256": "9ec644abb42d1b1ddcaab5547b05f533419cdd5b0122af7c75e5524330452ae2"
     },
     {
       "path": "tests/test_setup.py",
@@ -374,7 +362,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "0aaa74e86fd8251e5692fcaf7c7d2f45a265ad3d3276598cad1d43b301db0c6c"
+      "sha256": "858848314ff3f98c275354a72d34522467043a2b54cf41f772ba747e8a5195f5"
     },
     {
       "path": "reports/online-installation.json",
@@ -414,7 +402,7 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "575ceee7f92349f39101dd432400d9b091b00b59dfdd9f492ee809155a52e507"
+      "sha256": "0fad000ee692f5eaf64f0551b28f14a6b988cc08590fdb7434d054ef529534b6"
     },
     {
       "path": "evals/check_deepseek.py",
@@ -463,5 +451,5 @@
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.10.1"
+  "version": "0.10.2"
 }
