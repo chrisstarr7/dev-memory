@@ -2022,8 +2022,20 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         selected_ids = set(scores)
         indexed_matches = set(scores)
         conn.set_progress_handler(None, 0)
-        vector_result = vectors.search(query, kind, project_root=root, global_root=global_root,
-                                       query_cache=vector_query_cache, timeout=5)
+        # Skip the semantic cold start only when exact keyword hits give this store
+        # a definitive answer: the budget is full and every top match covers most
+        # query terms. Weak one-term hits still leave room for a semantic match.
+        lexically_sufficient = False
+        if terms and runtime is not None:
+            lex_weights = [1.0 / max(1, frequencies.get(term, 1)) for term in terms if term in lexical_terms]
+            top_lexical = sorted(scores, key=lambda mid: -scores[mid])[:max_details]
+            lexically_sufficient = (max_details > 0 and len(lexical_matches) >= max_details and lex_weights
+                                    and all(scores[mid] >= 0.5 * sum(lex_weights) for mid in top_lexical))
+        if lexically_sufficient:
+            vector_result = {'status': 'skipped', 'reason': 'lexical_sufficient', 'records': []}
+        else:
+            vector_result = vectors.search(query, kind, project_root=root, global_root=global_root,
+                                           query_cache=vector_query_cache, timeout=5)
         deadline = time.monotonic() + 0.5
         conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
         # Fuse ranks rather than adding incomparable lexical scores and cosine distances.

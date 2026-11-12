@@ -51,6 +51,45 @@ class VectorTests(MemoryTestCase):
             self.add_project_rule()
         schedule.assert_called_once_with('project', project_root=self.project_a, global_root=self.global_root)
 
+    def test_lexically_saturated_recall_skips_semantic_query(self):
+        for index in range(5):
+            self.add_project_rule(turn=f'saturation-{index}',
+                                  title=f'共同词规则{index}', content=f'共同词内容{index}')
+        queried = []
+        def spy(query, kind, **kwargs):
+            queried.append(kind)
+            return {'status': 'ok', 'records': []}
+        with patch.object(vectors, '_settings', return_value={'model_fingerprint': 'fixture'}), \
+             patch.object(vectors, 'search', side_effect=spy):
+            result = store.recall('共同词', project_root=self.project_a,
+                                  global_root=self.global_root, readonly=True)
+        self.assertNotIn('project', queried)
+        bucket = result['stores'][1]
+        self.assertEqual(bucket['vectors'], {'status': 'skipped', 'reason': 'lexical_sufficient'})
+        self.assertEqual({record['title'] for record in bucket['records']},
+                         {f'共同词规则{index}' for index in range(5)})
+
+    def test_unsaturated_recall_still_runs_semantic_query(self):
+        self.add_project_rule(turn='single-rule', title='唯一规则')
+        queried = []
+        def spy(query, kind, **kwargs):
+            queried.append(kind)
+            return {'status': 'ok', 'records': []}
+        with patch.object(vectors, 'search', side_effect=spy):
+            store.recall('唯一', project_root=self.project_a, global_root=self.global_root, readonly=True)
+        self.assertEqual(queried, ['global', 'project'])
+
+    def test_ordinary_context_reports_pending_vectors_without_scheduling(self):
+        import dev_memory
+        self.add_project_rule(turn='pending-report')
+        pending = {'status': 'pending', 'eligible': 1, 'ready': 0, 'pending': 1,
+                   'dimensions': 384, 'model': 'fixture', 'generation': 'chunks96-v1:0'}
+        with patch.object(vectors, 'enabled', return_value=True), \
+             patch.object(vectors, 'status', return_value=dict(pending)), \
+             patch.object(vectors, 'schedule', side_effect=AssertionError('recall cannot schedule indexing')):
+            result = dev_memory.context('查询', project_root=self.project_a, global_root=self.global_root)
+        self.assertEqual(result['stores'][1]['vector_index']['status'], 'pending')
+
     def test_record_status_requires_current_eligible_source(self):
         mid = self.add_project_rule()
         config = self.runtime()

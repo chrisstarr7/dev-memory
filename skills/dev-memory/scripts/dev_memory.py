@@ -216,12 +216,12 @@ def context(query: str = '', *, project_root: Path | None = None, global_root: P
         if not readonly and bucket['status'] == 'ok' and bucket.get('capture_enabled'):
             import dev_memory_vectors as vectors
             if vectors.enabled(global_root):
-                index = vectors.status(bucket['scope'], project_root=project_root, global_root=global_root)
-                if index.get('status') == 'pending':
-                    try:
-                        index = vectors.schedule(bucket['scope'], project_root=project_root, global_root=global_root)
-                    except (store.MemoryError, sqlite3.Error, OSError):
-                        index = {'status': 'deferred', 'reason': 'index_unavailable'}
+                # Recall only reports index state; never starts background indexing.
+                # New writes are scheduled by the save path; existing backlogs use `vectors sync`.
+                try:
+                    index = vectors.status(bucket['scope'], project_root=project_root, global_root=global_root)
+                except (store.MemoryError, sqlite3.Error, OSError):
+                    index = {'status': 'deferred', 'reason': 'index_unavailable'}
                 bucket['vector_index'] = index
     project_activation = activation.status(project_root)
     result['activation'] = project_activation

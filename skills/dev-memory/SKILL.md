@@ -3,7 +3,7 @@ name: dev-memory
 description: Local development memory. For development tasks, recall relevant developer habits and authorized project rules; learn durable habits from visible user requirements, corrections and choices, preserving evidence and scope.
 license: MIT
 metadata:
-  version: "0.10.0"
+  version: "0.10.1"
   requires: "Python 3.10+ with sqlite3 and local file/process access; Git optional."
 ---
 
@@ -107,7 +107,7 @@ Do not save task status, to-do lists, ordinary diffs, every inspected symbol, co
 
 ## Write clear atomic records, once
 
-When a save returns `vectors` with background work, continue the task and call one `vectors finish --scope both --project-root PATH --wait-seconds 3` before the final reply (use `--scope global` for global-only work). This is one total wait budget, not per record. Inspect raw-save and vector results separately: a pending or unavailable vector does not undo a committed memory. Do not poll, install models, or run full indexing in ordinary turns. Hybrid retrieval is automatic when ready and falls back to existing keyword recall; privacy, scope, candidate status, budgets, and recall-count rules still apply. Read [vectors.md](references/vectors.md) only for vector setup, diagnosis, lifecycle or model changes.
+When a save returns `vectors` with background work, continue the task and call one `vectors finish --scope both --project-root PATH --wait-seconds 3` before the final reply (use `--scope global` for global-only work). This is one total wait budget, not per record. Inspect raw-save and vector results separately: a pending or unavailable vector does not undo a committed memory. Do not poll, install models, or run full indexing in ordinary turns. Hybrid retrieval is automatic when ready and falls back to existing keyword recall; when exact keyword matches already fill this store's detail budget, the semantic pass is skipped and reported as `lexical_sufficient`. Ordinary recall never schedules background indexing: new writes are indexed from the save path, and existing backlogs use `vectors sync`. Privacy, scope, candidate status, budgets, and recall-count rules still apply. Read [vectors.md](references/vectors.md) only for vector setup, diagnosis, lifecycle or model changes.
 
 Before that finish call, when the requested work and its authorized checks are complete, send one visible progress message separating completed work from memory finalization. For a code fix: “修复和本轮检查已完成，可以先查看或自行提交代码；我正在确认记忆向量化结果。” Adapt this to the actual task. If indexing is known to be running, say it is still running; otherwise say you are checking its result rather than asserting a stale status. Continue the bounded finish call before the final reply. Report `ready` as complete, or a timeout/unavailable result as “原文已保存，向量待补齐”; never wait indefinitely or claim uncompleted checks passed. This progress notice does not authorize a commit or replace the final response. A recall miss alone never authorizes capture: only supported durable increments pass the normal capture gate.
 
