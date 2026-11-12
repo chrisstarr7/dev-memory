@@ -115,7 +115,9 @@ def main(argv: list[str] | None = None) -> int:
             import dev_memory_setup
             if not install_path.is_dir():
                 raise store.MemoryError("installation_missing", "未找到已安装的 Skill；首次安装请使用 AI 名称命令。")
-            dev_memory._check_managed_install(install_path)
+            # Ownership and path safety still matter here; unknown files are
+            # quarantined by the installer instead of blocking the update.
+            dev_memory._check_managed_install(install_path, allow_unknown_files=True)
             refresh_project = False
             result["project_setup"] = {"status": "skipped", "reason": "not_bound"}
             if args.project:

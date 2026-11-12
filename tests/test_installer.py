@@ -370,6 +370,19 @@ $rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(moved.read_text(encoding="utf-8"), 'keep me')
 
+    def test_update_quarantines_legacy_removed_file(self) -> None:
+        self.assertEqual(self.run_installer('codex').returncode, 0)
+        legacy = self.home / '.agents/skills/dev-memory/agents/openai.yaml'
+        legacy.parent.mkdir(exist_ok=True)
+        legacy.write_text('legacy managed file', encoding="utf-8")
+        result = self.run_installer('update', 'codex', '--json')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['status'], 'installed')
+        self.assertEqual(payload['unmanaged_quarantined'], 1)
+        moved = self.home / '.agents/skills/dev-memory.unmanaged/agents/openai.yaml'
+        self.assertEqual(moved.read_text(encoding="utf-8"), 'legacy managed file')
+
     def test_unknown_extra_file_still_blocks_uninstall(self) -> None:
         self.assertEqual(self.run_installer('codex').returncode, 0)
         extra = self.home / '.agents/skills/dev-memory/user-notes.md'
