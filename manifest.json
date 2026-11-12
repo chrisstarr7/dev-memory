@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "skills/dev-memory/SKILL.md",
-      "sha256": "d3a29abfdaaf5fbb2068d3df30f30c873f4fe3b9ddeb4667534117670865e002"
+      "sha256": "37b418fc46d75620cb25ecea0a5f61887458619f801ddae91108d51e4af4f689"
     },
     {
       "path": "skills/dev-memory/LICENSE",
@@ -38,7 +38,7 @@
     },
     {
       "path": "skills/dev-memory/references/vectors.md",
-      "sha256": "1b4d4a4889ba1e882fccaf559725ffb7777894a0fecf70842538d8df5efa34eb"
+      "sha256": "05323e2feb0aaea628773c50e6d26e8ed1f2f98482c7c00b11a2f75083c560fe"
     },
     {
       "path": "skills/dev-memory/references/delegated-assessment.md",
@@ -46,11 +46,11 @@
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory.py",
-      "sha256": "0e1e82411a66b47fa7350a1cd40214e1268607c7a53faff7ba4fe8b0ce53643e"
+      "sha256": "5338e2795fcf3eec6235d162b662d402f137fb4e4a4ff5b394ad703522de4697"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_store.py",
-      "sha256": "4aaa90c7429680fdddade808404a9e1e3ba39ff6fedf7a00aed7d3aebc9be0ff"
+      "sha256": "e0f0ad53623d981b2a6be6e76c25d965cf58e119f31b850bba46a2ac377e1211"
     },
     {
       "path": "skills/dev-memory/scripts/dev_memory_setup.py",
@@ -82,7 +82,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "808990552e111d456539426065e0a09693784b1a596851165851f175dc853f3c"
+      "sha256": "c5edd08698cf867a5bcb5c0db0fd960fcd65e375c75c8ec2cd75d88b84b77f17"
     },
     {
       "path": "LICENSE",
@@ -98,7 +98,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "50af41b65cd39f6bca52c0087b1b37da6db3fb4518e5bbd3b48a41abbc018161"
+      "sha256": "8b648cd581cabfa7f2d7fe4123534926c539aa497a7c5ad94ce4207dd491e21c"
     },
     {
       "path": "bin/install.cjs",
@@ -374,7 +374,7 @@
     },
     {
       "path": "build_release.py",
-      "sha256": "186fc0d9bc73db4532ad38b810195167eb94fc1a4f54e3452f93a704b7878061"
+      "sha256": "0aaa74e86fd8251e5692fcaf7c7d2f45a265ad3d3276598cad1d43b301db0c6c"
     },
     {
       "path": "reports/online-installation.json",
@@ -414,7 +414,7 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "5cda7f031599cbc479f07862b8627bc44f0acba5a7d92260d438d2da7c171874"
+      "sha256": "575ceee7f92349f39101dd432400d9b091b00b59dfdd9f492ee809155a52e507"
     },
     {
       "path": "evals/check_deepseek.py",
@@ -438,7 +438,7 @@
     },
     {
       "path": "tests/test_vectors.py",
-      "sha256": "1ef48dc90b790f80f640dd359c2c530e813301dded299a8ff99972eb9770a7f8"
+      "sha256": "5fe0de4c2b98facae4f205b2c3e5048ee85484c9d1c11a6ce837c1161fd91559"
     },
     {
       "path": "tests/test_vector_setup.py",
@@ -463,5 +463,5 @@
   ],
   "license_status": "MIT",
   "package": "dev-memory",
-  "version": "0.10.0"
+  "version": "0.10.1"
 }
