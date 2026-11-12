@@ -327,12 +327,18 @@ class AdversarialTests(MemoryTestCase):
         dev_memory.install(target, False, False)
         extra = target / "private.sqlite3"
         extra.write_text("synthetic private data", encoding="utf-8")
-        with self.assertRaises(store.MemoryError):
-            dev_memory.install(target, False, True)
+        # Upgrades quarantine unknown files next to the install instead of failing or deleting them.
+        dev_memory.install(target, False, True)
+        moved = target.parent / "installed.unmanaged/private.sqlite3"
+        self.assertEqual(moved.read_text(encoding="utf-8"), "synthetic private data")
+        self.assertFalse(extra.exists())
+        # Uninstall still refuses while an unknown file remains inside the managed tree.
+        again = target / "private.sqlite3"
+        again.write_text("synthetic private data", encoding="utf-8")
         with self.assertRaises(store.MemoryError):
             dev_memory.uninstall(target)
-        self.assertTrue(extra.exists())
-        extra.unlink()
+        self.assertTrue(again.exists())
+        again.unlink()
         marker = target / dev_memory.MARKER
         marker.unlink()
         marker.symlink_to(ROOT / "skills/dev-memory" / dev_memory.MARKER)

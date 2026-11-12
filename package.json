@@ -1,6 +1,6 @@
 {
   "name": "dev-memory",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Developer-centered local memory of coding habits and reasoning preferences for AI assistants.",
   "license": "MIT",
   "repository": {
@@ -21,7 +21,6 @@
     "skills/dev-memory/SKILL.md",
     "skills/dev-memory/LICENSE",
     "skills/dev-memory/.dev-memory-skill-install",
-    "skills/dev-memory/agents/openai.yaml",
     "skills/dev-memory/assets/config.example.json",
     "skills/dev-memory/references/protocol.md",
     "skills/dev-memory/references/codex-hooks.md",

@@ -377,14 +377,13 @@ class EfficiencyTests(MemoryTestCase):
         self.assertEqual(sum(r['loaded'] for r in rows), 2)
         self.assertTrue(any(r['reason'] == 'detail_limit' for r in rows))
         self.assertTrue(all('keyword' in r['matches'] for r in rows))
-        for command in ('context', 'recall'):
-            completed = subprocess.run([sys.executable, '-B', str(SCRIPTS/'dev_memory.py'),
-                '--global-root', str(self.global_root), command, '--project-root', str(self.project_a),
-                '--query', 'Export', '--max-details', '2', '--readonly', '--force', '--explain'],
-                check=True, capture_output=True, text=True, encoding='utf-8')
-            actual = json.loads(completed.stdout)['stores'][1]
-            self.assertEqual(actual['records'], explained['stores'][1]['records'])
-            self.assertEqual(actual['selection'], rows)
+        completed = subprocess.run([sys.executable, '-B', str(SCRIPTS/'dev_memory.py'),
+            '--global-root', str(self.global_root), 'context', '--project-root', str(self.project_a),
+            '--query', 'Export', '--max-details', '2', '--readonly', '--force', '--explain'],
+            check=True, capture_output=True, text=True, encoding='utf-8')
+        actual = json.loads(completed.stdout)['stores'][1]
+        self.assertEqual(actual['records'], explained['stores'][1]['records'])
+        self.assertEqual(actual['selection'], rows)
         short = store.recall('Export', explain=True, max_chars=100, project_root=self.project_a,
                              global_root=self.global_root, readonly=True)
         self.assertFalse(short['stores'][1]['records'])

@@ -346,14 +346,52 @@ $rules=@(foreach($r in $a.GetAccessRules($true,$true,[System.Security.Principal.
         self.assertEqual(exc.exception.code, 'path_escape')
         self.assertEqual(list(outside.iterdir()), [])
 
-    def test_unknown_extra_files_block_upgrade(self) -> None:
+    def test_unknown_extra_files_are_quarantined_on_upgrade(self) -> None:
         self.assertEqual(self.run_installer('codex').returncode, 0)
         extra = self.home / '.agents/skills/dev-memory/user-notes.md'
         extra.write_text('synthetic user file', encoding="utf-8")
         result = self.run_installer('codex', '--upgrade', '--json')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['unmanaged_quarantined'], 1)
+        self.assertFalse(extra.exists())
+        moved = self.home / '.agents/skills/dev-memory.unmanaged/user-notes.md'
+        self.assertEqual(moved.read_text(encoding="utf-8"), 'synthetic user file')
+        self.assertTrue((self.home / '.agents/skills/dev-memory/SKILL.md').exists())
+
+    def test_quarantined_files_survive_uninstall(self) -> None:
+        self.assertEqual(self.run_installer('codex').returncode, 0)
+        extra = self.home / '.agents/skills/dev-memory/user-notes.md'
+        extra.write_text('keep me', encoding="utf-8")
+        self.assertEqual(self.run_installer('codex', '--upgrade', '--json').returncode, 0)
+        moved = self.home / '.agents/skills/dev-memory.unmanaged/user-notes.md'
+        self.assertTrue(moved.is_file())
+        result = self.run_installer('uninstall', 'codex', '--json')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(moved.read_text(encoding="utf-8"), 'keep me')
+
+    def test_unknown_extra_file_still_blocks_uninstall(self) -> None:
+        self.assertEqual(self.run_installer('codex').returncode, 0)
+        extra = self.home / '.agents/skills/dev-memory/user-notes.md'
+        extra.write_text('synthetic user file', encoding="utf-8")
+        result = self.run_installer('uninstall', 'codex', '--json')
         self.assertEqual(result.returncode, 1)
         self.assertEqual(json.loads(result.stdout)['error'], 'unmanaged_files')
         self.assertEqual(extra.read_text(encoding="utf-8"), 'synthetic user file')
+
+    def test_doctor_explanations_cover_confusing_fields(self) -> None:
+        payload = dev_memory.doctor(project_root=None, global_root=self.home / '.dev-memory')
+        self.assertIn('explanations', payload)
+        for key in ('automatic_mode', 'hook_trust', 'real_host_e2e_verified', 'read_only'):
+            self.assertIn(key, payload['explanations'])
+            self.assertTrue(payload['explanations'][key].strip())
+
+    def test_recall_cli_alias_is_rejected(self) -> None:
+        completed = subprocess.run([sys.executable, '-B', str(ROOT / 'skills/dev-memory/scripts/dev_memory.py'),
+                                    'recall', '--query', 'x'], cwd=self.home, env=self.env,
+                                   capture_output=True, text=True, encoding='utf-8', timeout=15)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn('invalid choice', completed.stderr)
 
     def test_failed_runtime_check_does_not_claim_success(self) -> None:
         for index, value in enumerate(('{}', '[]', 'not-json', '{"status":"ok","base_mode":"available"}')):

@@ -39,6 +39,7 @@ STRENGTHS = {"informational", "soft", "hard"}
 SOURCES = {"user_statement", "user_confirmation", "user_feedback", "code_observation", "tool_result", "external_reference", "model_inference"}
 USER_SOURCES = ("user_statement", "user_confirmation", "user_feedback")
 MAX_EVIDENCE_CHARS = 500
+RANK_FUSION_OFFSET = 60  # Reciprocal-rank fusion denominator; keeps fused scores below lexical term weights.
 PROJECT_DIR_NAME = ".dev-memory"
 MANAGED_EXCLUDE_BEGIN = "# dev-memory managed begin"
 MANAGED_EXCLUDE_END = "# dev-memory managed end"
@@ -2043,10 +2044,10 @@ def _recall_store(kind: str, root: Path | None, global_root: Path | None, query:
         vector_distances = {item['id']: item['distance'] for item in vector_matches}
         if vector_matches:
             lexical_order = sorted(scores, key=lambda mid: (-int(mid in lexical_matches), -scores[mid], mid))
-            scores = {mid: 1 / (60 + rank) for rank, mid in enumerate(lexical_order, 1)}
+            scores = {mid: 1 / (RANK_FUSION_OFFSET + rank) for rank, mid in enumerate(lexical_order, 1)}
             for rank, item in enumerate(vector_matches[:max_candidates], 1):
                 memory_id = item['id']
-                scores[memory_id] = scores.get(memory_id, 0) + 1 / (60 + rank)
+                scores[memory_id] = scores.get(memory_id, 0) + 1 / (RANK_FUSION_OFFSET + rank)
             selected_ids.update(scores)
         if kind == "global":
             selected_ids.update(row[0] for row in conn.execute(

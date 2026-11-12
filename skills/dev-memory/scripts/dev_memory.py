@@ -23,7 +23,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 MARKER = ".dev-memory-skill-install"
 SKILL_FILES = [
     "SKILL.md", "LICENSE", MARKER,
-    "agents/openai.yaml", "assets/config.example.json",
+    "assets/config.example.json",
     "references/protocol.md", "references/codex-hooks.md", "references/verification.md",
     "references/setup.md", "references/vectors.md", "references/delegated-assessment.md",
     "scripts/dev_memory.py", "scripts/dev_memory_store.py", "scripts/dev_memory_setup.py", "scripts/dev_memory_dashboard.py", "scripts/dev_memory_vectors.py", "scripts/dev_memory_vector_setup.py", "scripts/codex_hook.py", "scripts/dev-memory",
@@ -31,7 +31,7 @@ SKILL_FILES = [
 RELEASE_FILES = [*("skills/dev-memory/" + name for name in SKILL_FILES), "bin/python-runtime.cjs",
     "README.md", "LICENSE", ".gitignore", "install.py", "package.json", "bin/install.cjs", "CONTRIBUTING.md", "SECURITY.md",
     "docs/installation.md", "docs/ecosystem.md", "docs/architecture.md",
-    "docs/readme/README.zh-CN.md", "docs/readme/README.ja.md", "docs/readme/README.ko.md",
+    "docs/readme/README.en.md",
     "tests/test_efficiency.py", "reports/optimization-0.8.0.md", "evals/check_efficiency.py", "reports/efficiency-program-0.8.0.json", "reports/efficiency-host-0.8.0.json",
     "reports/noedit-capture-0.8.8.md", "evals/check_noedit_capture.py", "tests/test_noedit_capture_eval.py",
     "evals/check_cross_session.py", "tests/test_cross_session_eval.py",
@@ -177,6 +177,12 @@ def doctor(project_root: Path | None, global_root: Path | None) -> dict[str, Any
         "skill_version": '.'.join(map(str, runtime_version)) if runtime_version else None,
         "skill_path": str(PACKAGE_ROOT),
         "real_host_e2e_verified": False,
+        "explanations": {
+            "automatic_mode": "not_configured 表示未启用可选的 hooks 自动采集，普通 Skill 流程不受影响，并非故障。",
+            "hook_trust": "unknown 表示尚未在 Codex /hooks 中确认信任；未确认期间继续使用 Skill 流程。",
+            "real_host_e2e_verified": "false 表示尚未进行真实宿主端到端验收，不等于安装或存储故障。",
+            "read_only": "true 表示 doctor 只读取环境与库状态，不会写入或修改记忆。",
+        },
     }
 
 def runtime_check() -> dict[str, Any]:
@@ -438,6 +444,26 @@ def _check_managed_install(path: Path, *, allow_unknown_files: bool = False) -> 
         raise store.MemoryError("unmanaged_files", "Installation contains extra files; move or review them before upgrade/removal.")
     return unknown
 
+
+def _quarantine_unknown(path: Path, unknown: list[str]) -> int:
+    """Move unmanaged files aside before upgrade; user files are never overwritten or deleted."""
+    root = path.parent / (path.name + ".unmanaged")
+    moved = 0
+    for rel in sorted(unknown):
+        source = (path / rel).resolve()
+        if not source.is_relative_to(path.resolve()) or not source.exists():
+            continue
+        target = root / rel
+        suffix = 1
+        while target.exists():
+            target = root / f"{rel}.{suffix}"
+            suffix += 1
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source.rename(target)
+        moved += 1
+    return moved
+
+
 @contextmanager
 def _installation_lock(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -474,17 +500,18 @@ def _install_locked(install_path: Path, with_hooks: bool, upgrade: bool) -> dict
     action = "installed"
     if install_path.exists():
         # Check ownership and path safety first, but compare versions before
-        # rejecting files introduced by a newer managed release.
+        # moving files that a newer managed release may legitimately add.
         unknown = _check_managed_install(install_path, allow_unknown_files=True)
         installed_version = _release_version(install_path)
         if version and installed_version and installed_version > version:
             raise store.MemoryError("source_older", "Installer source is older than the installed Skill; use the same or a newer source to avoid downgrading.")
-        if unknown:
-            raise store.MemoryError("unmanaged_files", "Installation contains extra files; move or review them before upgrade/removal.")
+        quarantined = _quarantine_unknown(install_path, unknown)
         same = all((install_path / name).is_file() and (PACKAGE_ROOT / name).is_file()
                    and (install_path / name).read_bytes() == (PACKAGE_ROOT / name).read_bytes()
                    for name in SKILL_FILES)
         action = "reused" if same and not upgrade else "updated"
+    else:
+        quarantined = 0
     cleanup = "not_needed"
     if action != "reused":
         temp_target = Path(tempfile.mkdtemp(prefix=".dev-memory-install-", dir=install_path.parent))
@@ -519,6 +546,7 @@ def _install_locked(install_path: Path, with_hooks: bool, upgrade: bool) -> dict
         hook_status = {"status": "not_requested"}
     return {"status": "installed", "path": str(install_path), "data_preserved": True, "hooks": hook_status,
             "program_action": action, "program_version": ".".join(map(str, version)) if version else None,
+            "unmanaged_quarantined": quarantined,
             "old_program_cleanup": cleanup,
             "program_permissions": "unchanged" if action == "reused" else ("inherited_windows_acl" if sys.platform == "win32" else "private_posix_modes"),
             "sandbox_access_verified": False}
@@ -586,26 +614,23 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser("init")
     p.add_argument("--global", dest="init_global", action="store_true")
     p.add_argument("--project-root", type=Path)
-    for name in ("recall", "context"):
-        p = sub.add_parser(name)
-        p.add_argument("--query", default="")
-        p.add_argument('--intent', choices=tuple(store.INTENTS), help='Task intent expands recall across topic wording/languages; never filters categories')
-        p.add_argument('--exclude-task', action='store_true', help=argparse.SUPPRESS)  # Compatibility with older host guidance.
-        p.add_argument("--project-root", type=Path)
-        p.add_argument("--global-only", action="store_true", help="Use only the user global store, even inside a project")
-        p.add_argument("--session-id")
-        if name == 'context':
-            p.add_argument("--turn-id", help="Suppress repeated maintenance packs and honor a turn opt-out")
-            p.add_argument('--with-maintenance', action='store_true', help='Load one due maintenance pack at a quiet boundary; default returns metadata only')
-        p.add_argument("--module")
-        p.add_argument("--max-candidates", type=int, default=20)
-        p.add_argument("--max-details", type=int, default=5)
-        p.add_argument("--max-chars", type=int, default=4000)
-        p.add_argument("--force", action="store_true")
-        p.add_argument("--readonly", action="store_true")
-        p.add_argument('--explain', action='store_true', help='Include selection reasons and omitted-result diagnostics')
-        p.add_argument('--disclosure', choices=('full','auto','index'), default='full',
-                       help='Full bodies (default), lossless short bodies/long previews, or index only; previews require current body lookup')
+    p = sub.add_parser("context")
+    p.add_argument("--query", default="")
+    p.add_argument('--intent', choices=tuple(store.INTENTS), help='Task intent expands recall across topic wording/languages; never filters categories')
+    p.add_argument("--project-root", type=Path)
+    p.add_argument("--global-only", action="store_true", help="Use only the user global store, even inside a project")
+    p.add_argument("--session-id")
+    p.add_argument("--turn-id", help="Suppress repeated maintenance packs and honor a turn opt-out")
+    p.add_argument('--with-maintenance', action='store_true', help='Load one due maintenance pack at a quiet boundary; default returns metadata only')
+    p.add_argument("--module")
+    p.add_argument("--max-candidates", type=int, default=20)
+    p.add_argument("--max-details", type=int, default=5)
+    p.add_argument("--max-chars", type=int, default=4000)
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--readonly", action="store_true")
+    p.add_argument('--explain', action='store_true', help='Include selection reasons and omitted-result diagnostics')
+    p.add_argument('--disclosure', choices=('full','auto','index'), default='full',
+                   help='Full bodies (default), lossless short bodies/long previews, or index only; previews require current body lookup')
     p = sub.add_parser("show")
     p.add_argument("--scope", required=True)
     p.add_argument("--project-root", type=Path)
@@ -634,7 +659,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('action', choices=('setup', 'status', 'sync', 'finish'))
     p.add_argument('--scope', choices=('global', 'project', 'both'), default='both')
     p.add_argument('--project-root', type=Path)
-    p.add_argument('--wait-seconds', type=float, default=3)
+    p.add_argument('--wait-seconds', type=float, default=2)
     p = sub.add_parser("apply", help="Apply a JSON envelope; session/turn/task IDs belong in JSON, not CLI flags")
     p.add_argument("--project-root", type=Path)
     p.add_argument("--module")
@@ -651,7 +676,6 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="Review pending records below the threshold at a task boundary")
     p.add_argument("--session-id")
     p.add_argument("--turn-id")
-    p.add_argument('--exclude-task', action='store_true', help=argparse.SUPPRESS)
     p = sub.add_parser("skip")
     p.add_argument("--scope", choices=("global", "project", "both"), default="project")
     p.add_argument("--project-root", type=Path)
@@ -736,7 +760,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.scope == 'project' and root is None:
                 raise store.MemoryError('project_root_required', 'Use --project-root for project vectors.')
             import time
-            deadline = time.monotonic() + max(0, min(3, args.wait_seconds))
+            deadline = time.monotonic() + max(0, min(2, args.wait_seconds))
             buckets = []
             for kind in kinds:
                 kwargs = {'project_root': root if kind == 'project' else None, 'global_root': global_root}
@@ -767,15 +791,14 @@ def main(argv: list[str] | None = None) -> int:
             if not results:
                 _die("validation_error", "Use --global and/or --project-root PATH.")
             _json_out({"status": "initialized", "stores": results})
-        elif command in {"recall", "context"}:
+        elif command == "context":
             root = None if args.global_only else store.locate_project_root(Path.cwd(), str(args.project_root) if args.project_root else None)
-            recall_func = context if command == "context" else store.recall
-            _json_out(recall_func(
+            _json_out(context(
                 args.query, project_root=root, global_root=global_root,
                 session_id=args.session_id, module=args.module if args.module is not None else _module_label(root), max_candidates=args.max_candidates,
                 max_details=args.max_details, max_chars=args.max_chars, force=args.force, readonly=args.readonly, intent=args.intent,
                 explain=args.explain, disclosure=args.disclosure,
-                **({'turn_id':args.turn_id, 'with_maintenance':args.with_maintenance} if command == 'context' else {}),
+                turn_id=args.turn_id, with_maintenance=args.with_maintenance,
             ))
         elif command == "show":
             scope, root = _scope_arg(args)
